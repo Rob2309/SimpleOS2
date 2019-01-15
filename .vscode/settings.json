@@ -1,0 +1,10 @@
+{
+    "C_Cpp.default.cppStandard": "c++17",
+    "C_Cpp.default.includePath": [
+        "D:/WSL/Ubuntu-18.04/rootfs/usr/include"
+    ],
+    "files.associations": {
+        "efilib.h": "c",
+        "efilibplat.h": "c"
+    }
+}
