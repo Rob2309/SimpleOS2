@@ -8,7 +8,7 @@ run: partition.img FORCE
 
 
 
-partition.img: ${partition_files}
+partition.img: ${root_partition_img_deps}
 	dd if=/dev/zero of=$@ bs=512 count=102400
 	mkfs.fat $@
 	mcopy -i $@ $^ ::
