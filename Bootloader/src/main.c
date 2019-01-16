@@ -22,12 +22,19 @@ EFI_STATUS EFIAPI efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
     if(err == EFI_BUFFER_TOO_SMALL)
     {
         memMap = malloc(memMapSize);
+
         if(memMap == NULL) {
             Println(L"Failed to allocate buffer for memory map");
             while(1);
         }
 
         err = g_EFISystemTable->BootServices->GetMemoryMap(&memMapSize, memMap, &memMapKey, &memMapDescSize, &memMapDescVersion);
+        if(err == EFI_INVALID_PARAMETER) {
+            Println(L"Invalid arg");
+        }
+        if(err == EFI_BUFFER_TOO_SMALL) {
+            Println(L"Small buffer");
+        }
         CHECK_ERROR_HALT(L"Failed to get memory map");
     }
 
