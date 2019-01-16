@@ -21,6 +21,7 @@ EFI_STATUS EFIAPI efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
     err = g_EFISystemTable->BootServices->GetMemoryMap(&memMapSize, memMap, &memMapKey, &memMapDescSize, &memMapDescVersion);
     if(err == EFI_BUFFER_TOO_SMALL)
     {
+        memMapSize += memMapDescSize;
         memMap = malloc(memMapSize);
 
         if(memMap == NULL) {
