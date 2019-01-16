@@ -13,7 +13,7 @@ local_partition_files := $(addprefix $(localdir)/, bin/$(bootloader_filename) re
 
 root_partition_img_deps += ${local_partition_files}
 
-clean_files += $(addprefix $(localdir)/, obj/*.o bin/*.EFI)
+clean_files += $(addprefix $(localdir)/, obj bin)
 
 
 
