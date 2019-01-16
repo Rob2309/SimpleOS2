@@ -1,5 +1,8 @@
 localdir := Bootloader
 
+include_paths := dep/gnu-efi/inc dep/gnu-efi/inc/x86_64
+
+C_HEADERS := $(wildcard $(localdir)/*.h)
 C_SOURCES := $(wildcard $(localdir)/*.c)
 C_OBJECTS := ${C_SOURCES:.c=.o}
 
@@ -12,5 +15,5 @@ clean_files += $(addprefix $(localdir)/, *.o *.EFI)
 $(localdir)/BOOTX64.EFI: ${C_OBJECTS}
 	x86_64-w64-mingw32-gcc -nostdlib -Wl,-dll -shared -Wl,--subsystem,10 -e efi_main -o $@ $< -lgcc
 
-$(localdir)/%.o: $(localdir)/%.c
-	x86_64-w64-mingw32-gcc -ffreestanding -I/usr/include/efi -I/usr/include/efi/x86_64 -c $< -o $@
+$(localdir)/%.o: $(localdir)/%.c ${C_HEADERS}
+	x86_64-w64-mingw32-gcc -ffreestanding $(addprefix -I, ${include_paths}) -c $< -o $@

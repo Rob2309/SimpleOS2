@@ -4,8 +4,8 @@
             "name": "Dev",
             "intelliSenseMode": "gcc-x64",
             "includePath": [
-                "D:/WSL/Ubuntu-18.04/rootfs/usr/include/efi",
-                "D:/WSL/Ubuntu-18.04/rootfs/usr/include/efi/x86_64"
+                "dep/gnu-efi/inc",
+                "dep/gnu-efi/inc/x86_64"
             ]
         }
     ],
