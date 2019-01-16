@@ -28,6 +28,9 @@ EFI_STATUS EFIAPI efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
 
     EFI_STATUS err;
 
+    err = sysTable->ConOut->ClearScreen(sysTable->ConOut);
+    CHECK_ERROR(L"Failed to clear screen");
+
     EFI_LOADED_IMAGE_PROTOCOL* protoLoadedImage;
     err = sysTable->BootServices->HandleProtocol(imgHandle, &g_ProtocolLoadedModule, &protoLoadedImage);
     CHECK_ERROR(L"Failed to get LoadedImage Protocol");
