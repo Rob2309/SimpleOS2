@@ -9,10 +9,14 @@ void WidenString(CHAR16* dest, char* src)
         i++;
 }
 
-void Println(CHAR16* msg)
+void Print(CHAR16* msg) 
 {
     g_EFISystemTable->ConOut->OutputString(g_EFISystemTable->ConOut, msg);
-    g_EFISystemTable->ConOut->OutputString(g_EFISystemTable->ConOut, L"\r\n");
+}
+void Println(CHAR16* msg)
+{
+    Print(msg);
+    Print(L"\r\n");
 }
 
 void WaitForKey() 
@@ -24,4 +28,22 @@ void WaitForKey()
     EFI_INPUT_KEY key;
     EFI_STATUS status;
     while((status = g_EFISystemTable->ConIn->ReadKeyStroke(g_EFISystemTable->ConIn, &key)) == EFI_NOT_READY);
+}
+
+CHAR16* ToString(UINT64 num)
+{
+    static CHAR16 buffer[128] = { 0 };
+
+    int digit = 126;
+    buffer[digit] = '0';
+
+    while(num > 0) {
+        int rest = num % 10;
+        buffer[digit] = '0' + rest;
+        digit--;
+        
+        num /= 10;
+    }
+
+    return &buffer[digit + 1];
 }
