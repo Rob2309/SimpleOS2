@@ -1,28 +1,14 @@
 #include "file.h"
 
-#include <efi.h>
-
 #include "util.h"
-
-extern EFI_SYSTEM_TABLE* g_SystemTable;
-extern EFI_HANDLE g_ImageHandle;
+#include "efiutil.h"
 
 FILE* fopen(char16* path)
 {
     EFI_STATUS err; 
-    
-    EFI_LOADED_IMAGE_PROTOCOL* loadedImage;
-    EFI_GUID loadedImageGUID = EFI_LOADED_IMAGE_PROTOCOL_GUID;
-    err = g_SystemTable->BootServices->HandleProtocol(g_ImageHandle, &loadedImageGUID, &loadedImage);
-    CHECK_ERROR(L"Failed to retrieve LoadedImage Protocol");
-
-    EFI_SIMPLE_FILE_SYSTEM_PROTOCOL* fileSystem;
-    EFI_GUID fsGUID = EFI_SIMPLE_FILE_SYSTEM_PROTOCOL_GUID;
-    err = g_SystemTable->BootServices->HandleProtocol(loadedImage->DeviceHandle, &fsGUID, &fileSystem);
-    CHECK_ERROR(L"Failed to retrieve FileSystem Protocol");
 
     EFI_FILE_HANDLE rootFile;
-    err = fileSystem->OpenVolume(fileSystem, &rootFile);
+    err = g_EFIFileSystem->OpenVolume(g_EFIFileSystem, &rootFile);
     CHECK_ERROR(L"Failed to open volume root");
 
     EFI_FILE_HANDLE file;

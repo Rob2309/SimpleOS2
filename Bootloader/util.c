@@ -1,7 +1,6 @@
 #include "util.h"
 
-extern EFI_SYSTEM_TABLE* g_SystemTable;
-extern EFI_HANDLE g_ImageHandle;
+#include "efiutil.h"
 
 void WidenString(CHAR16* dest, char* src)
 {
@@ -12,17 +11,17 @@ void WidenString(CHAR16* dest, char* src)
 
 void Println(CHAR16* msg)
 {
-    g_SystemTable->ConOut->OutputString(g_SystemTable->ConOut, msg);
-    g_SystemTable->ConOut->OutputString(g_SystemTable->ConOut, L"\r\n");
+    g_EFISystemTable->ConOut->OutputString(g_EFISystemTable->ConOut, msg);
+    g_EFISystemTable->ConOut->OutputString(g_EFISystemTable->ConOut, L"\r\n");
 }
 
 void WaitForKey() 
 {
     Println(L"Press any key to continue...");
 
-    g_SystemTable->ConIn->Reset(g_SystemTable->ConIn, FALSE);
+    g_EFISystemTable->ConIn->Reset(g_EFISystemTable->ConIn, FALSE);
 
     EFI_INPUT_KEY key;
     EFI_STATUS status;
-    while((status = g_SystemTable->ConIn->ReadKeyStroke(g_SystemTable->ConIn, &key)) == EFI_NOT_READY);
+    while((status = g_EFISystemTable->ConIn->ReadKeyStroke(g_EFISystemTable->ConIn, &key)) == EFI_NOT_READY);
 }

@@ -11,3 +11,5 @@ typedef unsigned int uint32;
 typedef unsigned long long uint64;
 
 typedef int16 char16;
+
+typedef int bool;

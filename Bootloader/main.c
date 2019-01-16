@@ -3,14 +3,11 @@
 
 #include "util.h"
 #include "file.h"
-
-EFI_SYSTEM_TABLE* g_SystemTable;
-EFI_HANDLE g_ImageHandle;
+#include "efiutil.h"
 
 EFI_STATUS EFIAPI efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
 {
-    g_SystemTable = sysTable;
-    g_ImageHandle = imgHandle;
+    EFIUtilInit(imgHandle, sysTable);
 
     EFI_STATUS err;
 
