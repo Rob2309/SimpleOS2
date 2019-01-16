@@ -1,6 +1,7 @@
 #pragma once
 
 #include <efi.h>
+#include "types.h"
 
 void WidenString(CHAR16* dest, char* src);
 
@@ -9,6 +10,9 @@ void Println(CHAR16* msg);
 void WaitForKey();
 
 CHAR16* ToString(UINT64 num);
+
+char* malloc(uint64 size);
+void free(char* block);
 
 #define CHECK_ERROR(msg) \
     if(err != EFI_SUCCESS) { \

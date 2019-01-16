@@ -21,16 +21,15 @@ EFI_STATUS EFIAPI efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
     err = g_EFISystemTable->BootServices->GetMemoryMap(&memMapSize, memMap, &memMapKey, &memMapDescSize, &memMapDescVersion);
     if(err == EFI_BUFFER_TOO_SMALL)
     {
-        int numPages = (memMapSize + 4095) / 4096 * 4096;
-        memMapSize = numPages * 4096;
-        UINT64 addr = 1;
-        err = g_EFISystemTable->BootServices->AllocatePages(AllocateAnyPages, EfiLoaderData, numPages, &addr);
-        CHECK_ERROR_HALT(L"Failed to allocate buffer for memory map");
+        memMap = malloc(memMapSize);
+        if(memMap == NULL) {
+            Println(L"Failed to allocate buffer for memory map");
+            while(1);
+        }
 
-        memMap = addr;
+        err = g_EFISystemTable->BootServices->GetMemoryMap(&memMapSize, memMap, &memMapKey, &memMapDescSize, &memMapDescVersion);
+        CHECK_ERROR_HALT(L"Failed to get memory map");
     }
-    err = g_EFISystemTable->BootServices->GetMemoryMap(&memMapSize, memMap, &memMapKey, &memMapDescSize, &memMapDescVersion);
-    CHECK_ERROR_HALT(L"Failed to get memory map");
 
     int numEntries = memMapSize / memMapDescSize;
     Print(L"MemMapSize: "); Print(ToString(memMapSize));
