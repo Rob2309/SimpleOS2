@@ -10,7 +10,9 @@ run: partition.img FORCE
 partition.img: ${root_partition_img_deps}
 	dd if=/dev/zero of=$@ bs=512 count=102400
 	mkfs.fat $@
-	mcopy -i $@ $^ ::
+	mmd -i $@ ::/EFI
+	mmd -i $@ ::/EFI/BOOT
+	mcopy -i $@ $^ ::/EFI/BOOT
 
 clean: FORCE
 	rm -rf ${clean_files}
