@@ -1,6 +1,14 @@
 #include "util.h"
 
 extern EFI_SYSTEM_TABLE* g_SystemTable;
+extern EFI_HANDLE g_ImageHandle;
+
+void WidenString(CHAR16* dest, char* src)
+{
+    int i = 0;
+    while((dest[i] = src[i]) != '\0')
+        i++;
+}
 
 void Println(CHAR16* msg)
 {

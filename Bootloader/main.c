@@ -2,55 +2,34 @@
 #include <efilib.h>
 
 #include "util.h"
-
-EFI_GUID g_ProtocolLoadedModule = EFI_LOADED_IMAGE_PROTOCOL_GUID;
-EFI_GUID g_ProtocolSimpleFileSystem = EFI_SIMPLE_FILE_SYSTEM_PROTOCOL_GUID;
-
-#define CHECK_ERROR(msg) \
-    if(err != EFI_SUCCESS) { \
-        Println(msg); \
-        while(1) ; \
-        return err; \
-    }
-
-void WidenString(CHAR16* dest, char* src)
-{
-    int i = 0;
-    while((dest[i] = src[i]) != '\0')
-        i++;
-}
+#include "file.h"
 
 EFI_SYSTEM_TABLE* g_SystemTable;
+EFI_HANDLE g_ImageHandle;
 
 EFI_STATUS EFIAPI efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
 {
     g_SystemTable = sysTable;
+    g_ImageHandle = imgHandle;
 
     EFI_STATUS err;
 
     err = sysTable->ConOut->ClearScreen(sysTable->ConOut);
     CHECK_ERROR(L"Failed to clear screen");
 
-    EFI_LOADED_IMAGE_PROTOCOL* protoLoadedImage;
-    err = sysTable->BootServices->HandleProtocol(imgHandle, &g_ProtocolLoadedModule, &protoLoadedImage);
-    CHECK_ERROR(L"Failed to get LoadedImage Protocol");
-
-    EFI_SIMPLE_FILE_SYSTEM_PROTOCOL* protoFileSystem;
-    err = sysTable->BootServices->HandleProtocol(protoLoadedImage->DeviceHandle, &g_ProtocolSimpleFileSystem, &protoFileSystem);
-    CHECK_ERROR(L"Failed to get FileSystem Protocol");
-
-    EFI_FILE_HANDLE rootFile;
-    err = protoFileSystem->OpenVolume(protoFileSystem, &rootFile);
-    CHECK_ERROR(L"Failed to open boot volume");
-
-    EFI_FILE_HANDLE txtFile;
-    err = rootFile->Open(rootFile, &txtFile, L"EFI\\BOOT\\msg.txt", EFI_FILE_MODE_READ, 0);
-    CHECK_ERROR(L"Failed to open file");
+    FILE* txtFile = fopen(L"EFI\\BOOT\\msg.txt");
+    if(txtFile == 0)
+    {
+        Println(L"Failed to open msg file");
+        return EFI_ABORTED;
+    }
 
     UINTN bufSize = 256;
     char buffer[bufSize + 1];
-    err = txtFile->Read(txtFile, &bufSize, buffer);
+    fread(buffer, bufSize, txtFile);
     CHECK_ERROR(L"Failed to read file");
+
+    fclose(txtFile);
 
     CHAR16 convBuffer[bufSize + 1];
     WidenString(convBuffer, buffer);
