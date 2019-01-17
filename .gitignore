@@ -2,3 +2,6 @@
 *.EFI
 *.o
 *.img
+
+VM
+*.vdi
