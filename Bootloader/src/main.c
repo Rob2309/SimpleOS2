@@ -3,6 +3,8 @@
 #include "util.h"
 #include "file.h"
 #include "efiutil.h"
+#include "memory.h"
+#include "conio.h"
 
 EFI_STATUS EFIAPI efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
 {
@@ -11,7 +13,7 @@ EFI_STATUS EFIAPI efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
     EFIUtilInit(imgHandle, sysTable);
 
     err = sysTable->ConOut->ClearScreen(sysTable->ConOut);
-    CHECK_ERROR(L"Failed to clear screen");
+    CHECK_ERROR("Failed to clear screen\n");
 
     UINTN memMapSize = 0;
     EFI_MEMORY_DESCRIPTOR* memMap;
@@ -25,44 +27,39 @@ EFI_STATUS EFIAPI efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
         memMap = malloc(memMapSize);
 
         if(memMap == NULL) {
-            Println(L"Failed to allocate buffer for memory map");
+            printf("Failed to allocate buffer for memory map\n");
             while(1);
         }
 
         err = g_EFISystemTable->BootServices->GetMemoryMap(&memMapSize, memMap, &memMapKey, &memMapDescSize, &memMapDescVersion);
         if(err == EFI_INVALID_PARAMETER) {
-            Println(L"Invalid arg");
+            printf("Invalid arg\n");
         }
         if(err == EFI_BUFFER_TOO_SMALL) {
-            Println(L"Small buffer");
+            printf("Small buffer\n");
         }
-        CHECK_ERROR_HALT(L"Failed to get memory map");
+        CHECK_ERROR_HALT("Failed to get memory map\n");
     }
+
+    uint64 memSize = 0;
 
     int numEntries = memMapSize / memMapDescSize;
-    Print(L"MemMapSize: "); Print(ToString(memMapSize));
-    Print(L"\r\nDescriptorSize: "); Print(ToString(memMapDescSize));
-    Print(L"\r\nNumEntries: "); Print(ToString(numEntries));
-    Print(L"\r\n");
+    for(int i = 0; i < numEntries; i++) {
+        switch(memMap->Type)
+        {
+        case EfiLoaderCode:
+        case EfiLoaderData:
+        case EfiBootServicesCode:
+        case EfiBootServicesData:
+        case EfiConventionalMemory:
+            memSize += memMap->NumberOfPages * 4096;
+            break;
+        }
 
-    FILE* txtFile = fopen(L"EFI\\BOOT\\msg.txt");
-    if(txtFile == 0)
-    {
-        Println(L"Failed to open msg file");
-        return EFI_ABORTED;
+        memMap = (char*)memMap + memMapDescSize;
     }
 
-    UINTN bufSize = 256;
-    char buffer[bufSize + 1];
-    fread(buffer, bufSize, txtFile);
-    CHECK_ERROR(L"Failed to read file");
-
-    fclose(txtFile);
-
-    CHAR16 convBuffer[bufSize + 1];
-    WidenString(convBuffer, buffer);
-
-    Println(convBuffer);
+    printf("Available memory: %i MB\n", memSize / 1024 / 1024);
 
     WaitForKey();
 
