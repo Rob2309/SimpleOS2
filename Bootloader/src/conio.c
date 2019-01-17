@@ -3,7 +3,10 @@
 #include "efiutil.h"
 
 static char16* IntToStringBase(int base, char16* buffer, char16* symbols, int64 num) {
-    *buffer = '0';
+    if(num == 0) {
+        *buffer = '0';
+        return buffer;
+    }
 
     bool neg = num < 0;
     if(neg)
