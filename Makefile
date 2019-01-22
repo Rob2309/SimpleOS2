@@ -3,7 +3,7 @@ include Bootloader/module.mk
 clean_files += *.img *.vdi
 
 run: partition.img FORCE
-	qemu-system-x86_64 -m 8192 -cpu qemu64 -net none -drive if=pflash,unit=0,format=raw,file=dep/ovmf/x64/OVMF_CODE.fd,readonly=on -drive if=pflash,unit=1,format=raw,file=dep/ovmf/x64/OVMF_VARS.fd,readonly=on -drive file=$<,if=ide
+	qemu-system-x86_64 -m 1024 -cpu qemu64 -net none -drive if=pflash,unit=0,format=raw,file=dep/ovmf/x64/OVMF_CODE.fd,readonly=on -drive if=pflash,unit=1,format=raw,file=dep/ovmf/x64/OVMF_VARS.fd,readonly=on -drive file=$<,if=ide
 runvbox: partition.vdi FORCE
 	VBoxManage startvm SimpleOS2
 
