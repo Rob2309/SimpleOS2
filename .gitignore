@@ -3,6 +3,7 @@
 *.o
 *.img
 
+*.ELF
 *.BIN
 
 VM
