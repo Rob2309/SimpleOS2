@@ -1,3 +1,6 @@
+export PE_GCC := x86_64-w64-mingw32-gcc
+export ELF_GCC := gcc
+
 root_partition_img_deps := 
 clean_files := *.img *.vdi
 include_paths := 
