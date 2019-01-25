@@ -130,6 +130,7 @@ typedef struct {
 #define DT_REL 17
 #define DT_RELSZ 18
 #define DT_RELENT 19
+#define DT_JMPREL 23
 
 typedef struct {
     Elf64Word symbolNameOffset;

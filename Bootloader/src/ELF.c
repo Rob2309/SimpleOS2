@@ -61,7 +61,7 @@ bool PrepareELF(const char* baseImg, char* loadBuffer, Elf64Addr* entryPoint)
             Elf64Addr symtabAddr;
             Elf64Addr relAddr;
             Elf64XWord relSize;
-            Elf64XWord relEntrySize;
+            Elf64XWord relEntrySize = 24;
             Elf64XWord relCount;
 
             ElfDynamicEntry* dyn = (ElfDynamicEntry*)(loadBuffer + seg->virtualAddress);
@@ -71,9 +71,9 @@ bool PrepareELF(const char* baseImg, char* loadBuffer, Elf64Addr* entryPoint)
                     strtabAddr = dyn->value;
                 else if(dyn->tag == DT_SYMTAB)
                     symtabAddr = dyn->value;
-                else if(dyn->tag == DT_RELA)
+                else if(dyn->tag == DT_JMPREL)
                     relAddr = dyn->value;
-                else if(dyn->tag == DT_RELASZ)
+                else if(dyn->tag == DT_PLTRELSZ)
                     relSize = dyn->value;
                 else if(dyn->tag == DT_RELAENT)
                     relEntrySize = dyn->value;
@@ -110,8 +110,6 @@ bool PrepareELF(const char* baseImg, char* loadBuffer, Elf64Addr* entryPoint)
                 Elf64XWord finalAddend = 0;
                 int size = 0;
 
-                printf("Symbol: %s\n", &strList[symList[symIndex].symbolNameOffset]);
-
                 switch(relType) {
                 case R_NONE: 
                 case R_COPY: continue;
@@ -122,10 +120,6 @@ bool PrepareELF(const char* baseImg, char* loadBuffer, Elf64Addr* entryPoint)
                 case R_RELATIVE: size = 8; finalAddend = addend + (Elf64XWord)loadBuffer; break;
                 case R_32S:
                 case R_32: size = 4; finalAddend = symAddr + addend; break;
-                case R_16: size = 2; finalAddend = symAddr + addend; break;
-                case R_PC16: size = 2; finalAddend = symAddr + addend - target; break;
-                case R_8: size = 1; finalAddend = symAddr + addend; break;
-                case R_PC8: size = 1; finalAddend = symAddr + addend - target; break;
                 case R_PC64: size = 8; finalAddend = symAddr + addend - target; break;
                 case R_SIZE32: size = 4; finalAddend = symList[symIndex].size + addend; break;
                 case R_SIZE64: size = 8; finalAddend = symList[symIndex].size + addend; break;
