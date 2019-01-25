@@ -88,11 +88,10 @@ EFI_STATUS EFIAPI efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
         while(1);
     }
 
-    WaitForKey();
-
     g_EFISystemTable->BootServices->FreePool(imgBuffer);
-    
     printf("ELF image loaded...\n");
+
+    WaitForKey();
 
     typedef int (*MAINFUNC)(int argc, char** argv);
     MAINFUNC m = (MAINFUNC)entryPoint;
