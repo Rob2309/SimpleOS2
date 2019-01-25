@@ -37,7 +37,7 @@ bool IsSupportedELF(const char* image)
 	return 1;
 }
 
-bool PrepareELF(const char* baseImg, char* loadBuffer)
+bool PrepareELF(const char* baseImg, char* loadBuffer, Elf64Addr* entryPoint)
 {
     ELFHeader* header = (ELFHeader*)baseImg;
 
@@ -71,11 +71,11 @@ bool PrepareELF(const char* baseImg, char* loadBuffer)
                     strtabAddr = dyn->value;
                 else if(dyn->tag == DT_SYMTAB)
                     symtabAddr = dyn->value;
-                else if(dyn->tag == DT_REL)
+                else if(dyn->tag == DT_RELA)
                     relAddr = dyn->value;
-                else if(dyn->tag == DT_RELSZ)
+                else if(dyn->tag == DT_RELASZ)
                     relSize = dyn->value;
-                else if(dyn->tag == DT_RELENT)
+                else if(dyn->tag == DT_RELAENT)
                     relEntrySize = dyn->value;
 
                 dyn++;
@@ -83,16 +83,17 @@ bool PrepareELF(const char* baseImg, char* loadBuffer)
 
             relCount = relSize / relEntrySize;
 
-            ElfRel* relList = (ElfRel*)(loadBuffer + relAddr);
+            ElfRelA* relList = (ElfRelA*)(loadBuffer + relAddr);
             ElfSymbol* symList = (ElfSymbol*)(loadBuffer + symtabAddr);
             const char* strList = (const char*)(loadBuffer + strtabAddr);
 
             for(unsigned int i = 0; i < relCount; i++) {
-                ElfRel* rel = &relList[i];
+                ElfRelA* rel = &relList[i];
 
                 unsigned int symIndex = rel->info >> 32;
                 unsigned int relType = rel->info & 0xFFFFFFFF;
                 Elf64Addr target = (Elf64Addr)loadBuffer + symList[symIndex].value;
+                Elf64XWord addend = rel->addend;
 
                 /*
                     B: Image load address
@@ -105,7 +106,44 @@ bool PrepareELF(const char* baseImg, char* loadBuffer)
                     A: Addend
                 */
                
+                Elf64Addr symAddr = symList[symIndex].value;
+                Elf64XWord finalAddend = 0;
+                int size = 0;
+
+                printf("Symbol: %s\n", &strList[symList[symIndex].symbolNameOffset]);
+
+                switch(relType) {
+                case R_NONE: 
+                case R_COPY: continue;
+                case R_64:      size = 8; finalAddend = symAddr + addend; break;
+                case R_PC32:    size = 4; finalAddend = symAddr + addend - target; break;
+                case R_GLOB_DAT:
+                case R_JUMP_SLOT: size = 8; finalAddend = symAddr; break;
+                case R_RELATIVE: size = 8; finalAddend = addend + (Elf64XWord)loadBuffer; break;
+                case R_32S:
+                case R_32: size = 4; finalAddend = symAddr + addend; break;
+                case R_16: size = 2; finalAddend = symAddr + addend; break;
+                case R_PC16: size = 2; finalAddend = symAddr + addend - target; break;
+                case R_8: size = 1; finalAddend = symAddr + addend; break;
+                case R_PC8: size = 1; finalAddend = symAddr + addend - target; break;
+                case R_PC64: size = 8; finalAddend = symAddr + addend - target; break;
+                case R_SIZE32: size = 4; finalAddend = symList[symIndex].size + addend; break;
+                case R_SIZE64: size = 8; finalAddend = symList[symIndex].size + addend; break;
+                default: return 0;
+                }
+
+                switch(size) {
+                case 1: *(unsigned char*)target += finalAddend; break;
+                case 2: *(unsigned short*)target += finalAddend; break;
+                case 4: *(unsigned int*)target += finalAddend; break;
+                case 8: *(unsigned long long*)target += finalAddend; break;
+                default: break;
+                }
             }
         }
     }
+
+    *entryPoint = (Elf64Addr)loadBuffer + header->entryPoint;
+
+    return 1;
 }

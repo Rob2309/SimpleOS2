@@ -5,6 +5,7 @@
 #include "efiutil.h"
 #include "memory.h"
 #include "conio.h"
+#include "ELF.h"
 
 EFI_STATUS EFIAPI efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
 {
@@ -60,6 +61,44 @@ EFI_STATUS EFIAPI efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
     }
 
     printf("Available memory: %i MB\n", memSize / 1024 / 1024);
+
+    FILE* file = fopen(L"EFI\\BOOT\\KERNEL.ELF");
+    if(file == NULL) {
+        printf("Failed to open file\n");
+        while(1);
+    }
+
+    char* imgBuffer;
+    g_EFISystemTable->BootServices->AllocatePool(EfiConventionalMemory, 100000, &imgBuffer);
+    unsigned int readIndex = 0;
+    while(1) {
+        int num = fread(imgBuffer, 100000, file);
+        if(num < 100000)
+            break;
+    }
+
+    unsigned int size = GetELFSize(imgBuffer);
+    char* prepBuffer;
+    g_EFISystemTable->BootServices->AllocatePool(EfiConventionalMemory, size, &prepBuffer);
+
+    Elf64Addr entryPoint;
+
+    if(!PrepareELF(imgBuffer, prepBuffer, &entryPoint)) {
+        printf("Failed to setup ELF image\n");
+        while(1);
+    }
+
+    WaitForKey();
+
+    g_EFISystemTable->BootServices->FreePool(imgBuffer);
+    
+    printf("ELF image loaded...\n");
+
+    typedef int (*MAINFUNC)(int argc, char** argv);
+    MAINFUNC m = (MAINFUNC)entryPoint;
+
+    int ret = m(0, NULL);
+    printf("Image exited with: %i\n", ret);
 
     WaitForKey();
 

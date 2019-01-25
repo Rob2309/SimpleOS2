@@ -1,5 +1,7 @@
 #pragma once
 
+#include "types.h"
+
 typedef unsigned long long Elf64Addr;
 typedef unsigned long long Elf64Offs;
 typedef unsigned short Elf64Half;
@@ -9,6 +11,10 @@ typedef unsigned long long Elf64XWord;
 typedef unsigned long long Elf64SXWord;
 typedef unsigned char Elf64Byte;
 typedef unsigned short Elf64Section;
+
+unsigned int GetELFSize(const char* image);
+bool IsSupportedELF(const char* image);
+bool PrepareELF(const char* baseImg, char* loadBuffer, Elf64Addr* entryPoint);
 
 typedef struct {
     Elf64Byte magic[4];
@@ -155,3 +161,36 @@ typedef struct {
     Elf64SXWord addend;
 } ElfRelA;
 
+#define R_NONE 0
+#define R_64 1
+#define R_PC32 2
+#define R_GOT32 3
+#define R_PLT32 4
+#define R_COPY 5
+#define R_GLOB_DAT 6
+#define R_JUMP_SLOT 7
+#define R_RELATIVE 8
+#define R_GOTPCREL 9
+#define R_32 10
+#define R_32S 11
+#define R_16 12
+#define R_PC16 13
+#define R_8 14
+#define R_PC8 15
+#define R_DTPMOD64 16
+#define R_DTPOFF64 17
+#define R_TPOFF64 18
+#define R_TLSGD 19
+#define R_TLSLD 20
+#define R_DTPOFF32 21
+#define R_GOTTPOFF 22
+#define R_TPOFF32 23
+#define R_PC64 24
+#define R_GOTOFF64 25
+#define R_GOTPC32 26
+#define R_SIZE32 32
+#define R_SIZE64 33
+#define R_GOTPC32_TLSDESC 34
+#define R_TLSDESC_CALL 35
+#define R_TLSDESC 36
+#define R_IRELATIVE 37
