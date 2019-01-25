@@ -96,7 +96,8 @@ EFI_STATUS EFIAPI efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
     typedef int (*MAINFUNC)(int argc, char** argv);
     MAINFUNC m = (MAINFUNC)entryPoint;
 
-    int ret = m(0, NULL);
+    char* printfptr = (char*)&printf;
+    int ret = m(1, &printfptr);
     printf("Image exited with: %i\n", ret);
 
     WaitForKey();

@@ -1,11 +1,14 @@
 
-int g_ReturnValue = 40;
+extern "C" int __attribute__((ms_abi)) main(int argc, char** argv) {
+    
+    if(argc > 0) {
+        typedef void (__attribute__((ms_abi)) *PRINTF)(const char* format, ...);
 
-int Test() {
-    g_ReturnValue += 2;
-    return g_ReturnValue;
-}
+        PRINTF printf = (PRINTF)argv[0];
 
-extern "C" int main(int argc, char** argv) {
-    return Test();
+        printf("Hello World %i\n", 42);
+    }
+
+    return 42;
+
 }
