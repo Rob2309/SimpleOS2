@@ -68,14 +68,12 @@ EFI_STATUS EFIAPI efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
         while(1);
     }
 
+    uint64 fileSize = fgetsize(file);
+
     char* imgBuffer;
-    g_EFISystemTable->BootServices->AllocatePool(EfiLoaderData, 100000, &imgBuffer);
+    g_EFISystemTable->BootServices->AllocatePool(EfiLoaderData, fileSize, &imgBuffer);
     unsigned int readIndex = 0;
-    while(1) {
-        int num = fread(imgBuffer, 100000, file);
-        if(num < 100000)
-            break;
-    }
+    int num = fread(imgBuffer, fileSize, file);
 
     unsigned int size = GetELFSize(imgBuffer);
     char* prepBuffer;

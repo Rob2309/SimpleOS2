@@ -35,3 +35,19 @@ int fread(uint8* buffer, uint64 bufferSize, FILE* file)
 
     return bufferSize;
 }
+
+uint64 fgetsize(FILE* file)
+{
+    EFI_STATUS err;
+    EFI_FILE_HANDLE handle = file;
+
+    static EFI_GUID s_FileInfoGUID = EFI_FILE_INFO_ID;
+    static char s_Buffer[256];
+    static uint64 s_BufferSize = sizeof(s_Buffer);
+
+    err = handle->GetInfo(handle, &s_FileInfoGUID, &s_BufferSize, s_Buffer);
+    if(err != EFI_SUCCESS)
+        return -1;
+
+    return ((EFI_FILE_INFO*)s_Buffer)->FileSize;
+}
