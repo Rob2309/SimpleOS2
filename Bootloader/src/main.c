@@ -69,7 +69,7 @@ EFI_STATUS EFIAPI efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
     }
 
     char* imgBuffer;
-    g_EFISystemTable->BootServices->AllocatePool(EfiConventionalMemory, 100000, &imgBuffer);
+    g_EFISystemTable->BootServices->AllocatePool(EfiLoaderData, 100000, &imgBuffer);
     unsigned int readIndex = 0;
     while(1) {
         int num = fread(imgBuffer, 100000, file);
@@ -79,7 +79,7 @@ EFI_STATUS EFIAPI efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
 
     unsigned int size = GetELFSize(imgBuffer);
     char* prepBuffer;
-    g_EFISystemTable->BootServices->AllocatePool(EfiConventionalMemory, size, &prepBuffer);
+    g_EFISystemTable->BootServices->AllocatePool(EfiLoaderCode, size, &prepBuffer);
 
     Elf64Addr entryPoint;
 
