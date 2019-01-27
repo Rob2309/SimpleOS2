@@ -15,7 +15,9 @@ static int g_FontCharsPerRow = 16;
 static int g_CharsPerRow;
 static int g_CharsPerCol;
 
-static char* g_TextBuffer;
+static EFI_GRAPHICS_OUTPUT_BLT_PIXEL* g_BackBuffer;
+static int g_ScreenWidth;
+static int g_ScreenHeight;
 
 void ConsoleInit()
 {
@@ -37,25 +39,20 @@ void ConsoleInit()
     g_CharsPerRow = info->HorizontalResolution / g_CharWidth;
     g_CharsPerCol = info->VerticalResolution / g_CharHeight;
 
-    g_TextBuffer = malloc(g_CharsPerRow * g_CharsPerCol);
+    g_BackBuffer = malloc(info->HorizontalResolution * info->VerticalResolution * 4);
+    g_ScreenWidth = info->HorizontalResolution;
+    g_ScreenHeight = info->VerticalResolution;
 }
 void ConsoleCleanup()
 {
     free(g_FontBuffer);
+    free(g_BackBuffer);
 }
 
 static void RenderChar(char c, int x, int y) {
     int srcX = (c % g_FontCharsPerRow) * g_CharWidth;
     int srcY = (c / g_FontCharsPerRow) * g_CharHeight;
     g_EFIGraphics->Blt(g_EFIGraphics, g_FontBuffer, EfiBltBufferToVideo, srcX, srcY, x * g_CharWidth, y * g_CharHeight, g_CharWidth, g_CharHeight, g_FontCharsPerRow * g_CharWidth * 4);
-}
-static void RenderTextBuffer()
-{
-    for(int r = 0; r < g_CharsPerCol; r++) {
-        for(int c = 0; c < g_CharsPerRow; c++) {
-            RenderChar(g_TextBuffer[c + r * g_CharsPerRow], c, r);
-        }
-    }
 }
 
 static void AdvanceCursor() 
@@ -68,15 +65,12 @@ static void AdvanceCursor()
         if(g_CursorY == g_CharsPerCol) {
             g_CursorY = g_CharsPerCol - 1;
 
-            for(int row = 0; row < g_CharsPerCol - 1; row++)
-            {
-                for(int col = 0; col < g_CharsPerRow; col++)
-                    g_TextBuffer[col + row * g_CharsPerRow] = g_TextBuffer[col + (row + 1) * g_CharsPerRow];
-            }
-            for(int col = 0; col < g_CharsPerRow; col++)
-                g_TextBuffer[col + (g_CharsPerCol - 1) * g_CharsPerRow] = '\0';
+            g_EFIGraphics->Blt(g_EFIGraphics, g_BackBuffer, EfiBltVideoToBltBuffer, 0, 0, 0, 0, g_ScreenWidth, g_ScreenHeight, g_ScreenWidth * 4);
+            g_EFIGraphics->Blt(g_EFIGraphics, g_BackBuffer, EfiBltBufferToVideo, 0, g_CharHeight, 0, 0, g_ScreenWidth, g_ScreenHeight - g_CharHeight, g_ScreenWidth * 4);
 
-            RenderTextBuffer();
+            for(int col = 0; col < g_CharsPerRow; col++) {
+                RenderChar('\0', col, g_CursorY);
+            }
         }
     }
 }
@@ -88,9 +82,7 @@ void SetCursor(int x, int y)
 }
 void PutChar(char c)
 {
-    g_TextBuffer[g_CursorX + g_CursorY * g_CharsPerRow] = c;
     RenderChar(c, g_CursorX, g_CursorY);
-
     AdvanceCursor();
 }
 void NewLine() {
