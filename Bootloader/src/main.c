@@ -7,6 +7,8 @@
 #include "ELF.h"
 #include "efiutil.h"
 
+#include <KernelHeader.h>
+
 EFI_STATUS EFIAPI efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
 {
     EFI_STATUS err;
@@ -43,20 +45,24 @@ EFI_STATUS EFIAPI efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
 
 
     UINTN memMapSize = 4096;
-    char* memMap = malloc(memMapSize);
+    EFI_MEMORY_DESCRIPTOR* memMap = malloc(memMapSize);
     UINTN memMapKey;
     UINTN descSize;
     UINT32 descVersion;
     g_EFISystemTable->BootServices->GetMemoryMap(&memMapSize, memMap, &memMapKey, &descSize, &descVersion);
     g_EFISystemTable->BootServices->ExitBootServices(g_EFILoadedImage, memMapKey);
 
+    KernelHeader kernelHeader;
+    kernelHeader.printf = &printf;
+    kernelHeader.memMapLength = 0;
+    kernelHeader.memMap = NULL;
 
-    typedef int (*MAINFUNC)(int argc, char** argv);
+    typedef int (*MAINFUNC)(KernelHeader* header);
     MAINFUNC kernelMain = (MAINFUNC)entryPoint;
 
     printf("Running Kernel process...\n");
     char* args = &printf;
-    int ret = kernelMain(1, &args);
+    int ret = kernelMain(&kernelHeader);
     printf("Process returned %i\n", ret);
 
     while(true) ;

@@ -1,6 +1,6 @@
 
 
-efi_include_flags := $(addprefix -I, dep/gnu-efi/inc dep/gnu-efi/inc/x86_64)
+efi_include_flags := $(addprefix -I, dep/gnu-efi/inc dep/gnu-efi/inc/x86_64 common)
 
 c_headers := $(wildcard $(localdir)/src/*.h)
 

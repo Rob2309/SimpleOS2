@@ -1,6 +1,6 @@
 
 
-elf_include_flags := $(addprefix -I, )
+elf_include_flags := $(addprefix -I, common)
 
 c_headers := $(wildcard $(localdir)/src/*.h)
 
