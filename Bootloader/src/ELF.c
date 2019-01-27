@@ -121,8 +121,6 @@ bool PrepareELF(const char* baseImg, char* loadBuffer, Elf64Addr* entryPoint)
                     A: Addend
                 */
 
-                printf("Symbol: %s\n", &strList[symList[symIndex].symbolNameOffset]);
-
                 Elf64Addr symAddr = (Elf64Addr)loadBuffer + symList[symIndex].value;
                 Elf64XWord finalAddend = 0;
                 int size = 0;
@@ -170,8 +168,6 @@ bool PrepareELF(const char* baseImg, char* loadBuffer, Elf64Addr* entryPoint)
                     Z: Symbol size
                     A: Addend
                 */
-
-                printf("Symbol: %s\n", &strList[symList[symIndex].symbolNameOffset]);
 
                 Elf64Addr symAddr = (Elf64Addr)loadBuffer + symList[symIndex].value;
                 Elf64XWord finalAddend = 0;

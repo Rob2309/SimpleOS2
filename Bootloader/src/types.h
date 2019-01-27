@@ -13,3 +13,5 @@ typedef unsigned long long uint64;
 typedef int16 char16;
 
 typedef int bool;
+#define true 1
+#define false 0
