@@ -37,7 +37,7 @@ bool IsSupportedELF(const char* image)
 	return 1;
 }
 
-bool PrepareELF(const char* baseImg, char* loadBuffer, Elf64Addr* entryPoint)
+bool PrepareELF(const char* baseImg, char* loadBuffer, Elf64Addr pagingBase, Elf64Addr* entryPoint)
 {
     ELFHeader* header = (ELFHeader*)baseImg;
 
@@ -107,7 +107,8 @@ bool PrepareELF(const char* baseImg, char* loadBuffer, Elf64Addr* entryPoint)
 
                 unsigned int symIndex = rel->info >> 32;
                 unsigned int relType = rel->info & 0xFFFFFFFF;
-                Elf64Addr target = (Elf64Addr)loadBuffer + rel->address;
+                Elf64Addr target = pagingBase + rel->address;
+                Elf64Addr relTarget = (Elf64Addr)loadBuffer + rel->address;
                 Elf64XWord addend = rel->addend;
 
                 /*
@@ -121,7 +122,7 @@ bool PrepareELF(const char* baseImg, char* loadBuffer, Elf64Addr* entryPoint)
                     A: Addend
                 */
 
-                Elf64Addr symAddr = (Elf64Addr)loadBuffer + symList[symIndex].value;
+                Elf64Addr symAddr = pagingBase + symList[symIndex].value;
                 Elf64XWord finalAddend = 0;
                 int size = 0;
 
@@ -142,10 +143,10 @@ bool PrepareELF(const char* baseImg, char* loadBuffer, Elf64Addr* entryPoint)
                 }
 
                 switch(size) {
-                case 1: *(unsigned char*)target = finalAddend; break;
-                case 2: *(unsigned short*)target = finalAddend; break;
-                case 4: *(unsigned int*)target = finalAddend; break;
-                case 8: *(unsigned long long*)target = finalAddend; break;
+                case 1: *(unsigned char*)relTarget = finalAddend; break;
+                case 2: *(unsigned short*)relTarget = finalAddend; break;
+                case 4: *(unsigned int*)relTarget = finalAddend; break;
+                case 8: *(unsigned long long*)relTarget = finalAddend; break;
                 default: break;
                 }
             }
@@ -155,7 +156,8 @@ bool PrepareELF(const char* baseImg, char* loadBuffer, Elf64Addr* entryPoint)
 
                 unsigned int symIndex = rel->info >> 32;
                 unsigned int relType = rel->info & 0xFFFFFFFF;
-                Elf64Addr target = (Elf64Addr)loadBuffer + rel->address;
+                Elf64Addr target = pagingBase + rel->address;
+                Elf64Addr relTarget = (Elf64Addr)loadBuffer + rel->address;
                 Elf64XWord addend = rel->addend;
 
                 /*
@@ -169,7 +171,7 @@ bool PrepareELF(const char* baseImg, char* loadBuffer, Elf64Addr* entryPoint)
                     A: Addend
                 */
 
-                Elf64Addr symAddr = (Elf64Addr)loadBuffer + symList[symIndex].value;
+                Elf64Addr symAddr = pagingBase + symList[symIndex].value;
                 Elf64XWord finalAddend = 0;
                 int size = 0;
 
@@ -190,10 +192,10 @@ bool PrepareELF(const char* baseImg, char* loadBuffer, Elf64Addr* entryPoint)
                 }
 
                 switch(size) {
-                case 1: *(unsigned char*)target = finalAddend; break;
-                case 2: *(unsigned short*)target = finalAddend; break;
-                case 4: *(unsigned int*)target = finalAddend; break;
-                case 8: *(unsigned long long*)target = finalAddend; break;
+                case 1: *(unsigned char*)relTarget = finalAddend; break;
+                case 2: *(unsigned short*)relTarget = finalAddend; break;
+                case 4: *(unsigned int*)relTarget = finalAddend; break;
+                case 8: *(unsigned long long*)relTarget = finalAddend; break;
                 default: break;
                 }
             }

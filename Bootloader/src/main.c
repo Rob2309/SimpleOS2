@@ -33,7 +33,7 @@ EFI_STATUS EFIAPI efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
     char* elfProcessBuffer = malloc(elfProcessSize);
 
     Elf64Addr entryPoint;
-    bool success = PrepareELF(elfFileData, elfProcessBuffer, &entryPoint);
+    bool success = PrepareELF(elfFileData, elfProcessBuffer, elfProcessBuffer, &entryPoint);
     if(success == false) {
         printf("Failed to prepare Kernel process\n");
         WaitForKey();

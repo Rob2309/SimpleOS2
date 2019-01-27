@@ -14,7 +14,7 @@ typedef unsigned short Elf64Section;
 
 unsigned int GetELFSize(const char* image);
 bool IsSupportedELF(const char* image);
-bool PrepareELF(const char* baseImg, char* loadBuffer, Elf64Addr* entryPoint);
+bool PrepareELF(const char* baseImg, char* loadBuffer, Elf64Addr pagingBase, Elf64Addr* entryPoint);
 
 typedef struct {
     Elf64Byte magic[4];
