@@ -1,5 +1,6 @@
 {
     "files.associations": {
-        "efiutil.h": "c"
+        "efiutil.h": "c",
+        "console.h": "c"
     }
 }

@@ -9,6 +9,9 @@ EFI_LOADED_IMAGE_PROTOCOL* g_EFILoadedImage;
 EFI_SIMPLE_FILE_SYSTEM_PROTOCOL* g_EFIFileSystem;
 EFI_GRAPHICS_OUTPUT_PROTOCOL* g_EFIGraphics;
 
+int g_ScreenWidth;
+int g_ScreenHeight;
+
 bool EFIUtilInit(void* imageHandle, void* systemTable)
 {
     g_EFIImageHandle = imageHandle;
