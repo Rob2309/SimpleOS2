@@ -64,9 +64,8 @@ static void AdvanceCursor()
 
             g_EFIGraphics->Blt(g_EFIGraphics, NULL, EfiBltVideoToVideo, 0, g_CharHeight, 0, 0, g_ScreenWidth, g_ScreenHeight - g_CharHeight, 0);
 
-            for(int col = 0; col < g_CharsPerRow; col++) {
-                RenderChar('\0', col, g_CursorY);
-            }
+            EFI_GRAPHICS_OUTPUT_BLT_PIXEL blackPixel = { 0 };
+            g_EFIGraphics->Blt(g_EFIGraphics, &blackPixel, EfiBltVideoFill, 0, 0, 0, g_CursorY * g_CharHeight, g_CharWidth * g_CharsPerRow, g_CharHeight, 0);
         }
     }
 }
