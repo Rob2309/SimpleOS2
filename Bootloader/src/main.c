@@ -5,6 +5,7 @@
 #include "conio.h"
 #include "memory.h"
 #include "ELF.h"
+#include "efiutil.h"
 
 EFI_STATUS EFIAPI efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
 {
@@ -40,6 +41,16 @@ EFI_STATUS EFIAPI efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
         return 1;
     }
 
+
+    UINTN memMapSize = 4096;
+    char* memMap = malloc(memMapSize);
+    UINTN memMapKey;
+    UINTN descSize;
+    UINT32 descVersion;
+    g_EFISystemTable->BootServices->GetMemoryMap(&memMapSize, memMap, &memMapKey, &descSize, &descVersion);
+    g_EFISystemTable->BootServices->ExitBootServices(g_EFILoadedImage, memMapKey);
+
+
     typedef int (*MAINFUNC)(int argc, char** argv);
     MAINFUNC kernelMain = (MAINFUNC)entryPoint;
 
@@ -48,9 +59,8 @@ EFI_STATUS EFIAPI efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
     int ret = kernelMain(1, &args);
     printf("Process returned %i\n", ret);
 
-    printf("Press any key to continue...\n");
-    WaitForKey();
+    while(true) ;
 
-    ConsoleCleanup();
+    //ConsoleCleanup();
     return EFI_SUCCESS;
 }

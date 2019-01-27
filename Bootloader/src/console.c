@@ -5,6 +5,7 @@
 #include "memory.h"
 
 static EFI_GRAPHICS_OUTPUT_BLT_PIXEL* g_FontBuffer;
+static EFI_GRAPHICS_OUTPUT_BLT_PIXEL* g_VideoBuffer;
 static int g_CursorX, g_CursorY;
 
 static int g_CharWidth = 9;
@@ -40,16 +41,38 @@ void ConsoleInit()
 
     g_ScreenWidth = info->HorizontalResolution;
     g_ScreenHeight = info->VerticalResolution;
+
+    g_VideoBuffer = g_EFIGraphics->Mode->FrameBufferBase;
 }
 void ConsoleCleanup()
 {
     free(g_FontBuffer);
 }
 
-static void RenderChar(char c, int x, int y) {
+static void Blt(EFI_GRAPHICS_OUTPUT_BLT_PIXEL* dest, EFI_GRAPHICS_OUTPUT_BLT_PIXEL* src, int srcX, int srcY, int dstX, int dstY, int width, int height, int srcWidth, int dstWidth)
+{
+    for(int y = 0; y < height; y++) {
+        for(int x = 0; x < width; x++) {
+            dest[(dstX + x) + (dstY + y) * dstWidth] = src[(srcX + x) + (srcY + y) * srcWidth];
+        }
+    }
+}
+
+static void Fill(EFI_GRAPHICS_OUTPUT_BLT_PIXEL* dest, EFI_GRAPHICS_OUTPUT_BLT_PIXEL* pxl, int x, int y, int w, int h, int dstWidth)
+{
+    for(int yy = y; yy < y + w; yy++) {
+        for(int xx = x; xx < x + w; xx++) {
+            dest[xx + yy * dstWidth] = *pxl;
+        }
+    }
+}
+
+static void RenderChar(char c, int xPos, int yPos) {
     int srcX = (c % g_FontCharsPerRow) * g_CharWidth;
     int srcY = (c / g_FontCharsPerRow) * g_CharHeight;
-    g_EFIGraphics->Blt(g_EFIGraphics, g_FontBuffer, EfiBltBufferToVideo, srcX, srcY, x * g_CharWidth, y * g_CharHeight, g_CharWidth, g_CharHeight, g_FontCharsPerRow * g_CharWidth * 4);
+    //g_EFIGraphics->Blt(g_EFIGraphics, g_FontBuffer, EfiBltBufferToVideo, srcX, srcY, xPos * g_CharWidth, yPos * g_CharHeight, g_CharWidth, g_CharHeight, g_FontCharsPerRow * g_CharWidth * 4);
+
+    Blt(g_VideoBuffer, g_FontBuffer, srcX, srcY, xPos * g_CharWidth, yPos * g_CharHeight, g_CharWidth, g_CharHeight, g_FontCharsPerRow * g_CharWidth, g_ScreenWidth);
 }
 
 static void AdvanceCursor() 
@@ -62,10 +85,12 @@ static void AdvanceCursor()
         if(g_CursorY == g_CharsPerCol) {
             g_CursorY = g_CharsPerCol - 1;
 
-            g_EFIGraphics->Blt(g_EFIGraphics, NULL, EfiBltVideoToVideo, 0, g_CharHeight, 0, 0, g_ScreenWidth, g_ScreenHeight - g_CharHeight, 0);
+            //g_EFIGraphics->Blt(g_EFIGraphics, NULL, EfiBltVideoToVideo, 0, g_CharHeight, 0, 0, g_ScreenWidth, g_ScreenHeight - g_CharHeight, 0);
+            Blt(g_VideoBuffer, g_VideoBuffer, 0, g_CharHeight, 0, 0, g_ScreenWidth, g_ScreenHeight - g_CharHeight, g_ScreenWidth, g_ScreenWidth);
 
             EFI_GRAPHICS_OUTPUT_BLT_PIXEL blackPixel = { 0 };
-            g_EFIGraphics->Blt(g_EFIGraphics, &blackPixel, EfiBltVideoFill, 0, 0, 0, g_CursorY * g_CharHeight, g_CharWidth * g_CharsPerRow, g_CharHeight, 0);
+            //g_EFIGraphics->Blt(g_EFIGraphics, &blackPixel, EfiBltVideoFill, 0, 0, 0, g_CursorY * g_CharHeight, g_CharWidth * g_CharsPerRow, g_CharHeight, 0);
+            Fill(g_VideoBuffer, &blackPixel, 0, g_CursorY * g_CharHeight, g_CharWidth * g_CharsPerRow, g_CharHeight, g_ScreenWidth);
         }
     }
 }
