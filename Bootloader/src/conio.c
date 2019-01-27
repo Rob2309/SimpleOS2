@@ -106,13 +106,14 @@ void Print(char* msg)
         if(msg[i] == '\n')
             NewLine();
         else
-            PutChar(msg[i]);    
+            PutChar(msg[i]);
+        i++;    
     }
 }
 void Println(char* msg)
 {
     Print(msg);
-    Print("\n");
+    NewLine();
 }
 
 void WaitForKey() 

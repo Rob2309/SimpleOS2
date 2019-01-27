@@ -10,10 +10,15 @@ EFI_STATUS EFIAPI efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
 
     EFIUtilInit(imgHandle, sysTable);
     ConsoleInit();
-    
+
     printf("Hello World\nThis is a test\n");
 
-    WaitForKey();
+    int l = 0;
+    while(1) {
+        WaitForKey();
+        printf("Line %i\n", l);
+        l++;
+    }
 
     ConsoleCleanup();
     return EFI_SUCCESS;
