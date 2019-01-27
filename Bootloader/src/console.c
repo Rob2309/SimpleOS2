@@ -15,7 +15,6 @@ static int g_FontCharsPerRow = 16;
 static int g_CharsPerRow;
 static int g_CharsPerCol;
 
-static EFI_GRAPHICS_OUTPUT_BLT_PIXEL* g_BackBuffer;
 static int g_ScreenWidth;
 static int g_ScreenHeight;
 
@@ -39,14 +38,12 @@ void ConsoleInit()
     g_CharsPerRow = info->HorizontalResolution / g_CharWidth;
     g_CharsPerCol = info->VerticalResolution / g_CharHeight;
 
-    g_BackBuffer = malloc(info->HorizontalResolution * info->VerticalResolution * 4);
     g_ScreenWidth = info->HorizontalResolution;
     g_ScreenHeight = info->VerticalResolution;
 }
 void ConsoleCleanup()
 {
     free(g_FontBuffer);
-    free(g_BackBuffer);
 }
 
 static void RenderChar(char c, int x, int y) {
@@ -65,8 +62,7 @@ static void AdvanceCursor()
         if(g_CursorY == g_CharsPerCol) {
             g_CursorY = g_CharsPerCol - 1;
 
-            g_EFIGraphics->Blt(g_EFIGraphics, g_BackBuffer, EfiBltVideoToBltBuffer, 0, 0, 0, 0, g_ScreenWidth, g_ScreenHeight, g_ScreenWidth * 4);
-            g_EFIGraphics->Blt(g_EFIGraphics, g_BackBuffer, EfiBltBufferToVideo, 0, g_CharHeight, 0, 0, g_ScreenWidth, g_ScreenHeight - g_CharHeight, g_ScreenWidth * 4);
+            g_EFIGraphics->Blt(g_EFIGraphics, NULL, EfiBltVideoToVideo, 0, g_CharHeight, 0, 0, g_ScreenWidth, g_ScreenHeight - g_CharHeight, 0);
 
             for(int col = 0; col < g_CharsPerRow; col++) {
                 RenderChar('\0', col, g_CursorY);
