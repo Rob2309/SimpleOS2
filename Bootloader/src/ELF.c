@@ -74,39 +74,28 @@ bool PrepareELF(const char* baseImg, char* loadBuffer, Elf64Addr pagingBase, Elf
             while(dyn->tag != DT_NULL)
             {
                 if(dyn->tag == DT_STRTAB) {
-                    printf("DT_STRTAB %x %x\n", dyn->tag, dyn->value);
                     strtabAddr = dyn->value;
                 }
                 else if(dyn->tag == DT_SYMTAB) {
                     symtabAddr = dyn->value;
-                    printf("DT_SYMTAB %x %x\n", dyn->tag, dyn->value);
                 }
                 else if(dyn->tag == DT_JMPREL) {
                     pltrelAddr = dyn->value;
-                    printf("DT_JMPREL %x %x\n", dyn->tag, dyn->value);
                 }
                 else if(dyn->tag == DT_PLTRELSZ) {
                     pltrelSize = dyn->value;
-                    printf("DT_PLTRELSZ %x %x\n", dyn->tag, dyn->value);
                 }
                 else if(dyn->tag == DT_RELAENT) {
                     pltrelEntrySize = dyn->value;
-                    printf("DT_RELAENT %x %x\n", dyn->tag, dyn->value);
                 }
                 else if(dyn->tag == DT_RELA) {
                     relaAddr = dyn->value;
-                    printf("DT_RELA %x %x\n", dyn->tag, dyn->value);
                 }
-                else if(dyn->tag = DT_RELASZ) {
+                else if(dyn->tag == DT_RELASZ) {
                     relaSize = dyn->value;
-                    printf("DT_RELASZ %x %x\n", dyn->tag, dyn->value);
                 }
-                else if(dyn->tag = DT_RELAENT) {
+                else if(dyn->tag == DT_RELAENT) {
                     relaEntrySize = dyn->value;
-                    printf("DT_RELAENT %x %x\n", dyn->tag, dyn->value);
-                }
-                else {
-                    printf("Unknown %x %x\n", dyn->tag, dyn->value);
                 }
 
                 dyn++;
@@ -120,8 +109,6 @@ bool PrepareELF(const char* baseImg, char* loadBuffer, Elf64Addr pagingBase, Elf
 
             ElfSymbol* symList = (ElfSymbol*)(loadBuffer + symtabAddr);
             const char* strList = (const char*)(loadBuffer + strtabAddr);
-            
-            printf("Relacount: %i\n", relaCount);
 
             for(unsigned int i = 0; i < relaCount; i++) {
                 ElfRelA* rel = &relaList[i];

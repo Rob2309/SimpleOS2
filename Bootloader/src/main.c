@@ -26,7 +26,6 @@ EFI_STATUS EFIAPI efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
     }
 
     uint64 elfFileSize = fgetsize(elfFile);
-    printf("Elf file size: %i\n", elfFileSize);
     char* elfFileData = malloc(elfFileSize);
     fread(elfFileData, elfFileSize, elfFile);
     fclose(elfFile);
@@ -35,12 +34,9 @@ EFI_STATUS EFIAPI efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
     for(uint64 i = 0; i < elfFileSize; i++)
         check += elfFileData[i];
 
-    printf("Checksum: %x\n", check);
-
     printf("Setting up ELF image...\n");
 
     uint64 elfProcessSize = GetELFSize(elfFileData);
-    printf("Elf Process size: %x\n", elfProcessSize);
     char* elfProcessBuffer = malloc(elfProcessSize);
 
     Elf64Addr entryPoint;

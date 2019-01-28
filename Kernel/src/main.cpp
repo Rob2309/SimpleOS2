@@ -1,7 +1,7 @@
 
 #include <KernelHeader.h>
 
-/*const char* g_TypeDescs[] = {
+const char* g_TypeDescs[] = {
     "EfiReservedMemoryType",
     "EfiLoaderCode",
     "EfiLoaderData",
@@ -17,7 +17,7 @@
     "EfiMemoryMappedIOPortSpace",
     "EfiPalCode",
     "EfiMaxMemoryType"
-};*/
+};
 
 int g_Ret = 17;
 
@@ -32,7 +32,7 @@ extern "C" int __attribute__((ms_abi)) main(KernelHeader* info) {
 
     MemoryDescriptor* entry = info->memMap;
     for(int i = 0; i < info->memMapLength; i++) {
-        //info->printf("0x%x  0x%x    0x%x    %i\n", entry->physicalStart, entry->virtualStart, entry->numPages * 4096, entry->type);
+        info->printf("0x%x  0x%x    0x%x    %s\n", entry->physicalStart, entry->virtualStart, entry->numPages * 4096, g_TypeDescs[entry->type]);
 
         entry = (MemoryDescriptor*)((char*)entry + info->memMapDescriptorSize);
     }
