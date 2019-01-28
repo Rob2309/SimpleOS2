@@ -5,7 +5,10 @@
 char* malloc(uint64 size)
 {
     char* ret;
-    g_EFISystemTable->BootServices->AllocatePool(EfiLoaderData, size, &ret);
+    EFI_STATUS err = g_EFISystemTable->BootServices->AllocatePool(EfiLoaderData, size, &ret);
+    if(err != EFI_SUCCESS) {
+        printf("malloc failed\n");
+    }
     return ret;
 }
 

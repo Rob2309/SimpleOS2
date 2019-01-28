@@ -26,13 +26,21 @@ EFI_STATUS EFIAPI efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
     }
 
     uint64 elfFileSize = fgetsize(elfFile);
+    printf("Elf file size: %i\n", elfFileSize);
     char* elfFileData = malloc(elfFileSize);
     fread(elfFileData, elfFileSize, elfFile);
     fclose(elfFile);
 
+    uint64 check = 0;
+    for(uint64 i = 0; i < elfFileSize; i++)
+        check += elfFileData[i];
+
+    printf("Checksum: %x\n", check);
+
     printf("Setting up ELF image...\n");
 
     uint64 elfProcessSize = GetELFSize(elfFileData);
+    printf("Elf Process size: %x\n", elfProcessSize);
     char* elfProcessBuffer = malloc(elfProcessSize);
 
     Elf64Addr entryPoint;
@@ -43,6 +51,7 @@ EFI_STATUS EFIAPI efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
         return 1;
     }
 
+    free(elfFileData);
 
     UINTN memMapSize = 4096;
     EFI_MEMORY_DESCRIPTOR* memMap = malloc(memMapSize);
@@ -52,10 +61,12 @@ EFI_STATUS EFIAPI efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
     g_EFISystemTable->BootServices->GetMemoryMap(&memMapSize, memMap, &memMapKey, &descSize, &descVersion);
     g_EFISystemTable->BootServices->ExitBootServices(g_EFILoadedImage, memMapKey);
 
+
     KernelHeader kernelHeader;
     kernelHeader.printf = &printf;
-    kernelHeader.memMapLength = 0;
-    kernelHeader.memMap = NULL;
+    kernelHeader.memMapLength = memMapSize / descSize;
+    kernelHeader.memMapDescriptorSize = descSize;
+    kernelHeader.memMap = memMap;
 
     typedef int (*MAINFUNC)(KernelHeader* header);
     MAINFUNC kernelMain = (MAINFUNC)entryPoint;

@@ -44,19 +44,31 @@ static char16* UIntToStringBase(int base, char* buffer, char* symbols, uint64 nu
     return buffer + 1;
 }
 
-static char* Int32ToString(int32 num)
+static char* Int64ToString(int64 num)
 {
-    static char buffer[12] = { 0 };
+    static char buffer[40] = { 0 };
     static char symbols[] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' };
 
-    return IntToStringBase(10, &buffer[10], symbols, num);
+    return IntToStringBase(10, &buffer[38], symbols, num);
 }
 
-static char* UInt32ToHexString(uint32 num) {
-    static char buffer[10] = { 0 };
+static char* UInt64ToHexString(uint64 num) {
+    static char buffer[20] = { 0 };
     static char symbols[] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
 
-    return UIntToStringBase(16, &buffer[8], symbols, num);
+    return UIntToStringBase(16, &buffer[18], symbols, num);
+}
+
+static char* UInt64ToHexStringPadded(uint64 num) {
+    static char buffer[17] = { 0 };
+    static char symbols[] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
+
+    char* ptr = UIntToStringBase(16, &buffer[15], symbols, num);
+
+    for(char* i = &buffer[0]; i != ptr; i++)
+        *i = '0';
+    
+    return &buffer[0];
 }
 
 void printf(const char* format, ...)
@@ -72,19 +84,20 @@ void printf(const char* format, ...)
             i++;
 
             if(f == 'i') {
-                char* num = Int32ToString(*(int64*)arg);
+                char* num = Int64ToString(*(int64*)arg);
                 Print(num);
-
                 arg += 8;
             } else if(f == 'X') {
-                char* num = UInt32ToHexString(*(uint64*)arg);
+                char* num = UInt64ToHexString(*(uint64*)arg);
                 Print(num);
-
+                arg += 8;
+            } else if(f == 'x') {
+                char* num = UInt64ToHexStringPadded(*(uint64*)arg);
+                Print(num);
                 arg += 8;
             } else if(f == 's') {
                 char* str = *(char**)arg;
                 arg += 8;
-
                 Print(str);
             }
         } else if(c == '\n') {

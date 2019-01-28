@@ -2,11 +2,11 @@
 
 #include "util.h"
 
-unsigned int GetELFSize(const char* image)
+uint64 GetELFSize(const char* image)
 {
 	ELFHeader* header = (ELFHeader*)image;
 
-	unsigned int maxOffset = 0;
+	uint64 maxOffset = 0;
 
 	ElfSegmentHeader* phList = (ElfSegmentHeader*)(image + header->phOffset);
 	for(int s = 0; s < header->phEntryCount; s++)
@@ -14,7 +14,7 @@ unsigned int GetELFSize(const char* image)
 		ElfSegmentHeader* ph = &phList[s];
 		if(ph->type == PT_LOAD)
 		{
-			unsigned int offs = ph->virtualAddress + ph->virtualSize;
+			uint64 offs = ph->virtualAddress + ph->virtualSize;
 			if(offs > maxOffset)
 				maxOffset = offs;
 		}
@@ -50,11 +50,11 @@ bool PrepareELF(const char* baseImg, char* loadBuffer, Elf64Addr pagingBase, Elf
             char* src = baseImg + seg->dataOffset;
             char* dest = loadBuffer + seg->virtualAddress;
 
-            for(int i = 0; i < seg->dataSize; i++)
+            for(uint64 i = 0; i < seg->dataSize; i++)
                 dest[i] = src[i];
-            for(int i = seg->dataSize; i < seg->virtualSize; i++)
+            for(uint64 i = seg->dataSize; i < seg->virtualSize; i++)
                 dest[i] = 0;
-        } 
+        }
         else if(seg->type == PT_DYNAMIC)
         {
             Elf64Addr strtabAddr;
@@ -73,22 +73,41 @@ bool PrepareELF(const char* baseImg, char* loadBuffer, Elf64Addr pagingBase, Elf
             ElfDynamicEntry* dyn = (ElfDynamicEntry*)(loadBuffer + seg->virtualAddress);
             while(dyn->tag != DT_NULL)
             {
-                if(dyn->tag == DT_STRTAB)
+                if(dyn->tag == DT_STRTAB) {
+                    printf("DT_STRTAB %x %x\n", dyn->tag, dyn->value);
                     strtabAddr = dyn->value;
-                else if(dyn->tag == DT_SYMTAB)
+                }
+                else if(dyn->tag == DT_SYMTAB) {
                     symtabAddr = dyn->value;
-                else if(dyn->tag == DT_JMPREL)
+                    printf("DT_SYMTAB %x %x\n", dyn->tag, dyn->value);
+                }
+                else if(dyn->tag == DT_JMPREL) {
                     pltrelAddr = dyn->value;
-                else if(dyn->tag == DT_PLTRELSZ)
+                    printf("DT_JMPREL %x %x\n", dyn->tag, dyn->value);
+                }
+                else if(dyn->tag == DT_PLTRELSZ) {
                     pltrelSize = dyn->value;
-                else if(dyn->tag == DT_RELAENT)
+                    printf("DT_PLTRELSZ %x %x\n", dyn->tag, dyn->value);
+                }
+                else if(dyn->tag == DT_RELAENT) {
                     pltrelEntrySize = dyn->value;
-                else if(dyn->tag == DT_RELA)
+                    printf("DT_RELAENT %x %x\n", dyn->tag, dyn->value);
+                }
+                else if(dyn->tag == DT_RELA) {
                     relaAddr = dyn->value;
-                else if(dyn->tag = DT_RELASZ)
+                    printf("DT_RELA %x %x\n", dyn->tag, dyn->value);
+                }
+                else if(dyn->tag = DT_RELASZ) {
                     relaSize = dyn->value;
-                else if(dyn->tag = DT_RELAENT)
+                    printf("DT_RELASZ %x %x\n", dyn->tag, dyn->value);
+                }
+                else if(dyn->tag = DT_RELAENT) {
                     relaEntrySize = dyn->value;
+                    printf("DT_RELAENT %x %x\n", dyn->tag, dyn->value);
+                }
+                else {
+                    printf("Unknown %x %x\n", dyn->tag, dyn->value);
+                }
 
                 dyn++;
             }
@@ -101,6 +120,8 @@ bool PrepareELF(const char* baseImg, char* loadBuffer, Elf64Addr pagingBase, Elf
 
             ElfSymbol* symList = (ElfSymbol*)(loadBuffer + symtabAddr);
             const char* strList = (const char*)(loadBuffer + strtabAddr);
+            
+            printf("Relacount: %i\n", relaCount);
 
             for(unsigned int i = 0; i < relaCount; i++) {
                 ElfRelA* rel = &relaList[i];

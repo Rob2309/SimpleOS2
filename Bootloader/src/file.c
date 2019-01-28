@@ -45,9 +45,15 @@ uint64 fgetsize(FILE* file)
     static char s_Buffer[256];
     static uint64 s_BufferSize = sizeof(s_Buffer);
 
-    err = handle->GetInfo(handle, &s_FileInfoGUID, &s_BufferSize, s_Buffer);
-    if(err != EFI_SUCCESS)
+    uint64 infoSize = s_BufferSize;
+    err = handle->GetInfo(handle, &s_FileInfoGUID, &infoSize, s_Buffer);
+    
+    if(err != EFI_SUCCESS) {
+        if(err == EFI_BUFFER_TOO_SMALL)
+            printf("fgetsize: buffer too small, needed: %i\n", s_BufferSize);
+
         return -1;
+    }
 
     return ((EFI_FILE_INFO*)s_Buffer)->FileSize;
 }

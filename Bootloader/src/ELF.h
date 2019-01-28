@@ -8,11 +8,11 @@ typedef unsigned short Elf64Half;
 typedef unsigned int Elf64Word;
 typedef signed int Elf64SWord;
 typedef unsigned long long Elf64XWord;
-typedef unsigned long long Elf64SXWord;
+typedef signed long long Elf64SXWord;
 typedef unsigned char Elf64Byte;
 typedef unsigned short Elf64Section;
 
-unsigned int GetELFSize(const char* image);
+uint64 GetELFSize(const char* image);
 bool IsSupportedELF(const char* image);
 bool PrepareELF(const char* baseImg, char* loadBuffer, Elf64Addr pagingBase, Elf64Addr* entryPoint);
 
