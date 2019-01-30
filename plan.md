@@ -10,6 +10,7 @@
 - printf
 - GDT
 - Interrupts, APIC
+- User mode
 - Process management
 - ACPI
 - PCI, PCIe
