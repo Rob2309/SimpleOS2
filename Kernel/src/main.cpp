@@ -1,6 +1,7 @@
 #include <KernelHeader.h>
 
 #include "terminal.h"
+#include "conio.h"
 
 extern "C" void __attribute__((ms_abi)) __attribute__((noreturn)) main(KernelHeader* info) {
     
@@ -13,7 +14,7 @@ extern "C" void __attribute__((ms_abi)) __attribute__((noreturn)) main(KernelHea
 
     Terminal::Clear();
 
-    Terminal::PutChar('A');
+    printf("Integer: %i\nHex: %X\nPadded Hex: %x\nString: %s\n", 42, 0xFF00FF, 0xBAD, "Some String");
 
     while(true);
 
