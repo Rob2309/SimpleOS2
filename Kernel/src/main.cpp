@@ -26,6 +26,14 @@ int Test() {
     return g_Ret;
 }
 
-extern "C" int __attribute__((ms_abi)) main(KernelHeader* info) {
-    return Test();
+extern "C" void __attribute__((ms_abi)) main(KernelHeader* info) {
+    
+    for(int y = 100; y < info->screenHeight - 100; y++) {
+        for(int x = 100; x < info->screenWidth - 100; x++) {
+            info->screenBuffer[x + y * info->screenScanlineWidth] = 0xFF00FF;
+        }
+    }
+
+    while(true);
+
 }

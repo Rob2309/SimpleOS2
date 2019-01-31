@@ -29,4 +29,9 @@ struct KernelHeader {
 
     uint64 numModules;
     ModuleDescriptor* modules;
+
+    uint32 screenWidth;
+    uint32 screenHeight;
+    uint32 screenScanlineWidth;
+    uint32* screenBuffer; 
 };

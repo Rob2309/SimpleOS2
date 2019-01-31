@@ -4,6 +4,7 @@
 #include "conio.h"
 #include "file.h"
 #include "KernelHeader.h"
+#include "ELF.h"
 
 extern "C" EFI_STATUS efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
 {
@@ -26,6 +27,35 @@ extern "C" EFI_STATUS efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
         EFIUtil::WaitForKey();
         return EFI_LOAD_ERROR;
     }
+
+    guid = EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID;
+    err = sysTable->BootServices->LocateProtocol(&guid, nullptr, (void**)&EFIUtil::Graphics);
+    if(err != EFI_SUCCESS) {
+        Console::Print(L"Failed to init grpahics protocol\r\nPress any key to exit...\r\n");
+        EFIUtil::WaitForKey();
+        return EFI_LOAD_ERROR;
+    }
+
+    Console::Print(L"Switching video mode...\r\n");
+
+    UINT32 resBestX = 0;
+    UINT32 resBestY = 0;
+    UINT32 resBestScanlineWidth = 0;
+    UINT32 resBestMode = 0;
+    for(UINT32 m = 0; m < EFIUtil::Graphics->Mode->MaxMode; m++) {
+        UINTN infoSize;
+        EFI_GRAPHICS_OUTPUT_MODE_INFORMATION* info;
+        EFIUtil::Graphics->QueryMode(EFIUtil::Graphics, m, &infoSize, &info);
+
+        if(info->VerticalResolution > resBestY && info->HorizontalResolution <= 1920 && (info->PixelFormat == PixelBlueGreenRedReserved8BitPerColor || info->PixelFormat == PixelRedGreenBlueReserved8BitPerColor)) {
+            resBestX = info->HorizontalResolution;
+            resBestY = info->VerticalResolution;
+            resBestScanlineWidth = info->PixelsPerScanLine;
+            resBestMode = m;
+        }
+    }
+
+    EFIUtil::Graphics->SetMode(EFIUtil::Graphics, resBestMode);
 
     Console::Print(L"Loading config file...\r\n");
 
@@ -82,6 +112,7 @@ extern "C" EFI_STATUS efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
 
                 modules[numModules].buffer = moduleData.data;
                 modules[numModules].size = moduleData.size;
+                numModules++;
             }
         } else {
             buffer[bufferIndex] = c;
@@ -91,5 +122,87 @@ extern "C" EFI_STATUS efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
 
     EFIUtil::SystemTable->BootServices->FreePool(configData.data);
 
+    Elf64Addr kernelEntryPoint = 0;
+
+    Console::Print(L"Preparing modules...\r\n");
+
+    for(int i = 0; i < numModules; i++) {
+        ModuleDescriptor* desc = &modules[i];
+
+        if(desc->type == ModuleDescriptor::TYPE_ELF_IMAGE) {
+            Console::Print(L"Preparing ELF module...\r\n");
+
+            uint64 size = GetELFSize(desc->buffer);
+            uint8* processBuffer;
+            EFIUtil::SystemTable->BootServices->AllocatePool(EfiLoaderCode, size, (void**)&processBuffer);
+            
+            if(!PrepareELF(desc->buffer, processBuffer, &kernelEntryPoint)) {
+                Console::Print(L"Failed to prepare ELF module\r\nPress any key to exit...\r\n");
+                EFIUtil::WaitForKey();
+                return EFI_LOAD_ERROR;
+            }
+
+            EFIUtil::SystemTable->BootServices->FreePool(desc->buffer);
+
+            desc->buffer = processBuffer;
+            desc->size = size;
+        }
+    }
+
+    if(kernelEntryPoint == 0) {
+        Console::Print(L"No Kernel entry point found\r\nPress any key to exit...\r\n");
+        EFIUtil::WaitForKey();
+        return EFI_LOAD_ERROR;
+    }
+
+
+    KernelHeader* header;
+    EFIUtil::SystemTable->BootServices->AllocatePool(EfiLoaderData, sizeof(KernelHeader), (void**)&header);
+
+    header->numModules = numModules;
+    header->modules = modules;
+
+    header->screenWidth = resBestX;
+    header->screenHeight = resBestY;
+    header->screenScanlineWidth = resBestScanlineWidth;
+    header->screenBuffer = (uint32*)EFIUtil::Graphics->Mode->FrameBufferBase;
+
+    Console::Print(L"Exiting Boot services and starting kernel...\r\nPress any key to continue...\r\n");
     EFIUtil::WaitForKey();
+
+    UINTN memoryMapSize = 0;
+    EFI_MEMORY_DESCRIPTOR* memMap;
+    UINTN mapKey;
+    UINTN descSize;
+    UINT32 descVersion;
+    err = EFIUtil::SystemTable->BootServices->GetMemoryMap(&memoryMapSize, memMap, &mapKey, &descSize, &descVersion);
+    if(err != EFI_BUFFER_TOO_SMALL) {
+        Console::Print(L"Failed to get memory map size\r\nPress any key to exit...\r\n");
+        EFIUtil::WaitForKey();
+        return EFI_LOAD_ERROR;
+    }
+    EFIUtil::SystemTable->BootServices->AllocatePool(EfiLoaderData, memoryMapSize + 100, (void**)&memMap);
+    memoryMapSize += 100;
+    err = EFIUtil::SystemTable->BootServices->GetMemoryMap(&memoryMapSize, memMap, &mapKey, &descSize, &descVersion);
+    if(err != EFI_SUCCESS) {
+        Console::Print(L"Failed to query memory map\r\nPress any key to exit...\r\n");
+        EFIUtil::WaitForKey();
+        return EFI_LOAD_ERROR;
+    }
+
+    header->memMap = (MemoryDescriptor*)memMap;
+    header->memMapLength = memoryMapSize / descSize;
+    header->memMapDescriptorSize = descSize;
+
+    typedef void (*KernelMain)(KernelHeader* header);
+    KernelMain kernelMain = (KernelMain)kernelEntryPoint;
+
+    err = EFIUtil::SystemTable->BootServices->ExitBootServices(EFIUtil::LoadedImage, mapKey);
+    if(err != EFI_SUCCESS) {
+        Console::Print(L"Failed to exit boot services\r\nPress any key to exit...\r\n");
+        EFIUtil::WaitForKey();
+        return EFI_LOAD_ERROR;
+    }
+
+    kernelMain(header);
 }
