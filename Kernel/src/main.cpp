@@ -1,38 +1,19 @@
-
 #include <KernelHeader.h>
 
-const char* g_TypeDescs[] = {
-    "EfiReservedMemoryType",
-    "EfiLoaderCode",
-    "EfiLoaderData",
-    "EfiBootServicesCode",
-    "EfiBootServicesData",
-    "EfiRuntimeServicesCode",
-    "EfiRuntimeServicesData",
-    "EfiConventionalMemory",
-    "EfiUnusableMemory",
-    "EfiACPIReclaimMemory",
-    "EfiACPIMemoryNVS",
-    "EfiMemoryMappedIO",
-    "EfiMemoryMappedIOPortSpace",
-    "EfiPalCode",
-    "EfiMaxMemoryType"
-};
+#include "terminal.h"
 
-int g_Ret = 17;
-
-int Test() {
-    g_Ret += 5;
-    return g_Ret;
-}
-
-extern "C" void __attribute__((ms_abi)) main(KernelHeader* info) {
+extern "C" void __attribute__((ms_abi)) __attribute__((noreturn)) main(KernelHeader* info) {
     
-    for(int y = 100; y < info->screenHeight - 100; y++) {
-        for(int x = 100; x < info->screenWidth - 100; x++) {
-            info->screenBuffer[x + y * info->screenScanlineWidth] = 0xFF00FF;
-        }
+    uint32* fontBuffer = nullptr;
+    for(int m = 0; m < info->numModules; m++) {
+        if(info->modules[m].type == ModuleDescriptor::TYPE_RAMDISK_IMAGE)
+            fontBuffer = (uint32*)info->modules[m].buffer;
     }
+    Terminal::Init(fontBuffer, info->screenBuffer, info->screenWidth, info->screenHeight, info->screenScanlineWidth);
+
+    Terminal::Clear();
+
+    Terminal::PutChar('A');
 
     while(true);
 
