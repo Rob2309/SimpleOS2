@@ -47,7 +47,7 @@ extern "C" EFI_STATUS efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
         EFI_GRAPHICS_OUTPUT_MODE_INFORMATION* info;
         EFIUtil::Graphics->QueryMode(EFIUtil::Graphics, m, &infoSize, &info);
 
-        if(info->VerticalResolution > resBestY && info->HorizontalResolution <= 1920 && (info->PixelFormat == PixelBlueGreenRedReserved8BitPerColor || info->PixelFormat == PixelRedGreenBlueReserved8BitPerColor)) {
+        if(info->VerticalResolution > resBestY && info->HorizontalResolution <= 1920 && info->VerticalResolution <= 1080 && (info->PixelFormat == PixelBlueGreenRedReserved8BitPerColor || info->PixelFormat == PixelRedGreenBlueReserved8BitPerColor)) {
             resBestX = info->HorizontalResolution;
             resBestY = info->VerticalResolution;
             resBestScanlineWidth = info->PixelsPerScanLine;
