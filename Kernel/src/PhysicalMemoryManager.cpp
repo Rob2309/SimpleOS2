@@ -28,18 +28,23 @@ namespace PhysicalMemoryManager {
         return nullptr;
     }
 
-    static void MarkUnavailable(uint64 addr, uint64 numPages)
-    {
-        MemSegment* seg = FindSegment(addr);
-        
-        uint64 basePage = (addr - seg->base) / 4096;
-        for(int i = 0; i < numPages; i++)
-        {
-            int byte = (i + basePage) / 8;
-            int bit = (i + basePage) % 8;
+    static void MarkUsed(MemSegment* segment, uint64 page, uint64 numPages) {
+        for(uint64 i = 0; i < numPages; i++) {
+            uint64 byte = (page + i) / 8;
+            uint64 bit = (page + i) % 8;
 
-            seg->map[byte] |= (1 << bit);
-            seg->numFreePages--;
+            segment->map[byte] |= (1 << bit);
+            segment->numFreePages--;
+        }
+    }
+
+    static void MarkFree(MemSegment* segment, uint64 page, uint64 numPages) {
+        for(uint64 i = 0; i < numPages; i++) {
+            uint64 byte = (page + i) / 8;
+            uint64 bit = (page + i) % 8;
+
+            segment->map[byte] &= ~(1 << bit);
+            segment->numFreePages++;
         }
     }
 
@@ -116,15 +121,17 @@ namespace PhysicalMemoryManager {
 
     void Init(KernelHeader* header)
     {
-        CleanupMemMap(header);
-
         uint64 sizeNeeded = 0;
         uint64 availableMemory = 0;
 
         for(uint64 i = 0; i < header->memMapLength; i++) {
             MemoryDescriptor* desc = (MemoryDescriptor*)((char*)header->memMap + i * header->memMapDescriptorSize);
             
-            if(desc->type == MemoryType::ConventionalMemory)
+            if(desc->type == MemoryType::ConventionalMemory ||
+                desc->type == MemoryType::BootServicesCode ||
+                desc->type == MemoryType::BootServicesData ||
+                desc->type == MemoryType::LoaderCode ||
+                desc->type == MemoryType::LoaderData)
             {
                 g_PhysMapSegments++;
 
@@ -160,6 +167,8 @@ namespace PhysicalMemoryManager {
 
         printf("Physical memory map at 0x%x\n", g_PhysMap);
 
+        CleanupMemMap(header);
+
         // initialize memMap
         MemSegment* physMap = g_PhysMap;
         for(uint64 i = 0; i < header->memMapLength; i++) {
@@ -179,16 +188,22 @@ namespace PhysicalMemoryManager {
         }
         
         // mark physical memory map as unavailable
-        MarkUnavailable((uint64)g_PhysMap, pagesNeeded);
+        MemSegment* seg = FindSegment((uint64)g_PhysMap);
+        MarkUsed(seg, ((uint64)g_PhysMap - seg->base) / 4096, pagesNeeded);
         // mark header as unavailable memory
-        MarkUnavailable((uint64)header, (sizeof(KernelHeader) + 4095) / 4096);
+        seg = FindSegment((uint64)header);
+        MarkUsed(seg, ((uint64)header - seg->base) / 4096, (sizeof(KernelHeader) + 4095) / 4096);
         // mark module descriptors as unavailable
-        MarkUnavailable((uint64)header->modules, (header->numModules * sizeof(ModuleDescriptor) + 4095) / 4096);
+        seg = FindSegment((uint64)header->modules);
+        MarkUsed(seg, ((uint64)(header->modules) - seg->base) / 4096, (header->numModules * sizeof(ModuleDescriptor) + 4095) / 4096);
         // mark module buffers as unavailable
-        for(int i = 0; i < header->numModules; i++)
-            MarkUnavailable((uint64)(header->modules[i].buffer), (header->modules[i].size + 4095) / 4096);
+        for(int i = 0; i < header->numModules; i++) {
+            seg = FindSegment((uint64)(header->modules[i].buffer));
+            MarkUsed(seg, ((uint64)(header->modules[i].buffer) - seg->base) / 4096, (header->modules[i].size + 4095) / 4096);
+        }
         // mark header memory map as unavailable
-        MarkUnavailable((uint64)(header->memMap), (header->memMapLength * header->memMapDescriptorSize + 4095) / 4096);
+        seg = FindSegment((uint64)(header->memMap));
+        MarkUsed(seg, ((uint64)(header->memMap) - seg->base) / 4096, (header->memMapLength * header->memMapDescriptorSize + 4095) / 4096);
 
         printf("Physical memory map initialized\n");
     }
@@ -208,15 +223,33 @@ namespace PhysicalMemoryManager {
         for(int s = 0; s < g_PhysMapSegments; s++) {
             if(seg->numFreePages >= numPages) 
             {
-                
+                uint64 numFree = 0;
+                for(uint64 p = 0; p < seg->numPages; p++) {
+                    uint64 byte = p / 8;
+                    uint64 bit = p % 8;
+
+                    if((seg->map[byte] & (1 << bit)) == 0) {
+                        numFree++;
+                        if(numFree == numPages) {
+                            uint64 basePage = p - numPages + 1;
+                            MarkUsed(seg, basePage, numPages);
+                            return (void*)(seg->base + basePage * 4096);
+                        }
+                    } else {
+                        numFree = 0;
+                    }
+                }
             }
 
             seg = (MemSegment*)((char*)seg + sizeof(MemSegment) + (seg->numPages + 7) / 8);
         }
+
+        return nullptr;
     }
     void FreePages(void* pages, uint64 numPages)
     {
-        
+        MemSegment* seg = FindSegment((uint64)pages);
+        MarkFree(seg, ((uint64)pages - seg->base) / 4096, numPages);
     }
 
 }
