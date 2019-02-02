@@ -1,5 +1,7 @@
 #include "terminal.h"
 
+#include "conio.h"
+
 namespace Terminal {
     constexpr int g_CharWidth = 9;
     constexpr int g_CharHeight = 16;
