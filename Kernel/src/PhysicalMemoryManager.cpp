@@ -33,18 +33,13 @@ namespace PhysicalMemoryManager {
         MemSegment* seg = FindSegment(addr);
         
         uint64 basePage = (addr - seg->base) / 4096;
-        uint64 pagesInSegment = seg->numPages - basePage;
-        for(int i = 0; i < pagesInSegment; i++)
+        for(int i = 0; i < numPages; i++)
         {
             int byte = (i + basePage) / 8;
             int bit = (i + basePage) % 8;
 
             seg->map[byte] |= (1 << bit);
             seg->numFreePages--;
-        }
-
-        if(pagesInSegment < numPages) {
-            MarkUnavailable(addr + pagesInSegment * 4096, numPages - pagesInSegment);
         }
     }
 
@@ -183,19 +178,17 @@ namespace PhysicalMemoryManager {
             }
         }
         
-        // mark memory map as unavailable
+        // mark physical memory map as unavailable
         MarkUnavailable((uint64)g_PhysMap, pagesNeeded);
-        printf("Marked physical memory map as unavailable memory\n");
         // mark header as unavailable memory
         MarkUnavailable((uint64)header, (sizeof(KernelHeader) + 4095) / 4096);
-        printf("Marked header as unavailable memory\n");
         // mark module descriptors as unavailable
         MarkUnavailable((uint64)header->modules, (header->numModules * sizeof(ModuleDescriptor) + 4095) / 4096);
-        printf("Marked module map as unavailable memory\n");
         // mark module buffers as unavailable
         for(int i = 0; i < header->numModules; i++)
             MarkUnavailable((uint64)(header->modules[i].buffer), (header->modules[i].size + 4095) / 4096);
-        printf("Marked modules as unavailable memory\n");
+        // mark header memory map as unavailable
+        MarkUnavailable((uint64)(header->memMap), (header->memMapLength * header->memMapDescriptorSize + 4095) / 4096);
 
         printf("Physical memory map initialized\n");
     }
@@ -211,7 +204,15 @@ namespace PhysicalMemoryManager {
 
     void* AllocatePages(uint64 numPages)
     {
-        
+        MemSegment* seg = g_PhysMap;
+        for(int s = 0; s < g_PhysMapSegments; s++) {
+            if(seg->numFreePages >= numPages) 
+            {
+                
+            }
+
+            seg = (MemSegment*)((char*)seg + sizeof(MemSegment) + (seg->numPages + 7) / 8);
+        }
     }
     void FreePages(void* pages, uint64 numPages)
     {
