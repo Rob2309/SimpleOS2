@@ -31,7 +31,7 @@ extern "C" void __attribute__((ms_abi)) __attribute__((noreturn)) main(KernelHea
     }
     Terminal::Init(fontBuffer, info->screenBuffer, info->screenWidth, info->screenHeight, info->screenScanlineWidth);
     Terminal::Clear();
-
+    
     PhysicalMemoryManager::Init(info);
 
     while(true);
