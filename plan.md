@@ -8,6 +8,7 @@
 ## Kernel
 - Basic terminal
 - printf
+- Memory management
 - GDT
 - Interrupts, APIC
 - User mode

@@ -5,6 +5,7 @@
 #include "file.h"
 #include "KernelHeader.h"
 #include "ELF.h"
+#include "allocator.h"
 
 extern "C" EFI_STATUS efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
 {
@@ -69,8 +70,7 @@ extern "C" EFI_STATUS efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
     Console::Print(L"Loading modules...\r\n");
 
     uint64 numModules = 0;
-    ModuleDescriptor* modules;
-    EFIUtil::SystemTable->BootServices->AllocatePool(EfiLoaderData, 10 * sizeof(ModuleDescriptor), (void**)&modules);
+    ModuleDescriptor* modules = (ModuleDescriptor*)Allocate(10 * sizeof(ModuleDescriptor));
 
     char buffer[256] = { 0 };
     char16 convBuffer[256] = { 0 };
@@ -120,7 +120,7 @@ extern "C" EFI_STATUS efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
         }
     }
 
-    EFIUtil::SystemTable->BootServices->FreePool(configData.data);
+    Free(configData.data, configData.size);
 
     Elf64Addr kernelEntryPoint = 0;
 
@@ -133,8 +133,7 @@ extern "C" EFI_STATUS efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
             Console::Print(L"Preparing ELF module...\r\n");
 
             uint64 size = GetELFSize(desc->buffer);
-            uint8* processBuffer;
-            EFIUtil::SystemTable->BootServices->AllocatePool(EfiLoaderCode, size, (void**)&processBuffer);
+            uint8* processBuffer = (uint8*)Allocate(size);
             
             if(!PrepareELF(desc->buffer, processBuffer, &kernelEntryPoint)) {
                 Console::Print(L"Failed to prepare ELF module\r\nPress any key to exit...\r\n");
@@ -142,7 +141,7 @@ extern "C" EFI_STATUS efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
                 return EFI_LOAD_ERROR;
             }
 
-            EFIUtil::SystemTable->BootServices->FreePool(desc->buffer);
+            Free(desc->buffer, desc->size);
 
             desc->buffer = processBuffer;
             desc->size = size;
@@ -156,8 +155,7 @@ extern "C" EFI_STATUS efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
     }
 
 
-    KernelHeader* header;
-    EFIUtil::SystemTable->BootServices->AllocatePool(EfiLoaderData, sizeof(KernelHeader), (void**)&header);
+    KernelHeader* header = (KernelHeader*)Allocate(sizeof(KernelHeader));
 
     header->numModules = numModules;
     header->modules = modules;
@@ -181,8 +179,8 @@ extern "C" EFI_STATUS efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
         EFIUtil::WaitForKey();
         return EFI_LOAD_ERROR;
     }
-    EFIUtil::SystemTable->BootServices->AllocatePool(EfiLoaderData, memoryMapSize + 100, (void**)&memMap);
-    memoryMapSize += 100;
+    memMap = (EFI_MEMORY_DESCRIPTOR*)Allocate(memoryMapSize + 4096);
+    memoryMapSize += 4096;
     err = EFIUtil::SystemTable->BootServices->GetMemoryMap(&memoryMapSize, memMap, &mapKey, &descSize, &descVersion);
     if(err != EFI_SUCCESS) {
         Console::Print(L"Failed to query memory map\r\nPress any key to exit...\r\n");

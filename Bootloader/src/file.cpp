@@ -1,6 +1,7 @@
 #include "file.h"
 
 #include "efiutil.h"
+#include "allocator.h"
 
 namespace FileIO {
 
@@ -10,7 +11,7 @@ namespace FileIO {
         EFIUtil::FileSystem->OpenVolume(EFIUtil::FileSystem, &volumeRoot);
 
         EFI_FILE_HANDLE file;
-        EFI_STATUS err = volumeRoot->Open(volumeRoot, &file, (CHAR16*)path, EFI_FILE_MODE_READ | EFI_FILE_MODE_WRITE, 0);
+        EFI_STATUS err = volumeRoot->Open(volumeRoot, &file, (CHAR16*)path, EFI_FILE_MODE_READ, 0);
         if(err != EFI_SUCCESS) {
             return { 0, nullptr };
         }
@@ -23,17 +24,16 @@ namespace FileIO {
         if(err != EFI_BUFFER_TOO_SMALL) {
             return { 0, nullptr };
         }
-        EFIUtil::SystemTable->BootServices->AllocatePool(EfiLoaderData, infoSize, (void**)&info);
+        info = (EFI_FILE_INFO*)Allocate(infoSize);
         err = file->GetInfo(file, &guid, &infoSize, info);
         if(err != EFI_SUCCESS) {
             return { 0, nullptr };
         }
 
         uint64 size = info->FileSize;
-        EFIUtil::SystemTable->BootServices->FreePool(info);
+        Free(info, infoSize);
 
-        uint8* buffer;
-        EFIUtil::SystemTable->BootServices->AllocatePool(EfiLoaderData, size, (void**)&buffer);
+        uint8* buffer = (uint8*)Allocate(size);
 
         err = file->Read(file, &size, buffer);
         if(err != EFI_SUCCESS) {

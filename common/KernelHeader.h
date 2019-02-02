@@ -2,8 +2,26 @@
 
 #include "types.h"
 
+enum class MemoryType : unsigned int {
+    Reserved,
+    LoaderCode,
+    LoaderData,
+    BootServicesCode,
+    BootServicesData,
+    RuntimeServicesCode,
+    RuntimeServicesData,
+    ConventionalMemory,
+    UnusableMemory,
+    ACPIReclaimMemory,
+    ACPIMemoryNVS,
+    MemoryMappedIO,
+    MemoryMappedIOPortSpace,
+    PalCode,
+    MaxMemoryType
+};
+
 struct MemoryDescriptor {
-    unsigned int type;
+    MemoryType type;
     unsigned int pad;
     unsigned long long physicalStart;
     unsigned long long virtualStart;

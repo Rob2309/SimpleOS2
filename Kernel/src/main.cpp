@@ -2,6 +2,25 @@
 
 #include "terminal.h"
 #include "conio.h"
+#include "PhysicalMemoryManager.h"
+
+static const char* g_MemoryDesc[] = {
+    "EfiReservedMemoryType",
+    "EfiLoaderCode",
+    "EfiLoaderData",
+    "EfiBootServicesCode",
+    "EfiBootServicesData",
+    "EfiRuntimeServicesCode",
+    "EfiRuntimeServicesData",
+    "EfiConventionalMemory",
+    "EfiUnusableMemory",
+    "EfiACPIReclaimMemory",
+    "EfiACPIMemoryNVS",
+    "EfiMemoryMappedIO",
+    "EfiMemoryMappedIOPortSpace",
+    "EfiPalCode",
+    "EfiMaxMemoryType"
+};
 
 extern "C" void __attribute__((ms_abi)) __attribute__((noreturn)) main(KernelHeader* info) {
     
@@ -11,10 +30,9 @@ extern "C" void __attribute__((ms_abi)) __attribute__((noreturn)) main(KernelHea
             fontBuffer = (uint32*)info->modules[m].buffer;
     }
     Terminal::Init(fontBuffer, info->screenBuffer, info->screenWidth, info->screenHeight, info->screenScanlineWidth);
-
     Terminal::Clear();
 
-    printf("Integer: %i\nHex: %X\nPadded Hex: %x\nString: %s\n", 42, 0xFF00FF, 0xBAD, "Some String");
+    PhysicalMemoryManager::Init(info);
 
     while(true);
 
