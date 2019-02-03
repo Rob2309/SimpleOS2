@@ -20,15 +20,15 @@ clean_files += $(localdir)/obj $(localdir)/bin
 
 $(output_file): $(c_objects) $(cpp_objects) $(asm_objects)
 	@ mkdir -p $(dir $@)
-	$(ELF_GCC) -fPIC -nostdlib -shared -o $@ $^ -e main -static -lgcc
+	$(ELF_GCC) -g -fPIC -nostdlib -shared -o $@ $^ -e main -static -lgcc
 
 
 $(localdir)/obj/%.o: $(localdir)/src/%.c $(c_headers)
 	@ mkdir -p $(dir $@)
-	$(ELF_GCC) -fPIC -ffreestanding $(elf_include_flags) -c $< -o $@
+	$(ELF_GCC) -g -fPIC -ffreestanding $(elf_include_flags) -c $< -o $@
 $(localdir)/obj/%.o: $(localdir)/src/%.cpp $(c_headers)
 	@ mkdir -p $(dir $@)
-	$(ELF_GCC) -fPIC -ffreestanding $(elf_include_flags) -c $< -o $@
+	$(ELF_GCC) -g -fPIC -ffreestanding $(elf_include_flags) -c $< -o $@
 $(localdir)/obj/%.o: $(localdir)/src/%.asm
 	@ mkdir -p $(dir $@)
-	$(NASM) -f elf64 $< -o $@
+	$(NASM) -g -f elf64 $< -o $@

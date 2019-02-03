@@ -22,28 +22,7 @@
     pop rax
 %endmacro
 
-[GLOBAL LIDT]
-[EXTERN g_IDTDesc]
-LIDT:
-    lea rax, [rel g_IDTDesc wrt ..got]
-    ;lidt [rax]
-    mov bx, [rax]
-    xor rax, rax
-    mov ax, bx
-    ret
-
-;[EXTERN ISRCommonHandler]
-[GLOBAL ISRCommonHandler]
-[EXTERN printf]
-ISRCommonHandler:
-    ;lea rdi, [rel .msg]
-    ;mov rsi, 42
-    ;call printf wrt ..plt
-    ret
-
-    .msg:
-        DB "Interrupt %i", 0
-
+[EXTERN ISRCommonHandler]
 
 ISRCommon:
     pushAll
@@ -51,25 +30,26 @@ ISRCommon:
     mov ax, ds
     push rax
 
-    mov ax, 0x10
+    mov rax, 16
     mov ds, ax
     mov es, ax
     mov fs, ax
     mov gs, ax
 
-    ;call ISRCommonHandler
+    mov rdi, rsp
+    call ISRCommonHandler wrt ..plt
 
-    pop rbx
-    mov ds, bx
-    mov es, bx
-    mov fs, bx
-    mov gs, bx
+    pop rax
+    mov ds, ax
+    mov es, ax
+    mov fs, ax
+    mov gs, ax
 
     popAll
 
     add rsp, 16
     sti
-    iret
+    o64 a64 iret
 
 %macro ISR_NOERRCODE 1
   global ISR%1
@@ -77,8 +57,6 @@ ISRCommon:
     cli
     push byte 0 
     push byte %1
-    add rsp, 16
-    a64 o64 iret
     jmp ISRCommon
 %endmacro
 
@@ -87,8 +65,6 @@ ISRCommon:
   ISR%1:
     cli
     push byte %1
-    add rsp, 16
-    a64 o64 iret
     jmp ISRCommon
 %endmacro
 

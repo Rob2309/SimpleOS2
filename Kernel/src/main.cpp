@@ -15,12 +15,19 @@ extern "C" void __attribute__((ms_abi)) __attribute__((noreturn)) main(KernelHea
     }
     Terminal::Init(fontBuffer, info->screenBuffer, info->screenWidth, info->screenHeight, info->screenScanlineWidth);
     Terminal::Clear();
+
+    for(int m = 0; m < info->numModules; m++) {
+        if(info->modules[m].type == ModuleDescriptor::TYPE_ELF_IMAGE)
+            printf("Kernel at 0x%x\n", info->modules[m].buffer);
+    }
     
     PhysicalMemoryManager::Init(info);
 
     GDT::Init();
 
     IDT::Init();
+
+    printf("TEST\n");
 
     while(true);
 

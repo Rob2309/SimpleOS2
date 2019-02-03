@@ -64,12 +64,12 @@ namespace IDT {
     extern "C" void ISR31();
 
     IDTEntry g_IDT[256];
-    extern "C" IDTDesc g_IDTDesc;
     IDTDesc g_IDTDesc;
 
-    /*extern "C" void __attribute__((naked)) ISRCommonHandler(Registers regs) {
-        printf("Interrupt: %i\n", regs.intNumber);
-    }*/
+    extern "C" void ISRCommonHandler(Registers* regs)
+    {
+        printf("Interrupt %i\n", regs->intNumber);
+    }
 
     void SetIDT(uint8 number, void (*vector)(), uint16 selector, uint8 flags)
     {
@@ -131,6 +131,8 @@ namespace IDT {
             :
             : "r" (&g_IDTDesc)
         );
+
+        EnableInterrupts();
 
         __asm__ __volatile__ (
             "int $5"
