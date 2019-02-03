@@ -39,10 +39,10 @@ extern "C" void __attribute__((ms_abi)) __attribute__((noreturn)) main(KernelHea
         : "ecx"
     );
 
-    g_APICBase = (edx << 32) | (eax & 0xFFFFF000);
+    g_APICBase = ((uint64)edx << 32) | (eax & 0xFFFFF000);
     printf("APIC Base: 0x%x\n", g_APICBase);
 
-    *(uint32*)(g_APICBase + 0xF0) = 0x100 | 101;
+    *(uint32*)(g_APICBase + 0xF0) = 0x100 | 255;
 
     *(uint32*)(g_APICBase + 0x370) = 0x10000 | 102;
 

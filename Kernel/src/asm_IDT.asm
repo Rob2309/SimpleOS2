@@ -55,8 +55,8 @@ ISRCommon:
   global ISR%1
   ISR%1:
     cli
-    push byte 0 
-    push byte %1
+    push QWORD 0 
+    push QWORD %1
     jmp ISRCommon
 %endmacro
 
@@ -64,7 +64,7 @@ ISRCommon:
   global ISR%1
   ISR%1:
     cli
-    push byte %1
+    push QWORD %1
     jmp ISRCommon
 %endmacro
 
@@ -102,5 +102,5 @@ ISR_NOERRCODE 30
 ISR_NOERRCODE 31
 
 ISR_NOERRCODE 100
-ISR_NOERRCODE 101
+ISR_NOERRCODE 255
 ISR_NOERRCODE 102

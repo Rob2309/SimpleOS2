@@ -64,7 +64,7 @@ namespace IDT {
     extern "C" void ISR31();
 
     extern "C" void ISR100();
-    extern "C" void ISR101();
+    extern "C" void ISR255();
     extern "C" void ISR102();
 
     IDTEntry g_IDT[256];
@@ -78,6 +78,11 @@ namespace IDT {
 
         if(regs->intNumber == 100) {
             *(uint32*)(g_APICBase + 0xB0) = 0;
+
+            uint32 m = *(uint32*)(g_APICBase + 0x320);
+            if(m & 0x10000) {
+                printf("Masked\n");
+            }
         }
 
         if(regs->intNumber == 102) {
@@ -138,7 +143,7 @@ namespace IDT {
         SetIDT(31, ISR31, 0x08, 0x8E);
 
         SetIDT(100, ISR100, 0x08, 0x8E);
-        SetIDT(101, ISR101, 0x08, 0x8E);
+        SetIDT(255, ISR255, 0x08, 0x8E);
         SetIDT(102, ISR102, 0x08, 0x8E);
 
         DisableInterrupts();
