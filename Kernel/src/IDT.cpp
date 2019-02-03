@@ -63,12 +63,27 @@ namespace IDT {
     extern "C" void ISR30();
     extern "C" void ISR31();
 
+    extern "C" void ISR100();
+    extern "C" void ISR101();
+    extern "C" void ISR102();
+
     IDTEntry g_IDT[256];
     IDTDesc g_IDTDesc;
+
+    uint64 g_APICBase;
 
     extern "C" void ISRCommonHandler(Registers* regs)
     {
         printf("Interrupt %i\n", regs->intNumber);
+
+        if(regs->intNumber == 100) {
+            *(uint32*)(g_APICBase + 0xB0) = 0;
+        }
+
+        if(regs->intNumber == 102) {
+            printf("ACIP error\n");
+            *(uint32*)(g_APICBase + 0xB0) = 0;
+        }
     }
 
     void SetIDT(uint8 number, void (*vector)(), uint16 selector, uint8 flags)
@@ -122,6 +137,10 @@ namespace IDT {
         SetIDT(30, ISR30, 0x08, 0x8E);
         SetIDT(31, ISR31, 0x08, 0x8E);
 
+        SetIDT(100, ISR100, 0x08, 0x8E);
+        SetIDT(101, ISR101, 0x08, 0x8E);
+        SetIDT(102, ISR102, 0x08, 0x8E);
+
         DisableInterrupts();
 
         __asm__ __volatile__ (
@@ -133,10 +152,6 @@ namespace IDT {
         );
 
         EnableInterrupts();
-
-        __asm__ __volatile__ (
-            "int $5"
-        );
     }
 
     void EnableInterrupts()
