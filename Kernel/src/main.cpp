@@ -4,24 +4,7 @@
 #include "conio.h"
 #include "PhysicalMemoryManager.h"
 #include "GDT.h"
-
-static const char* g_MemoryDesc[] = {
-    "EfiReservedMemoryType",
-    "EfiLoaderCode",
-    "EfiLoaderData",
-    "EfiBootServicesCode",
-    "EfiBootServicesData",
-    "EfiRuntimeServicesCode",
-    "EfiRuntimeServicesData",
-    "EfiConventionalMemory",
-    "EfiUnusableMemory",
-    "EfiACPIReclaimMemory",
-    "EfiACPIMemoryNVS",
-    "EfiMemoryMappedIO",
-    "EfiMemoryMappedIOPortSpace",
-    "EfiPalCode",
-    "EfiMaxMemoryType"
-};
+#include "IDT.h"
 
 extern "C" void __attribute__((ms_abi)) __attribute__((noreturn)) main(KernelHeader* info) {
     
@@ -36,6 +19,8 @@ extern "C" void __attribute__((ms_abi)) __attribute__((noreturn)) main(KernelHea
     PhysicalMemoryManager::Init(info);
 
     GDT::Init();
+
+    IDT::Init();
 
     while(true);
 
