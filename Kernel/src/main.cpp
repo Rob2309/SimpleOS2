@@ -3,6 +3,7 @@
 #include "terminal.h"
 #include "conio.h"
 #include "PhysicalMemoryManager.h"
+#include "GDT.h"
 
 static const char* g_MemoryDesc[] = {
     "EfiReservedMemoryType",
@@ -34,17 +35,7 @@ extern "C" void __attribute__((ms_abi)) __attribute__((noreturn)) main(KernelHea
     
     PhysicalMemoryManager::Init(info);
 
-    void* a = PhysicalMemoryManager::AllocatePages(10);
-    void* b = PhysicalMemoryManager::AllocatePages(3);
-    PhysicalMemoryManager::FreePages(a, 10);
-
-    void* c = PhysicalMemoryManager::AllocatePages(11);
-    void* d = PhysicalMemoryManager::AllocatePages(5);
-
-    printf("A: 0x%x\n", a);
-    printf("B: 0x%x\n", b);
-    printf("C: 0x%x\n", c);
-    printf("D: 0x%x\n", d);
+    GDT::Init();
 
     while(true);
 
