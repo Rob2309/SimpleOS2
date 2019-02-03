@@ -2,11 +2,13 @@
 
 #include "types.h"
 
-typedef void FILE;
+namespace FileIO {
 
-FILE* fopen(char16* path);
-void fclose(FILE* file);
+    struct FileData {
+        uint64 size;
+        uint8* data;
+    };
 
-int fread(uint8* buffer, uint64 bufferSize, FILE* file);
+    FileData ReadFile(const wchar_t* path);
 
-uint64 fgetsize(FILE* file);
+}

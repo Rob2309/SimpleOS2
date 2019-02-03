@@ -2,8 +2,8 @@
 
 #include "types.h"
 
-void printf(const char* format, ...);
+namespace Console {
 
-void Print(char* msg);
-void Println(char* msg);
-void WaitForKey();
+    void Print(const wchar_t* msg);
+
+}

@@ -1,7 +1,11 @@
-
 #include <KernelHeader.h>
 
-const char* g_TypeDescs[] = {
+#include "terminal.h"
+#include "conio.h"
+#include "PhysicalMemoryManager.h"
+#include "GDT.h"
+
+static const char* g_MemoryDesc[] = {
     "EfiReservedMemoryType",
     "EfiLoaderCode",
     "EfiLoaderData",
@@ -19,23 +23,20 @@ const char* g_TypeDescs[] = {
     "EfiMaxMemoryType"
 };
 
-int g_Ret = 17;
-
-int Test() {
-    g_Ret += 5;
-    return g_Ret;
-}
-
-extern "C" int __attribute__((ms_abi)) main(KernelHeader* info) {
-    info->printf("Physical            Virtual               Size                  Type\n");
-  //info->printf("0x0000000000000000  0x0000000000000000    0x0000000000000000    ");
-
-    MemoryDescriptor* entry = info->memMap;
-    for(int i = 0; i < info->memMapLength; i++) {
-        info->printf("0x%x  0x%x    0x%x    %s\n", entry->physicalStart, entry->virtualStart, entry->numPages * 4096, g_TypeDescs[entry->type]);
-
-        entry = (MemoryDescriptor*)((char*)entry + info->memMapDescriptorSize);
+extern "C" void __attribute__((ms_abi)) __attribute__((noreturn)) main(KernelHeader* info) {
+    
+    uint32* fontBuffer = nullptr;
+    for(int m = 0; m < info->numModules; m++) {
+        if(info->modules[m].type == ModuleDescriptor::TYPE_RAMDISK_IMAGE)
+            fontBuffer = (uint32*)info->modules[m].buffer;
     }
+    Terminal::Init(fontBuffer, info->screenBuffer, info->screenWidth, info->screenHeight, info->screenScanlineWidth);
+    Terminal::Clear();
+    
+    PhysicalMemoryManager::Init(info);
 
-    return Test();
+    GDT::Init();
+
+    while(true);
+
 }

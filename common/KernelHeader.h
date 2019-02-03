@@ -1,18 +1,55 @@
 #pragma once
 
-typedef struct {
-    unsigned int type;
+#include "types.h"
+
+enum class MemoryType : unsigned int {
+    Reserved,
+    LoaderCode,
+    LoaderData,
+    BootServicesCode,
+    BootServicesData,
+    RuntimeServicesCode,
+    RuntimeServicesData,
+    ConventionalMemory,
+    UnusableMemory,
+    ACPIReclaimMemory,
+    ACPIMemoryNVS,
+    MemoryMappedIO,
+    MemoryMappedIOPortSpace,
+    PalCode,
+    MaxMemoryType
+};
+
+struct MemoryDescriptor {
+    MemoryType type;
     unsigned int pad;
     unsigned long long physicalStart;
     unsigned long long virtualStart;
     unsigned long long numPages;
     unsigned long long attributes;
-} MemoryDescriptor;
+};
 
-typedef struct {
-    void (__attribute__((ms_abi)) *printf)(const char* format, ...);
+struct ModuleDescriptor {
+    enum {
+        TYPE_UNKNOWN = 0,
+        TYPE_ELF_IMAGE,
+        TYPE_RAMDISK_IMAGE,
+    } type;
 
-    unsigned long long memMapLength;
-    unsigned long long memMapDescriptorSize;
+    uint64 size;
+    uint8* buffer;
+};
+
+struct KernelHeader {
+    uint64 memMapLength;
+    uint64 memMapDescriptorSize;
     MemoryDescriptor* memMap;
-} KernelHeader;
+
+    uint64 numModules;
+    ModuleDescriptor* modules;
+
+    uint32 screenWidth;
+    uint32 screenHeight;
+    uint32 screenScanlineWidth;
+    uint32* screenBuffer; 
+};

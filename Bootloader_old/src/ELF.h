@@ -12,10 +12,11 @@ typedef signed long long Elf64SXWord;
 typedef unsigned char Elf64Byte;
 typedef unsigned short Elf64Section;
 
-uint64 GetELFSize(const uint8* image);
-bool PrepareELF(const uint8* diskImg, uint8* processImg, Elf64Addr* entryPoint);
+uint64 GetELFSize(const char* image);
+bool IsSupportedELF(const char* image);
+bool PrepareELF(const char* baseImg, char* loadBuffer, Elf64Addr pagingBase, Elf64Addr* entryPoint);
 
-struct ELFHeader {
+typedef struct {
     Elf64Byte magic[4];
     Elf64Byte elfBits;
     Elf64Byte endianness;
@@ -35,7 +36,7 @@ struct ELFHeader {
     Elf64Half shEntrySize;
     Elf64Half shEntryCount;
     Elf64Half sectionNameStringTableIndex;
-};
+} ELFHeader;
 
 #define ELFCLASS32 1
 #define ELFCLASS64 2
@@ -56,7 +57,7 @@ struct ELFHeader {
 #define EMT_X86_64 0x3E
 #define EMT_IA64 0x32
 
-struct ELFSectionHeader {
+typedef struct {
     Elf64Word nameOffset;
     Elf64Word type;
     Elf64XWord flags;
@@ -67,7 +68,7 @@ struct ELFSectionHeader {
     Elf64Word info;
     Elf64XWord alignment;
     Elf64XWord entrySize;
-};
+} ELFSectionHeader;
 
 #define SHT_NULL 0
 #define SHT_PROGBITS 1
@@ -86,7 +87,7 @@ struct ELFSectionHeader {
 #define SHF_ALLOC 0x02
 #define SHF_EXECINSTR 0x04
 
-struct ElfSegmentHeader {
+typedef struct {
     Elf64Word type;
     Elf64Word flags;
     Elf64Offs dataOffset;
@@ -95,7 +96,7 @@ struct ElfSegmentHeader {
     Elf64XWord dataSize;
     Elf64XWord virtualSize;
     Elf64XWord alignment;
-};
+} ElfSegmentHeader;
 
 #define PT_NULL 0
 #define PT_LOAD 1
@@ -107,10 +108,10 @@ struct ElfSegmentHeader {
 #define PF_WRITABLE 2
 #define PF_READABLE 4
 
-struct ElfDynamicEntry {
+typedef struct {
     Elf64SXWord tag;
     Elf64XWord value;
-};
+} ElfDynamicEntry;
 
 #define DT_NULL 0
 #define DT_NEEDED 1
@@ -131,14 +132,14 @@ struct ElfDynamicEntry {
 #define DT_RELENT 19
 #define DT_JMPREL 23
 
-struct ElfSymbol {
+typedef struct {
     Elf64Word symbolNameOffset;
     Elf64Byte info;
     Elf64Byte reserved;
     Elf64Half sectionTableIndex;
     Elf64Addr value;
     Elf64XWord size;
-};
+} ElfSymbol;
 
 #define STB_LOCAL 0
 #define STB_GLOBAL 1
@@ -150,11 +151,16 @@ struct ElfSymbol {
 #define STT_SECTION 3
 #define STT_FILE 4
 
-struct ElfRelA {
+typedef struct {
+    Elf64Addr address;
+    Elf64XWord info;
+} ElfRel;
+
+typedef struct {
     Elf64Addr address;
     Elf64XWord info;
     Elf64SXWord addend;
-};
+} ElfRelA;
 
 #define R_NONE 0
 #define R_64 1

@@ -5,6 +5,7 @@
 
 *.ELF
 *.BIN
+*.sys
 
 VM
 *.vdi
