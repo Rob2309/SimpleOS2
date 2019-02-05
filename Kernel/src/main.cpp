@@ -3,6 +3,7 @@
 #include "terminal.h"
 #include "conio.h"
 #include "PhysicalMemoryManager.h"
+#include "VirtualMemoryManager.h"
 #include "GDT.h"
 #include "IDT.h"
 
@@ -10,7 +11,7 @@
 
 extern uint64 g_APICBase;
 
-extern "C" void __attribute__((ms_abi)) __attribute__((noreturn)) main(KernelHeader* info) {
+extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     
     uint32* fontBuffer = nullptr;
     for(int m = 0; m < info->numModules; m++) {
@@ -26,12 +27,9 @@ extern "C" void __attribute__((ms_abi)) __attribute__((noreturn)) main(KernelHea
     }
     
     PhysicalMemoryManager::Init(info);
+    VirtualMemoryManager::Init(info);
 
-    GDT::Init();
-    IDT::Init();
-    
-    APIC::Init();
-    APIC::StartTimer(128, 0xFFFFFF, true);
+    printf("Hello World from virtual memory\n");
 
     while(true);
 

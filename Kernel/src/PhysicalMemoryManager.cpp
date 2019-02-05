@@ -12,7 +12,17 @@ namespace PhysicalMemoryManager {
     };
 
     static MemSegment* g_PhysMap = nullptr;
+    static uint64 g_PhysMapPages = 0;
     static uint64 g_PhysMapSegments;
+
+    void* GetPhysicalMapPointer()
+    {
+        return g_PhysMap;
+    }
+    uint64 GetPhysicalMapPageCount()
+    {
+        return g_PhysMapPages;
+    }
 
     static MemSegment* FindSegment(uint64 pageAddress) {
         MemSegment* physMap = g_PhysMap;
@@ -190,6 +200,7 @@ namespace PhysicalMemoryManager {
         // mark physical memory map as unavailable
         MemSegment* seg = FindSegment((uint64)g_PhysMap);
         MarkUsed(seg, ((uint64)g_PhysMap - seg->base) / 4096, pagesNeeded);
+        g_PhysMapPages = pagesNeeded;
         // mark header as unavailable memory
         seg = FindSegment((uint64)header);
         MarkUsed(seg, ((uint64)header - seg->base) / 4096, (sizeof(KernelHeader) + 4095) / 4096);
@@ -250,6 +261,15 @@ namespace PhysicalMemoryManager {
     {
         MemSegment* seg = FindSegment((uint64)pages);
         MarkFree(seg, ((uint64)pages - seg->base) / 4096, numPages);
+    }
+
+    void* AllocateCleanPage()
+    {
+        uint64* page = (uint64*)AllocatePage();
+        for(int i = 0; i < 512; i++) {
+            page[i] = 0;
+        }
+        return page;
     }
 
 }

@@ -52,4 +52,7 @@ struct KernelHeader {
     uint32 screenHeight;
     uint32 screenScanlineWidth;
     uint32* screenBuffer; 
+
+    void* stack;
+    uint64 stackSize;
 };

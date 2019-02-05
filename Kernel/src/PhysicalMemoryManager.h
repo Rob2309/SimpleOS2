@@ -13,4 +13,8 @@ namespace PhysicalMemoryManager {
     void* AllocatePages(uint64 numPages);
     void FreePages(void* pages, uint64 numPages);
 
+    void* AllocateCleanPage();
+
+    
+
 }
