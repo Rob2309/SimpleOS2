@@ -3,6 +3,8 @@
 #include "types.h"
 #include "conio.h"
 
+#include "ISR.h"
+
 namespace IDT {
     
     struct __attribute__((packed)) IDTDesc
@@ -29,43 +31,6 @@ namespace IDT {
         uint64 intNumber, errorCode;
         uint64 rip, cs, rflags, userrsp, ss;
     };
-
-    extern "C" void ISR0();
-    extern "C" void ISR1();
-    extern "C" void ISR2();
-    extern "C" void ISR3();
-    extern "C" void ISR4();
-    extern "C" void ISR5();
-    extern "C" void ISR6();
-    extern "C" void ISR7();
-    extern "C" void ISR8();
-    extern "C" void ISR9();
-    extern "C" void ISR10();
-    extern "C" void ISR11();
-    extern "C" void ISR12();
-    extern "C" void ISR13();
-    extern "C" void ISR14();
-    extern "C" void ISR15();
-    extern "C" void ISR16();
-    extern "C" void ISR17();
-    extern "C" void ISR18();
-    extern "C" void ISR19();
-    extern "C" void ISR20();
-    extern "C" void ISR21();
-    extern "C" void ISR22();
-    extern "C" void ISR23();
-    extern "C" void ISR24();
-    extern "C" void ISR25();
-    extern "C" void ISR26();
-    extern "C" void ISR27();
-    extern "C" void ISR28();
-    extern "C" void ISR29();
-    extern "C" void ISR30();
-    extern "C" void ISR31();
-
-    extern "C" void ISR100();
-    extern "C" void ISR255();
-    extern "C" void ISR102();
 
     IDTEntry g_IDT[256];
     IDTDesc g_IDTDesc;
@@ -141,10 +106,10 @@ namespace IDT {
         SetIDT(29, ISR29, 0x08, 0x8E);
         SetIDT(30, ISR30, 0x08, 0x8E);
         SetIDT(31, ISR31, 0x08, 0x8E);
-
-        SetIDT(100, ISR100, 0x08, 0x8E);
-        SetIDT(255, ISR255, 0x08, 0x8E);
-        SetIDT(102, ISR102, 0x08, 0x8E);
+        
+        SetIDT(vectno_ISRApicTimer, ISRApicTimer, 0x08, 0x8E);
+        SetIDT(vectno_ISRApicSpurious, ISRApicSpurious, 0x08, 0x8E);
+        SetIDT(vectno_ISRApicError, ISRApicError, 0x08, 0x8E);
 
         DisableInterrupts();
 

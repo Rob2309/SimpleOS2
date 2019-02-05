@@ -5,6 +5,7 @@
 #include "PhysicalMemoryManager.h"
 #include "GDT.h"
 #include "IDT.h"
+#include "ISR.h"
 
 extern uint64 g_APICBase;
 
@@ -42,12 +43,12 @@ extern "C" void __attribute__((ms_abi)) __attribute__((noreturn)) main(KernelHea
     g_APICBase = ((uint64)edx << 32) | (eax & 0xFFFFF000);
     printf("APIC Base: 0x%x\n", g_APICBase);
 
-    *(uint32*)(g_APICBase + 0xF0) = 0x100 | 255;
+    *(uint32*)(g_APICBase + 0xF0) = 0x100 | vectno_ISRApicSpurious;
 
-    *(uint32*)(g_APICBase + 0x370) = 0x10000 | 102;
+    *(uint32*)(g_APICBase + 0x370) = 0x10000 | vectno_ISRApicError;
 
     *(uint32*)(g_APICBase + 0x3E0) = 0b1010;
-    *(uint32*)(g_APICBase + 0x320) = 0x20000 | 100;
+    *(uint32*)(g_APICBase + 0x320) = 0x20000 | vectno_ISRApicTimer;
     *(uint32*)(g_APICBase + 0x380) = 0xFFFFFF;
 
     while(true);

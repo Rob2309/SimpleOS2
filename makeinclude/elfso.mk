@@ -1,8 +1,10 @@
 
 
 elf_include_flags := $(addprefix -I, common)
+elf_nasm_include_flags := $(addprefix -i, common $(localdir)/src/)
 
 c_headers := $(wildcard $(localdir)/src/*.h)
+cross_headers := $(wildcard $(localdir)/src/*.inc)
 
 c_sources := $(wildcard $(localdir)/src/*.c)
 cpp_sources := $(wildcard $(localdir)/src/*.cpp)
@@ -23,12 +25,12 @@ $(output_file): $(c_objects) $(cpp_objects) $(asm_objects)
 	$(ELF_GCC) -g -fPIC -nostdlib -shared -o $@ $^ -e main -static -lgcc
 
 
-$(localdir)/obj/%.o: $(localdir)/src/%.c $(c_headers)
+$(localdir)/obj/%.o: $(localdir)/src/%.c $(c_headers) $(cross_headers)
 	@ mkdir -p $(dir $@)
 	$(ELF_GCC) -g -fPIC -ffreestanding $(elf_include_flags) -c $< -o $@
-$(localdir)/obj/%.o: $(localdir)/src/%.cpp $(c_headers)
+$(localdir)/obj/%.o: $(localdir)/src/%.cpp $(c_headers) $(cross_headers)
 	@ mkdir -p $(dir $@)
 	$(ELF_GCC) -g -fPIC -ffreestanding $(elf_include_flags) -c $< -o $@
-$(localdir)/obj/%.o: $(localdir)/src/%.asm
+$(localdir)/obj/%.o: $(localdir)/src/%.asm $(c_headers) $(cross_headers)
 	@ mkdir -p $(dir $@)
-	$(NASM) -g -f elf64 $< -o $@
+	$(NASM) -g -f elf64 $(elf_nasm_include_flags) $< -o $@
