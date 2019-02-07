@@ -22,14 +22,11 @@ namespace GDT
         uint64 offset;
     };
 
-    GDTEntry* g_GDT;
+    static GDTEntry g_GDT[5];
 
     void Init()
     {
         printf("Initializing GDT\n");
-
-    	g_GDT = (GDTEntry*)AllocatePages((5 * sizeof(GDTEntry) + 4095) / 4096);
-        printf("GDT at 0x%x\n", g_GDT);
 
         // null descriptor
         g_GDT[0] = { 0 };
