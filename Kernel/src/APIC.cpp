@@ -3,6 +3,9 @@
 #include "conio.h"
 #include "ISR.h"
 
+#include "VirtualMemoryManager.h"
+#include "PhysicalMemoryManager.h"
+
 namespace APIC
 {
     static uint64 g_APICBase;
@@ -26,6 +29,8 @@ namespace APIC
 
         g_APICBase = ((uint64)edx << 32) | (eax & 0xFFFFF000);
         printf("APIC Base: 0x%x\n", g_APICBase);
+
+        VirtualMemoryManager::MapPage(g_APICBase, g_APICBase, true, true);
 
         *(uint32*)(g_APICBase + RegSpurious) = 0x100 | vectno_ISRApicSpurious;
         *(uint32*)(g_APICBase + RegError) = 0x10000 | vectno_ISRApicError;

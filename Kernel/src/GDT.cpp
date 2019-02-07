@@ -1,7 +1,7 @@
 #include "GDT.h"
 
 #include "types.h"
-#include "PhysicalMemoryManager.h"
+#include "allocate.h"
 #include "conio.h"
 
 namespace GDT
@@ -28,7 +28,7 @@ namespace GDT
     {
         printf("Initializing GDT\n");
 
-        g_GDT = (GDTEntry*)PhysicalMemoryManager::AllocatePages(5 * sizeof(GDTEntry));
+    	g_GDT = (GDTEntry*)AllocatePages((5 * sizeof(GDTEntry) + 4095) / 4096);
         printf("GDT at 0x%x\n", g_GDT);
 
         // null descriptor

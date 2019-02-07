@@ -29,6 +29,13 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     PhysicalMemoryManager::Init(info);
     VirtualMemoryManager::Init(info);
 
+    GDT::Init();
+    IDT::Init();
+    IDT::EnableInterrupts();
+
+    APIC::Init();
+    APIC::StartTimer(128, 0xFFFFFF, true);
+
     printf("Hello World from virtual memory\n");
 
     while(true);
