@@ -3,12 +3,10 @@
 #include "types.h"
 #include "conio.h"
 
-#include "ISR.h"
 
-namespace APIC
-{
-    extern uint64 g_APICBase;
-}
+#define ISRSTUB(vectno) extern "C" void ISRSTUB_##vectno();
+#define ISRSTUBE(vectno) extern "C" void ISRSTUB_##vectno();
+#include "ISR.inc"
 
 namespace IDT {
     
@@ -29,37 +27,20 @@ namespace IDT {
         uint32 reserved;
     };
 
-    struct __attribute__((packed)) Registers
-    {
-        uint64 ds;
-        uint64 rdi, rsi, rbp, rsp, rbx, rdx, rcx, rax;
-        uint64 intNumber, errorCode;
-        uint64 rip, cs, rflags, userrsp, ss;
-    };
+    static IDTEntry g_IDT[256] = { 0 };
+    static IDTDesc g_IDTDesc;
 
-    IDTEntry g_IDT[256];
-    IDTDesc g_IDTDesc;
+    static ISR g_Handlers[256] = { 0 };
 
     extern "C" void ISRCommonHandler(Registers* regs)
     {
-        printf("Interrupt %i\n", regs->intNumber);
-
-        if(regs->intNumber == 100) {
-            *(uint32*)(APIC::g_APICBase + 0xB0) = 0;
-
-            uint32 m = *(uint32*)(APIC::g_APICBase + 0x320);
-            if(m & 0x10000) {
-                printf("Masked\n");
-            }
-        }
-
-        if(regs->intNumber == 102) {
-            printf("ACIP error\n");
-            *(uint32*)(APIC::g_APICBase + 0xB0) = 0;
-        }
+        if(g_Handlers[regs->intNumber] == nullptr)
+            printf("INVALID INTERRUPT: %i\n", regs->intNumber);
+        else
+            g_Handlers[regs->intNumber](regs);
     }
 
-    void SetIDT(uint8 number, void (*vector)(), uint16 selector, uint8 flags)
+    static void SetIDTEntry(uint8 number, void (*vector)(), uint16 selector, uint8 flags)
     {
         g_IDT[number].offset1 = (uint64)vector & 0xFFFF;
         g_IDT[number].csSelector = selector;
@@ -74,45 +55,11 @@ namespace IDT {
         g_IDTDesc.limit = sizeof(g_IDT) - 1;
         g_IDTDesc.offset = (uint64)g_IDT;
 
-        for(uint64 i = 0; i < 256; i++)
-            g_IDT[i] = { 0 };
-
-        SetIDT(0, ISR0, 0x08, 0x8E);
-        SetIDT(1, ISR1, 0x08, 0x8E);
-        SetIDT(2, ISR2, 0x08, 0x8E);
-        SetIDT(3, ISR3, 0x08, 0x8E);
-        SetIDT(4, ISR4, 0x08, 0x8E);
-        SetIDT(5, ISR5, 0x08, 0x8E);
-        SetIDT(6, ISR6, 0x08, 0x8E);
-        SetIDT(7, ISR7, 0x08, 0x8E);
-        SetIDT(8, ISR8, 0x08, 0x8E);
-        SetIDT(9, ISR9, 0x08, 0x8E);
-        SetIDT(10, ISR10, 0x08, 0x8E);
-        SetIDT(11, ISR11, 0x08, 0x8E);
-        SetIDT(12, ISR12, 0x08, 0x8E);
-        SetIDT(13, ISR13, 0x08, 0x8E);
-        SetIDT(14, ISR14, 0x08, 0x8E);
-        SetIDT(15, ISR15, 0x08, 0x8E);
-        SetIDT(16, ISR16, 0x08, 0x8E);
-        SetIDT(17, ISR17, 0x08, 0x8E);
-        SetIDT(18, ISR18, 0x08, 0x8E);
-        SetIDT(19, ISR19, 0x08, 0x8E);
-        SetIDT(20, ISR20, 0x08, 0x8E);
-        SetIDT(21, ISR21, 0x08, 0x8E);
-        SetIDT(22, ISR22, 0x08, 0x8E);
-        SetIDT(23, ISR23, 0x08, 0x8E);
-        SetIDT(24, ISR24, 0x08, 0x8E);
-        SetIDT(25, ISR25, 0x08, 0x8E);
-        SetIDT(26, ISR26, 0x08, 0x8E);
-        SetIDT(27, ISR27, 0x08, 0x8E);
-        SetIDT(28, ISR28, 0x08, 0x8E);
-        SetIDT(29, ISR29, 0x08, 0x8E);
-        SetIDT(30, ISR30, 0x08, 0x8E);
-        SetIDT(31, ISR31, 0x08, 0x8E);
-        
-        SetIDT(vectno_ISRApicTimer, ISRApicTimer, 0x08, 0x8E);
-        SetIDT(vectno_ISRApicSpurious, ISRApicSpurious, 0x08, 0x8E);
-        SetIDT(vectno_ISRApicError, ISRApicError, 0x08, 0x8E);
+        #undef ISRSTUB
+        #undef ISRSTUBE
+        #define ISRSTUB(vectno) SetIDTEntry(vectno, ISRSTUB_##vectno, 0x08, 0x8E);
+        #define ISRSTUBE(vectno) SetIDTEntry(vectno, ISRSTUB_##vectno, 0x08, 0x8E);
+        #include "ISR.inc"
 
         DisableInterrupts();
 
@@ -125,6 +72,11 @@ namespace IDT {
         );
 
         EnableInterrupts();
+    }
+
+    void SetISR(uint8 index, ISR isr)
+    {
+        g_Handlers[index] = isr;
     }
 
     void EnableInterrupts()

@@ -51,23 +51,23 @@ ISRCommon:
     sti
     o64 a64 iret
 
-%macro ISR_NOERROR 2
-    GLOBAL %1
-    %1:
+%macro ISR_NOERROR 1
+    GLOBAL ISRSTUB_%1
+    ISRSTUB_%1:
         cli
         push QWORD 0 
-        push QWORD %2
+        push QWORD %1
         jmp ISRCommon
 %endmacro
 
-%macro ISR_ERROR 2
-    GLOBAL %1
-    %1:
+%macro ISR_ERROR 1
+    GLOBAL ISRSTUB_%1
+    ISRSTUB_%1:
         cli
-        push QWORD %2
+        push QWORD %1
         jmp ISRCommon
 %endmacro
 
-%define ISR(name, vectno) ISR_NOERROR name, vectno
-%define ISRE(name, vectno) ISR_ERROR name, vectno
+%define ISRSTUB(vectno) ISR_NOERROR vectno
+%define ISRSTUBE(vectno) ISR_ERROR vectno
 %include "ISR.inc"
