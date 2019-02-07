@@ -121,6 +121,11 @@ namespace VirtualMemoryManager
         for(int i = 0; i < stackPages; i++)
             EarlyIdentityMap((uint64)(header->stack) + i * 4096);
 
+        // Identity map screen buffer
+        uint64 screenPages = (header->screenScanlineWidth * header->screenHeight * 4);
+        for(int i = 0; i < screenPages; i++)
+            EarlyIdentityMap((uint64)(header->screenBuffer) + 4096 * i);
+
         // load new PML4
         __asm__ __volatile__ (
             "movq %%eax, %%cr3;"
