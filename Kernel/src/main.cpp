@@ -36,8 +36,6 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     APIC::Init();
     APIC::StartTimer(128, 0xFFFFFF, true);
 
-    printf("Hello World from virtual memory\n");
-
     while(true);
 
 }
