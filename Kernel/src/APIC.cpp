@@ -8,7 +8,7 @@
 
 namespace APIC
 {
-    static uint64 g_APICBase;
+    uint64 g_APICBase;
 
     constexpr uint64 RegSpurious = 0xF0;
     constexpr uint64 RegError = 0x370;

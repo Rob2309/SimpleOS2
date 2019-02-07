@@ -5,6 +5,11 @@
 
 #include "ISR.h"
 
+namespace APIC
+{
+    extern uint64 g_APICBase;
+}
+
 namespace IDT {
     
     struct __attribute__((packed)) IDTDesc
@@ -35,16 +40,14 @@ namespace IDT {
     IDTEntry g_IDT[256];
     IDTDesc g_IDTDesc;
 
-    uint64 g_APICBase;
-
     extern "C" void ISRCommonHandler(Registers* regs)
     {
         printf("Interrupt %i\n", regs->intNumber);
 
         if(regs->intNumber == 100) {
-            *(uint32*)(g_APICBase + 0xB0) = 0;
+            *(uint32*)(APIC::g_APICBase + 0xB0) = 0;
 
-            uint32 m = *(uint32*)(g_APICBase + 0x320);
+            uint32 m = *(uint32*)(APIC::g_APICBase + 0x320);
             if(m & 0x10000) {
                 printf("Masked\n");
             }
@@ -52,7 +55,7 @@ namespace IDT {
 
         if(regs->intNumber == 102) {
             printf("ACIP error\n");
-            *(uint32*)(g_APICBase + 0xB0) = 0;
+            *(uint32*)(APIC::g_APICBase + 0xB0) = 0;
         }
     }
 
