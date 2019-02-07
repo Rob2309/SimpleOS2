@@ -165,6 +165,10 @@ extern "C" EFI_STATUS efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
     header->screenScanlineWidth = resBestScanlineWidth;
     header->screenBuffer = (uint32*)EFIUtil::Graphics->Mode->FrameBufferBase;
 
+    void* newStack = Allocate(16 * 4096);
+    header->stack = newStack;
+    header->stackSize = 16 * 4096;
+
     Console::Print(L"Exiting Boot services and starting kernel...\r\nPress any key to continue...\r\n");
     EFIUtil::WaitForKey();
 
@@ -202,5 +206,11 @@ extern "C" EFI_STATUS efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
         return EFI_LOAD_ERROR;
     }
 
-    kernelMain(header);
+    __asm__ __volatile__ (
+        ".intel_syntax noprefix;"
+        "movq rsp, %2;"
+        "callq rax;"
+        ".att_syntax prefix"
+        : : "D"(header), "a"(kernelMain), "r"(header->stack)
+    );
 }

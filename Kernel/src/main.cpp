@@ -3,27 +3,15 @@
 #include "terminal.h"
 #include "conio.h"
 #include "PhysicalMemoryManager.h"
+#include "VirtualMemoryManager.h"
 #include "GDT.h"
+#include "IDT.h"
 
-static const char* g_MemoryDesc[] = {
-    "EfiReservedMemoryType",
-    "EfiLoaderCode",
-    "EfiLoaderData",
-    "EfiBootServicesCode",
-    "EfiBootServicesData",
-    "EfiRuntimeServicesCode",
-    "EfiRuntimeServicesData",
-    "EfiConventionalMemory",
-    "EfiUnusableMemory",
-    "EfiACPIReclaimMemory",
-    "EfiACPIMemoryNVS",
-    "EfiMemoryMappedIO",
-    "EfiMemoryMappedIOPortSpace",
-    "EfiPalCode",
-    "EfiMaxMemoryType"
-};
+#include "APIC.h"
 
-extern "C" void __attribute__((ms_abi)) __attribute__((noreturn)) main(KernelHeader* info) {
+extern uint64 g_APICBase;
+
+extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     
     uint32* fontBuffer = nullptr;
     for(int m = 0; m < info->numModules; m++) {
@@ -32,10 +20,21 @@ extern "C" void __attribute__((ms_abi)) __attribute__((noreturn)) main(KernelHea
     }
     Terminal::Init(fontBuffer, info->screenBuffer, info->screenWidth, info->screenHeight, info->screenScanlineWidth);
     Terminal::Clear();
+
+    for(int m = 0; m < info->numModules; m++) {
+        if(info->modules[m].type == ModuleDescriptor::TYPE_ELF_IMAGE)
+            printf("Kernel at 0x%x\n", info->modules[m].buffer);
+    }
     
     PhysicalMemoryManager::Init(info);
+    VirtualMemoryManager::Init(info);
 
     GDT::Init();
+    IDT::Init();
+    IDT::EnableInterrupts();
+
+    APIC::Init();
+    APIC::StartTimer(128, 0xFFFFFF, true);
 
     while(true);
 

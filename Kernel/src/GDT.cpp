@@ -1,7 +1,7 @@
 #include "GDT.h"
 
 #include "types.h"
-#include "PhysicalMemoryManager.h"
+#include "allocate.h"
 #include "conio.h"
 
 namespace GDT
@@ -22,14 +22,11 @@ namespace GDT
         uint64 offset;
     };
 
-    GDTEntry* g_GDT;
+    static GDTEntry g_GDT[5];
 
     void Init()
     {
         printf("Initializing GDT\n");
-
-        g_GDT = (GDTEntry*)PhysicalMemoryManager::AllocatePages(5 * sizeof(GDTEntry));
-        printf("GDT at 0x%x\n", g_GDT);
 
         // null descriptor
         g_GDT[0] = { 0 };

@@ -1,5 +1,6 @@
 export PE_GCC := x86_64-w64-mingw32-gcc
 export ELF_GCC := gcc
+export NASM := nasm
 
 root_partition_img_deps := 
 clean_files := *.img *.vdi
@@ -14,8 +15,9 @@ runvbox: partition.vdi FORCE
 	VBoxManage startvm SimpleOS2
 
 debug: partition.img FORCE
-	qemu-system-x86_64 -gdb tcp::26000 -m 1024 -cpu qemu64 -net none -drive if=pflash,unit=0,format=raw,file=dep/ovmf/x64/OVMF_CODE.fd,readonly=on -drive if=pflash,unit=1,format=raw,file=dep/ovmf/x64/OVMF_VARS.fd,readonly=on -drive file=$<,if=ide
-
+	qemu-system-x86_64 -gdb tcp::26000 -m 1024 -cpu qemu64 -net none -drive if=pflash,unit=0,format=raw,file=dep/ovmf/x64/OVMF_CODE.fd,readonly=on -drive if=pflash,unit=1,format=raw,file=dep/ovmf/x64/OVMF_VARS.fd,readonly=on -drive file=$<,if=ide &
+debugvbox: partition.vdi FORCE
+	VBoxManage startvm SimpleOS2 debug
 
 partition.vdi: partition.img
 	rm -rf $@
