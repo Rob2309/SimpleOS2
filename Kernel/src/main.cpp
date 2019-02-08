@@ -36,6 +36,30 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     APIC::Init();
     APIC::StartTimer(128, 0xFFFFFF, true);
 
+    __asm__ __volatile__ (
+        "cli;"
+        "mov $0x23, %%rax;"
+        "mov %%ax, %%ds;"
+        "mov %%ax, %%es;"
+        "mov %%ax, %%fs;"
+        "mov %%ax, %%gs;"
+        "push $0x23;"
+        "push %%rsp;"
+        "pushfq;"
+        "push $0x1B;"
+        "leaq 1f(%%rip), %%rax;"
+        "push %%rax;"
+        "iretq;"
+        "1: add $4, %%rsp;"
+        : : : "rax"
+    );
+
+    printf("Hello from usermode!\n");
+
+    __asm__ __volatile__ (
+        "int $100"
+    );
+
     while(true);
 
 }
