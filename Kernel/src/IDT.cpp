@@ -85,8 +85,8 @@ namespace IDT {
 
         #undef ISRSTUB
         #undef ISRSTUBE
-        #define ISRSTUB(vectno) SetIDTEntry(vectno, ISRSTUB_##vectno, 0x08, 0x8E);
-        #define ISRSTUBE(vectno) SetIDTEntry(vectno, ISRSTUB_##vectno, 0x08, 0x8E);
+        #define ISRSTUB(vectno) SetIDTEntry(vectno, ISRSTUB_##vectno, 0x08, 0xEE);
+        #define ISRSTUBE(vectno) SetIDTEntry(vectno, ISRSTUB_##vectno, 0x08, 0xEE);
         #include "ISR.inc"
 
         SetISR(0, ISR_Exceptions);

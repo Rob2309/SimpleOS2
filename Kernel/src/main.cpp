@@ -9,7 +9,10 @@
 
 #include "APIC.h"
 
-extern uint64 g_APICBase;
+static void ISRHandlerTest(IDT::Registers* regs)
+{
+    //printf("TestInterrupt\n");
+}
 
 extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     
@@ -36,6 +39,8 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     APIC::Init();
     APIC::StartTimer(128, 0xFFFFFF, true);
 
+    IDT::SetISR(95, ISRHandlerTest);
+
     __asm__ __volatile__ (
         "cli;"
         "mov $0x23, %%rax;"
@@ -56,8 +61,11 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
 
     printf("Hello from usermode!\n");
 
+    bool wait = true;
+    while(wait);
+
     __asm__ __volatile__ (
-        "int $100"
+        "int $95"
     );
 
     while(true);

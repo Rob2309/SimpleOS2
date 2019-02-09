@@ -103,8 +103,8 @@ namespace GDT
 
         TSSDesc* tssDesc = (TSSDesc*)&g_GDT[5];
         *tssDesc = { 0 };
-        tssDesc->limit1 = sizeof(TSS) & 0xFFFF;
-        tssDesc->limit2flags = (sizeof(TSS) >> 16) & 0xF;
+        tssDesc->limit1 = (sizeof(TSS) - 1) & 0xFFFF;
+        tssDesc->limit2flags = ((sizeof(TSS) - 1) >> 16) & 0xF;
         tssDesc->base1 = (uint64)&g_TSS & 0xFFFF;
         tssDesc->base2 = ((uint64)&g_TSS >> 16) & 0xFF;
         tssDesc->base3 = ((uint64)&g_TSS >> 24) & 0xFF;
@@ -113,23 +113,21 @@ namespace GDT
 
         GDTDesc desc = { sizeof(g_GDT) - 1, (uint64)(&g_GDT[0]) };
         __asm__ __volatile__ (
-            ".intel_syntax noprefix;"
-            "lgdt [%0];"                // tell cpu to use new GDT
-            "mov rax, 16;"              // kernel data selector
-            "mov ds, rax;"
-            "mov es, rax;"
-            "mov fs, rax;"
-            "mov gs, rax;"
-            "mov ss, rax;"
-            "pushq 8;"                  // kernel code selector
-            "leaq rax, [rip + 1f];"     // rax = address of "1" label below
-            "pushq rax;"
-            "retfq;"                    // pops return address and cs
+            "lgdtq (%0);"                    // tell cpu to use new GDT
+            "mov $16, %%rax;"               // kernel data selector
+            "mov %%ax, %%ds;"
+            "mov %%ax, %%es;"
+            "mov %%ax, %%fs;"
+            "mov %%ax, %%gs;"
+            "mov %%ax, %%ss;"
+            "pushq $8;"                     // kernel code selector
+            "leaq 1f(%%rip), %%rax;"        // rax = address of "1" label below
+            "pushq %%rax;"
+            "retfq;"                        // pops return address and cs
             "1: nop;"
-            ".att_syntax prefix"
             : 
-            : "r" (&desc)               // %0 = &desc in some register
-            : "rax"                     // rax is changed in this __asm__ block
+            : "r" (&desc)
+            : "rax"
         );
 
         __asm__ __volatile__ (
