@@ -61,9 +61,6 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
 
     printf("Hello from usermode!\n");
 
-    bool wait = true;
-    while(wait);
-
     __asm__ __volatile__ (
         "int $95"
     );
