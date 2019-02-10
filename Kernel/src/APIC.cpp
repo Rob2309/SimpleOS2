@@ -52,9 +52,6 @@ namespace APIC
         g_APICBase = ((uint64)edx << 32) | (eax & 0xFFFFF000);
         printf("APIC Base: 0x%x\n", g_APICBase);
 
-        bool wait = true;
-        while(wait);
-
         VirtualMemoryManager::MapPage(g_APICBase, g_APICBase, true, true);
 
         IDT::SetISR(ISRNumbers::APICError, ISR_Error);
