@@ -58,107 +58,49 @@ extern "C" EFI_STATUS efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
 
     EFIUtil::Graphics->SetMode(EFIUtil::Graphics, resBestMode);
 
-    Console::Print(L"Loading config file...\r\n");
-
-    FileIO::FileData configData = FileIO::ReadFile(L"EFI\\BOOT\\config.cfg");
-    if(configData.size == 0) {
-        Console::Print(L"Failed to load config file\r\nPress any key to exit...\r\n");
-        EFIUtil::WaitForKey();
-        return EFI_LOAD_ERROR;
-    }
-
     Console::Print(L"Loading modules...\r\n");
 
-    uint64 numModules = 0;
-    ModuleDescriptor* modules = (ModuleDescriptor*)Allocate(10 * sizeof(ModuleDescriptor));
+    KernelHeader* header = (KernelHeader*)Allocate(sizeof(KernelHeader), MemoryType::KernelHeader);
 
-    char buffer[256] = { 0 };
-    char16 convBuffer[256] = { 0 };
-    int bufferIndex = 0;
-    for(int i = 0; i < configData.size; i++) {
-        char c = configData.data[i];
-        if(c == '\r' || c == '\n') {
-            if(bufferIndex != 0) {
-                for(int j = 0; j < bufferIndex; j++)
-                    convBuffer[j] = buffer[j];
-                convBuffer[bufferIndex] = '\0';
-                bufferIndex = 0;
-
-                Console::Print(L"Module: ");
-                Console::Print((wchar_t*)convBuffer);
-                Console::Print(L"\r\n");
-
-                FileIO::FileData moduleData = FileIO::ReadFile((wchar_t*)convBuffer);
-                if(moduleData.size == 0) {
-                    Console::Print(L"Failed to load module\r\nPress any key to exit...\r\n");
-                    EFIUtil::WaitForKey();
-                    return EFI_LOAD_ERROR;
-                }
-
-                int nameLength = 0;
-                while(buffer[nameLength] != '\0')
-                    nameLength++;
-
-                if (buffer[nameLength - 4] == '.' && buffer[nameLength - 3] == 'i' && buffer[nameLength - 2] == 'm' && buffer[nameLength - 1] == 'g') {
-                    Console::Print(L"Module is of type RAMDISK\r\n");
-                    modules[numModules].type = ModuleDescriptor::TYPE_RAMDISK_IMAGE;
-                } else if(buffer[nameLength - 4] == '.' && buffer[nameLength - 3] == 's' && buffer[nameLength - 2] == 'y' && buffer[nameLength - 1] == 's') {
-                    Console::Print(L"Module is of type ELF\r\n");
-                    modules[numModules].type = ModuleDescriptor::TYPE_ELF_IMAGE;
-                } else {
-                    Console::Print(L"Module is of type UNKNOWN\r\n");
-                    modules[numModules].type = ModuleDescriptor::TYPE_UNKNOWN;
-                }
-
-                modules[numModules].buffer = moduleData.data;
-                modules[numModules].size = moduleData.size;
-                numModules++;
-            }
-        } else {
-            buffer[bufferIndex] = c;
-            bufferIndex++;
-        }
+    FileIO::FileData kernelData = FileIO::ReadFile(L"EFI\\BOOT\\kernel.sys", MemoryType::LoaderData);
+    if(kernelData.size == 0) {
+        Console::Print(L"Failed to load kernel image\r\nPress any key to exit...\r\n");
+        EFIUtil::WaitForKey();
+        return EFI_LOAD_ERROR;
     }
-
-    Free(configData.data, configData.size);
-
-    Elf64Addr kernelEntryPoint = 0;
-
-    Console::Print(L"Preparing modules...\r\n");
-
-    for(int i = 0; i < numModules; i++) {
-        ModuleDescriptor* desc = &modules[i];
-
-        if(desc->type == ModuleDescriptor::TYPE_ELF_IMAGE) {
-            Console::Print(L"Preparing ELF module...\r\n");
-
-            uint64 size = GetELFSize(desc->buffer);
-            uint8* processBuffer = (uint8*)Allocate(size);
-            
-            if(!PrepareELF(desc->buffer, processBuffer, &kernelEntryPoint)) {
-                Console::Print(L"Failed to prepare ELF module\r\nPress any key to exit...\r\n");
-                EFIUtil::WaitForKey();
-                return EFI_LOAD_ERROR;
-            }
-
-            Free(desc->buffer, desc->size);
-
-            desc->buffer = processBuffer;
-            desc->size = size;
-        }
-    }
-
-    if(kernelEntryPoint == 0) {
-        Console::Print(L"No Kernel entry point found\r\nPress any key to exit...\r\n");
+    
+    FileIO::FileData fontData = FileIO::ReadFile(L"EFI\\BOOT\\font.img", MemoryType::Font);
+    if(fontData.size == 0) {
+        Console::Print(L"Failed to load font\r\nPress any key to exit...\r\n");
         EFIUtil::WaitForKey();
         return EFI_LOAD_ERROR;
     }
 
+    Console::Print(L"Preparing kernel...\r\n");
 
-    KernelHeader* header = (KernelHeader*)Allocate(sizeof(KernelHeader));
+    Elf64Addr kernelEntryPoint = 0;
+    uint64 size = GetELFSize(kernelData.data);
+    uint8* processBuffer = (uint8*)Allocate(size, MemoryType::KernelImage);
+    
+    if(!PrepareELF(kernelData.data, processBuffer, &kernelEntryPoint)) {
+        Console::Print(L"Failed to prepare kernel\r\nPress any key to exit...\r\n");
+        EFIUtil::WaitForKey();
+        return EFI_LOAD_ERROR;
+    }
 
-    header->numModules = numModules;
-    header->modules = modules;
+    Free(kernelData.data, kernelData.size);
+
+    header->kernelImage.buffer = processBuffer;
+    header->kernelImage.size = size;
+
+    header->fontImage.buffer = fontData.data;
+    header->fontImage.size = fontData.size;
+
+    if(kernelEntryPoint == 0) {
+        Console::Print(L"Kernel entry point not found\r\nPress any key to exit...\r\n");
+        EFIUtil::WaitForKey();
+        return EFI_LOAD_ERROR;
+    }
 
     header->screenWidth = resBestX;
     header->screenHeight = resBestY;
@@ -166,7 +108,7 @@ extern "C" EFI_STATUS efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
     header->screenBuffer = (uint32*)EFIUtil::Graphics->Mode->FrameBufferBase;
     header->screenBufferSize = EFIUtil::Graphics->Mode->FrameBufferSize;
 
-    void* newStack = Allocate(16 * 4096);
+    void* newStack = Allocate(16 * 4096, MemoryType::KernelStack);
     header->stack = newStack;
     header->stackSize = 16 * 4096;
 
@@ -184,7 +126,7 @@ extern "C" EFI_STATUS efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
         EFIUtil::WaitForKey();
         return EFI_LOAD_ERROR;
     }
-    memMap = (EFI_MEMORY_DESCRIPTOR*)Allocate(memoryMapSize + 4096);
+    memMap = (EFI_MEMORY_DESCRIPTOR*)Allocate(memoryMapSize + 4096, MemoryType::MemoryMap);
     memoryMapSize += 4096;
     err = EFIUtil::SystemTable->BootServices->GetMemoryMap(&memoryMapSize, memMap, &mapKey, &descSize, &descVersion);
     if(err != EFI_SUCCESS) {
