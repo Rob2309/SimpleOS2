@@ -10,6 +10,6 @@ namespace FileIO {
         uint8* data;
     };
 
-    FileData ReadFile(const wchar_t* path, MemoryType bufferType);
+    FileData ReadFile(const wchar_t* path);
 
 }

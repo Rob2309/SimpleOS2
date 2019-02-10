@@ -127,14 +127,10 @@ namespace VirtualMemoryManager
         for(uint64 i = 0; i < fontImagePages; i++)
             EarlyIdentityMap((uint64)(header->fontImage.buffer) + i * 4096);
 
+        // identity map helloWorld image
         uint64 testImagePages = (header->helloWorldImage.size + 4095) / 4096;
         for(uint64 i = 0; i < testImagePages; i++)
             EarlyIdentityMap((uint64)(header->helloWorldImage.buffer) + i * 4096);
-
-        // identity map header memory map
-        uint64 headerMemMapPages = (header->memMapLength * header->memMapDescriptorSize + 4095) / 4096;
-        for(int i = 0; i < headerMemMapPages; i++)
-            EarlyIdentityMap((uint64)(header->memMap) + i * 4096);
 
         // Identity map stack
         uint64 stackPages = (header->stackSize + 4095) / 4096;
