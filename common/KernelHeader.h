@@ -17,7 +17,12 @@ enum class MemoryType : unsigned int {
     MemoryMappedIO,
     MemoryMappedIOPortSpace,
     PalCode,
-    MaxMemoryType
+    
+    KernelHeader = 0x80000001,
+    KernelStack = 0x80000002,
+    KernelImage = 0x80000003,
+    MemoryMap = 0x80000004,
+    Font = 0x80000005,
 };
 
 struct MemoryDescriptor {
@@ -32,12 +37,6 @@ struct MemoryDescriptor {
 };
 
 struct ModuleDescriptor {
-    enum {
-        TYPE_UNKNOWN = 0,
-        TYPE_ELF_IMAGE,
-        TYPE_RAMDISK_IMAGE,
-    } type;
-
     uint64 size;
     uint8* buffer;
 };
@@ -47,8 +46,10 @@ struct KernelHeader {
     uint64 memMapDescriptorSize;
     MemoryDescriptor* memMap;
 
-    uint64 numModules;
-    ModuleDescriptor* modules;
+    ModuleDescriptor kernelImage;
+    ModuleDescriptor ramdiskImage;
+    ModuleDescriptor helloWorldImage;
+    ModuleDescriptor fontImage;
 
     uint32 screenWidth;
     uint32 screenHeight;

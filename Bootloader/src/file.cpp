@@ -5,7 +5,7 @@
 
 namespace FileIO {
 
-    FileData ReadFile(const wchar_t* path)
+    FileData ReadFile(const wchar_t* path, MemoryType bufferType)
     {
         EFI_FILE_HANDLE volumeRoot;
         EFIUtil::FileSystem->OpenVolume(EFIUtil::FileSystem, &volumeRoot);
@@ -24,7 +24,7 @@ namespace FileIO {
         if(err != EFI_BUFFER_TOO_SMALL) {
             return { 0, nullptr };
         }
-        info = (EFI_FILE_INFO*)Allocate(infoSize);
+        info = (EFI_FILE_INFO*)Allocate(infoSize, MemoryType::LoaderData);
         err = file->GetInfo(file, &guid, &infoSize, info);
         if(err != EFI_SUCCESS) {
             return { 0, nullptr };
@@ -33,7 +33,7 @@ namespace FileIO {
         uint64 size = info->FileSize;
         Free(info, infoSize);
 
-        uint8* buffer = (uint8*)Allocate(size);
+        uint8* buffer = (uint8*)Allocate(size, bufferType);
 
         err = file->Read(file, &size, buffer);
         if(err != EFI_SUCCESS) {

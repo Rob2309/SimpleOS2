@@ -201,20 +201,6 @@ namespace PhysicalMemoryManager {
         MemSegment* seg = FindSegment((uint64)g_PhysMap);
         MarkUsed(seg, ((uint64)g_PhysMap - seg->base) / 4096, pagesNeeded);
         g_PhysMapPages = pagesNeeded;
-        // mark header as unavailable memory
-        seg = FindSegment((uint64)header);
-        MarkUsed(seg, ((uint64)header - seg->base) / 4096, (sizeof(KernelHeader) + 4095) / 4096);
-        // mark module descriptors as unavailable
-        seg = FindSegment((uint64)header->modules);
-        MarkUsed(seg, ((uint64)(header->modules) - seg->base) / 4096, (header->numModules * sizeof(ModuleDescriptor) + 4095) / 4096);
-        // mark module buffers as unavailable
-        for(int i = 0; i < header->numModules; i++) {
-            seg = FindSegment((uint64)(header->modules[i].buffer));
-            MarkUsed(seg, ((uint64)(header->modules[i].buffer) - seg->base) / 4096, (header->modules[i].size + 4095) / 4096);
-        }
-        // mark header memory map as unavailable
-        seg = FindSegment((uint64)(header->memMap));
-        MarkUsed(seg, ((uint64)(header->memMap) - seg->base) / 4096, (header->memMapLength * header->memMapDescriptorSize + 4095) / 4096);
 
         printf("Physical memory map initialized\n");
     }

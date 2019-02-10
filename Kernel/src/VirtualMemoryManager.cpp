@@ -117,17 +117,15 @@ namespace VirtualMemoryManager
         for(uint64 i = 0; i < headerPageCount; i++)
             EarlyIdentityMap((uint64)header + i * 4096);
 
-        // identity map module descriptors
-        uint64 moduleDescPageCount = (header->numModules * sizeof(ModuleDescriptor) + 4095) / 4096;
-        for(uint64 i = 0; i < moduleDescPageCount; i++)
-            EarlyIdentityMap((uint64)(header->modules) + i * 4096);
+        // identity map kernel Image
+        uint64 kernelImagePages = (header->kernelImage.size + 4095) / 4096;
+        for(uint64 i = 0; i < kernelImagePages; i++)
+            EarlyIdentityMap((uint64)(header->kernelImage.buffer) + i * 4096);
 
-        // identity map module buffers
-        for(int i = 0; i < header->numModules; i++) {
-            uint64 modulePageCount = (header->modules[i].size + 4095) / 4096;
-            for(uint64 j = 0; j < modulePageCount; j++)
-                EarlyIdentityMap((uint64)(header->modules[i].buffer) + j * 4096);
-        }
+        // identity map font image
+        uint64 fontImagePages = (header->fontImage.size + 4095) / 4096;
+        for(uint64 i = 0; i < fontImagePages; i++)
+            EarlyIdentityMap((uint64)(header->fontImage.buffer) + i * 4096);
 
         // identity map header memory map
         uint64 headerMemMapPages = (header->memMapLength * header->memMapDescriptorSize + 4095) / 4096;
@@ -143,15 +141,6 @@ namespace VirtualMemoryManager
         uint64 screenPages = (header->screenBufferSize + 4095) / 4096;
         for(uint64 i = 0; i < screenPages; i++)
             EarlyIdentityMap((uint64)(header->screenBuffer) + 4096 * i);
-
-        for(int s = 0; s < header->memMapLength; s++)
-        {
-            MemoryDescriptor* seg = (MemoryDescriptor*)((char*)(header->memMap) + s * header->memMapDescriptorSize);
-            if(seg->attributes & MemoryDescriptor::ATTRIBUTE_RUNTIME) {
-                for(uint64 p = 0; p < seg->numPages; p++)
-                    EarlyIdentityMap((uint64)(seg->physicalStart) + p * 4096);
-            }
-        }
 
         // load new PML4
         __asm__ __volatile__ (
