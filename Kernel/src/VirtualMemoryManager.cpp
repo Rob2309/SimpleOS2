@@ -142,15 +142,6 @@ namespace VirtualMemoryManager
         for(uint64 i = 0; i < screenPages; i++)
             EarlyIdentityMap((uint64)(header->screenBuffer) + 4096 * i);
 
-        for(int s = 0; s < header->memMapLength; s++)
-        {
-            MemoryDescriptor* seg = (MemoryDescriptor*)((char*)(header->memMap) + s * header->memMapDescriptorSize);
-            if(seg->attributes & MemoryDescriptor::ATTRIBUTE_RUNTIME) {
-                for(uint64 p = 0; p < seg->numPages; p++)
-                    EarlyIdentityMap((uint64)(seg->physicalStart) + p * 4096);
-            }
-        }
-
         // load new PML4
         __asm__ __volatile__ (
             "movq %%eax, %%cr3;"
