@@ -131,8 +131,6 @@ namespace IDT {
             :
             : "r" (&g_IDTDesc)
         );
-
-        EnableInterrupts();
     }
 
     void SetISR(uint8 index, ISR isr)

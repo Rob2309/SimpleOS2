@@ -27,14 +27,11 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     PhysicalMemoryManager::Init(info);
     VirtualMemoryManager::Init(info);
 
-    printf("Test\n");
-
     GDT::Init();
     IDT::Init();
-    IDT::EnableInterrupts();
-
     APIC::Init();
-    APIC::StartTimer(128, 0xFFFFFF, true);
+
+    IDT::EnableInterrupts();
 
     __asm__ __volatile__ (
         "mov $0x23, %%rax;" // 0x23
