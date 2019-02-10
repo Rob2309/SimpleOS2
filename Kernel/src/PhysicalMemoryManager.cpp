@@ -263,13 +263,4 @@ namespace PhysicalMemoryManager {
         MarkFree(seg, ((uint64)pages - seg->base) / 4096, numPages);
     }
 
-    void* AllocateCleanPage()
-    {
-        uint64* page = (uint64*)AllocatePage();
-        for(int i = 0; i < 512; i++) {
-            page[i] = 0;
-        }
-        return page;
-    }
-
 }

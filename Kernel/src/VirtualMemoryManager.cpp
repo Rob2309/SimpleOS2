@@ -1,6 +1,7 @@
 #include "VirtualMemoryManager.h"
 
 #include "PhysicalMemoryManager.h"
+#include "conio.h"
 
 namespace PhysicalMemoryManager
 {
@@ -38,10 +39,10 @@ namespace VirtualMemoryManager
     #define PML1_SET_PAT(a)             ((a) ? 0x80 : 0)
     #define PML1_SET_D(a)               ((a) ? 0x40 : 0)
 
-    #define GET_PML1_INDEX(addr)        (((addr) & 0x1FF000) >> 12)
-    #define GET_PML2_INDEX(addr)        (((addr) & 0x3FE00000) >> 21)
-    #define GET_PML3_INDEX(addr)        (((addr) & 0x7FC0000000) >> 30)
-    #define GET_PML4_INDEX(addr)        (((addr) & 0xFF8000000000) >> 39)
+    #define GET_PML1_INDEX(addr)        (((addr) >> (12 + 0 * 9)) & 0x1FF)
+    #define GET_PML2_INDEX(addr)        (((addr) >> (12 + 1 * 9)) & 0x1FF)
+    #define GET_PML3_INDEX(addr)        (((addr) >> (12 + 2 * 9)) & 0x1FF)
+    #define GET_PML4_INDEX(addr)        (((addr) >> (12 + 3 * 9)) & 0x1FF)
 
     static uint64* g_PML4 = nullptr;
 
@@ -62,21 +63,27 @@ namespace VirtualMemoryManager
         uint64 pml4Entry = g_PML4[GET_PML4_INDEX(physAddr)];
         uint64* pml3 = (uint64*)PML_GET_ADDR(pml4Entry);
         if(!PML_GET_P(pml4Entry)) {
-            pml3 = (uint64*)PhysicalMemoryManager::AllocateCleanPage();
+            pml3 = (uint64*)PhysicalMemoryManager::AllocatePage();
+            for(int i = 0; i < 512; i++)
+                pml3[i] = 0;
             g_PML4[GET_PML4_INDEX(physAddr)] = PML_SET_ADDR((uint64)pml3) | PML_SET_P(1) | PML_SET_RW(1) | PML_SET_US(1);
         }
 
         uint64 pml3Entry = pml3[GET_PML3_INDEX(physAddr)];
         uint64* pml2 = (uint64*)PML_GET_ADDR(pml3Entry);
         if(!PML_GET_P(pml3Entry)) {
-            pml2 = (uint64*)PhysicalMemoryManager::AllocateCleanPage();
+            pml2 = (uint64*)PhysicalMemoryManager::AllocatePage();
+            for(int i = 0; i < 512; i++)
+                pml2[i] = 0;
             pml3[GET_PML3_INDEX(physAddr)] = PML_SET_ADDR((uint64)pml2) | PML_SET_P(1) | PML_SET_RW(1) | PML_SET_US(1);
         }
 
         uint64 pml2Entry = pml2[GET_PML2_INDEX(physAddr)];
         uint64* pml1 = (uint64*)PML_GET_ADDR(pml2Entry);
         if(!PML_GET_P(pml2Entry)) {
-            pml1 = (uint64*)PhysicalMemoryManager::AllocateCleanPage();
+            pml1 = (uint64*)PhysicalMemoryManager::AllocatePage();
+            for(int i = 0; i < 512; i++)
+                pml1[i] = 0;
             pml2[GET_PML2_INDEX(physAddr)] = PML_SET_ADDR((uint64)pml1) | PML_SET_P(1) | PML_SET_RW(1) | PML_SET_US(1);
         }
 
@@ -85,10 +92,12 @@ namespace VirtualMemoryManager
 
     void Init(KernelHeader* header)
     {
-        g_PML4 = (uint64*)PhysicalMemoryManager::AllocateCleanPage();
+        g_PML4 = (uint64*)PhysicalMemoryManager::AllocatePage();
+        for(int i = 0; i < 512; i++)
+                g_PML4[i] = 0;
         EarlyIdentityMap((uint64)g_PML4);
 
-        g_TempPage = (uint64*)PhysicalMemoryManager::AllocateCleanPage();
+        g_TempPage = (uint64*)PhysicalMemoryManager::AllocatePage();
         EarlyIdentityMap((uint64)g_TempPage);
 
         uint64* tempPagePML3 = (uint64*)PML_GET_ADDR(g_PML4[GET_PML4_INDEX((uint64)g_TempPage)]);
@@ -131,9 +140,18 @@ namespace VirtualMemoryManager
             EarlyIdentityMap((uint64)(header->stack) + i * 4096);
 
         // Identity map screen buffer
-        uint64 screenPages = (header->screenScanlineWidth * header->screenHeight * 4);
-        for(int i = 0; i < screenPages; i++)
+        uint64 screenPages = (header->screenBufferSize + 4095) / 4096;
+        for(uint64 i = 0; i < screenPages; i++)
             EarlyIdentityMap((uint64)(header->screenBuffer) + 4096 * i);
+
+        for(int s = 0; s < header->memMapLength; s++)
+        {
+            MemoryDescriptor* seg = (MemoryDescriptor*)((char*)(header->memMap) + s * header->memMapDescriptorSize);
+            if(seg->attributes & MemoryDescriptor::ATTRIBUTE_RUNTIME) {
+                for(uint64 p = 0; p < seg->numPages; p++)
+                    EarlyIdentityMap((uint64)(seg->physicalStart) + p * 4096);
+            }
+        }
 
         // load new PML4
         __asm__ __volatile__ (
@@ -153,26 +171,41 @@ namespace VirtualMemoryManager
         uint64 pml4Entry = g_PML4[pml4Index];
         uint64* pml3 = (uint64*)PML_GET_ADDR(pml4Entry);
         if(!PML_GET_P(pml4Entry)) {
-            pml3 = (uint64*)PhysicalMemoryManager::AllocateCleanPage();
+            pml3 = (uint64*)PhysicalMemoryManager::AllocatePage();
             g_PML4[pml4Index] = PML_SET_ADDR((uint64)pml3) | PML_SET_P(1) | PML_SET_RW(1) | PML_SET_US(1);
+
+            MapTempToPage((uint64)pml3);
+            for(int i = 0; i < 512; i++)
+                g_TempPage[i] = 0;
+        } else {
+            MapTempToPage((uint64)pml3);
         }
-        MapTempToPage((uint64)pml3);
 
         uint64 pml3Entry = g_TempPage[pml3Index];
         uint64* pml2 = (uint64*)PML_GET_ADDR(pml3Entry);
         if(!PML_GET_P(pml3Entry)) {
-            pml2 = (uint64*)PhysicalMemoryManager::AllocateCleanPage();
+            pml2 = (uint64*)PhysicalMemoryManager::AllocatePage();
             g_TempPage[pml3Index] = PML_SET_ADDR((uint64)pml2) | PML_SET_P(1) | PML_SET_RW(1) | PML_SET_US(1);
+
+            MapTempToPage((uint64)pml2);
+            for(int i = 0; i < 512; i++)
+                g_TempPage[i] = 0;
+        } else {
+            MapTempToPage((uint64)pml2);
         }
-        MapTempToPage((uint64)pml2);
 
         uint64 pml2Entry = g_TempPage[pml2Index];
         uint64* pml1 = (uint64*)PML_GET_ADDR(pml2Entry);
         if(!PML_GET_P(pml2Entry)) {
-            pml1 = (uint64*)PhysicalMemoryManager::AllocateCleanPage();
+            pml1 = (uint64*)PhysicalMemoryManager::AllocatePage();
             g_TempPage[pml2Index] = PML_SET_ADDR((uint64)pml1) | PML_SET_P(1) | PML_SET_RW(1) | PML_SET_US(1);
+
+            MapTempToPage((uint64)pml1);
+            for(int i = 0; i < 512; i++)
+                g_TempPage[i] = 0;
+        } else {
+            MapTempToPage((uint64)pml1);
         }
-        MapTempToPage((uint64)pml1);
 
         g_TempPage[pml1Index] = PML_SET_ADDR(physPage) | PML_SET_P(1) | PML_SET_RW(1) | PML_SET_US(1);
         if(disableCache)

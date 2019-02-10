@@ -9,8 +9,6 @@
 
 #include "APIC.h"
 
-extern uint64 g_APICBase;
-
 extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     
     uint32* fontBuffer = nullptr;
@@ -31,10 +29,29 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
 
     GDT::Init();
     IDT::Init();
+    APIC::Init();
+
     IDT::EnableInterrupts();
 
-    APIC::Init();
-    APIC::StartTimer(128, 0xFFFFFF, true);
+    __asm__ __volatile__ (
+        "mov $0x23, %%rax;" // 0x23
+        "mov %%ax, %%ds;"
+        "mov %%ax, %%es;"
+        "mov %%ax, %%fs;"
+        "mov %%ax, %%gs;"
+        "mov %%rsp, %%rax;"
+        "push $0x23;"
+        "push %%rax;"
+        "pushfq;"
+        "push $0x1B;"           // 0x1B
+        "leaq 1f(%%rip), %%rax;"
+        "push %%rax;"
+        "iretq;"
+        "1: nop"
+        : : : "rax"
+    );
+
+    printf("Hello from usermode!\n");
 
     while(true);
 

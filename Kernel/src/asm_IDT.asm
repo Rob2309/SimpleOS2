@@ -5,7 +5,6 @@
     push rcx
     push rdx
     push rbx
-    push rsp
     push rbp
     push rsi
     push rdi
@@ -15,7 +14,6 @@
     pop rdi
     pop rsi
     pop rbp
-    pop rsp
     pop rbx
     pop rdx
     pop rcx
@@ -26,6 +24,9 @@
 
 ISRCommon:
     pushAll
+
+    mov ax, 0x10
+    mov ss, ax
 
     mov ax, ds
     push rax

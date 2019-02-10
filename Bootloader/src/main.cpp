@@ -164,6 +164,7 @@ extern "C" EFI_STATUS efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
     header->screenHeight = resBestY;
     header->screenScanlineWidth = resBestScanlineWidth;
     header->screenBuffer = (uint32*)EFIUtil::Graphics->Mode->FrameBufferBase;
+    header->screenBufferSize = EFIUtil::Graphics->Mode->FrameBufferSize;
 
     void* newStack = Allocate(16 * 4096);
     header->stack = newStack;
@@ -206,11 +207,14 @@ extern "C" EFI_STATUS efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
         return EFI_LOAD_ERROR;
     }
 
+    char* kernelStackTop = (char*)(header->stack) + header->stackSize;
+
     __asm__ __volatile__ (
         ".intel_syntax noprefix;"
+        "movq rbp, %2;"
         "movq rsp, %2;"
         "callq rax;"
         ".att_syntax prefix"
-        : : "D"(header), "a"(kernelMain), "r"(header->stack)
+        : : "D"(header), "a"(kernelMain), "r"(kernelStackTop)
     );
 }
