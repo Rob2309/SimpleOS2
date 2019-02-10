@@ -76,6 +76,13 @@ extern "C" EFI_STATUS efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
         return EFI_LOAD_ERROR;
     }
 
+    FileIO::FileData testData = FileIO::ReadFile(L"EFI\\BOOT\\Test.elf", MemoryType::TestImage);
+    if(testData.size == 0) {
+        Console::Print(L"Failed to load test program\r\nPress any key to exit...\r\n");
+        EFIUtil::WaitForKey();
+        return EFI_LOAD_ERROR;
+    }
+
     Console::Print(L"Preparing kernel...\r\n");
 
     Elf64Addr kernelEntryPoint = 0;
@@ -95,6 +102,9 @@ extern "C" EFI_STATUS efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
 
     header->fontImage.buffer = fontData.data;
     header->fontImage.size = fontData.size;
+
+    header->helloWorldImage.buffer = testData.data;
+    header->helloWorldImage.size = testData.size;
 
     if(kernelEntryPoint == 0) {
         Console::Print(L"Kernel entry point not found\r\nPress any key to exit...\r\n");

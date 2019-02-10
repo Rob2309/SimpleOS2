@@ -23,6 +23,7 @@ enum class MemoryType : unsigned int {
     KernelImage = 0x80000003,
     MemoryMap = 0x80000004,
     Font = 0x80000005,
+    TestImage = 0x80000006,
 };
 
 struct MemoryDescriptor {
