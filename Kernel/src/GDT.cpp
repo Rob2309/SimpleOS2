@@ -1,7 +1,6 @@
 #include "GDT.h"
 
 #include "types.h"
-#include "allocate.h"
 #include "conio.h"
 
 namespace GDT

@@ -76,6 +76,14 @@ namespace IDT {
         case ISRNumbers::ExceptionVirtualization: printf("Virtualization exception\n"); break;
         case ISRNumbers::ExceptionSecurity: printf("Security exception\n"); break;
         }
+
+        uint64 cr2;
+        __asm__ __volatile__ (
+            "movq %%cr2, %0"
+            : "=r"(cr2)
+        );
+        printf("CR2: 0x%x\n", cr2);
+        while(true);
     }
 
     void Init()

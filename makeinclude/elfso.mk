@@ -1,7 +1,7 @@
 
 
 elf_include_flags := $(addprefix -I, common)
-elf_nasm_include_flags := $(addprefix -i, common $(localdir)/src/)
+elf_nasm_include_flags := $(addprefix -i, common)
 
 c_headers := $(wildcard $(localdir)/src/*.h)
 cross_headers := $(wildcard $(localdir)/src/*.inc)
