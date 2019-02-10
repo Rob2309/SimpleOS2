@@ -8,6 +8,7 @@ include_paths :=
 
 include Bootloader/module.mk
 include Kernel/module.mk
+include Programs/Test/module.mk
 
 run: partition.img FORCE
 	qemu-system-x86_64 -m 1024 -cpu qemu64 -net none -drive if=pflash,unit=0,format=raw,file=dep/ovmf/x64/OVMF_CODE.fd,readonly=on -drive if=pflash,unit=1,format=raw,file=dep/ovmf/x64/OVMF_VARS.fd,readonly=on -drive file=$<,if=ide

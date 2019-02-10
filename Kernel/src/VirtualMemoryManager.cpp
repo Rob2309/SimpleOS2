@@ -51,7 +51,7 @@ namespace VirtualMemoryManager
 
     static void MapTempToPage(uint64 physPage)
     {
-        g_TempPageTable[GET_PML1_INDEX((uint64)g_TempPage)] = PML_SET_ADDR(physPage) | PML_SET_P(1) | PML_SET_RW(1) | PML_SET_US(1);
+        g_TempPageTable[GET_PML1_INDEX((uint64)g_TempPage)] = PML_SET_ADDR(physPage) | PML_SET_P(1) | PML_SET_RW(1);
         __asm__ __volatile__ (
             "invlpg (%0)"
             : : "r" (g_TempPage)
@@ -66,7 +66,7 @@ namespace VirtualMemoryManager
             pml3 = (uint64*)PhysicalMemoryManager::AllocatePage();
             for(int i = 0; i < 512; i++)
                 pml3[i] = 0;
-            g_PML4[GET_PML4_INDEX(physAddr)] = PML_SET_ADDR((uint64)pml3) | PML_SET_P(1) | PML_SET_RW(1) | PML_SET_US(1);
+            g_PML4[GET_PML4_INDEX(physAddr)] = PML_SET_ADDR((uint64)pml3) | PML_SET_P(1) | PML_SET_RW(1);
         }
 
         uint64 pml3Entry = pml3[GET_PML3_INDEX(physAddr)];
@@ -75,7 +75,7 @@ namespace VirtualMemoryManager
             pml2 = (uint64*)PhysicalMemoryManager::AllocatePage();
             for(int i = 0; i < 512; i++)
                 pml2[i] = 0;
-            pml3[GET_PML3_INDEX(physAddr)] = PML_SET_ADDR((uint64)pml2) | PML_SET_P(1) | PML_SET_RW(1) | PML_SET_US(1);
+            pml3[GET_PML3_INDEX(physAddr)] = PML_SET_ADDR((uint64)pml2) | PML_SET_P(1) | PML_SET_RW(1);
         }
 
         uint64 pml2Entry = pml2[GET_PML2_INDEX(physAddr)];
@@ -84,10 +84,10 @@ namespace VirtualMemoryManager
             pml1 = (uint64*)PhysicalMemoryManager::AllocatePage();
             for(int i = 0; i < 512; i++)
                 pml1[i] = 0;
-            pml2[GET_PML2_INDEX(physAddr)] = PML_SET_ADDR((uint64)pml1) | PML_SET_P(1) | PML_SET_RW(1) | PML_SET_US(1);
+            pml2[GET_PML2_INDEX(physAddr)] = PML_SET_ADDR((uint64)pml1) | PML_SET_P(1) | PML_SET_RW(1);
         }
 
-        pml1[GET_PML1_INDEX(physAddr)] = PML_SET_ADDR(physAddr) | PML_SET_P(1) | PML_SET_RW(1) | PML_SET_US(1);
+        pml1[GET_PML1_INDEX(physAddr)] = PML_SET_ADDR(physAddr) | PML_SET_P(1) | PML_SET_RW(1);
     }
 
     void Init(KernelHeader* header)
@@ -127,6 +127,10 @@ namespace VirtualMemoryManager
         for(uint64 i = 0; i < fontImagePages; i++)
             EarlyIdentityMap((uint64)(header->fontImage.buffer) + i * 4096);
 
+        uint64 testImagePages = (header->helloWorldImage.size + 4095) / 4096;
+        for(uint64 i = 0; i < testImagePages; i++)
+            EarlyIdentityMap((uint64)(header->helloWorldImage.buffer) + i * 4096);
+
         // identity map header memory map
         uint64 headerMemMapPages = (header->memMapLength * header->memMapDescriptorSize + 4095) / 4096;
         for(int i = 0; i < headerMemMapPages; i++)
@@ -149,8 +153,7 @@ namespace VirtualMemoryManager
         );
     }
 
-    uint64 MapPage(uint64 physPage, bool disableCache);
-    void MapPage(uint64 physPage, uint64 virtPage, bool disableCache, bool writeThrough)
+    void MapPage(uint64 physPage, uint64 virtPage, bool user, bool disableCache, bool writeThrough)
     {
         uint64 pml4Index = GET_PML4_INDEX(virtPage);
         uint64 pml3Index = GET_PML3_INDEX(virtPage);
@@ -196,7 +199,9 @@ namespace VirtualMemoryManager
             MapTempToPage((uint64)pml1);
         }
 
-        g_TempPage[pml1Index] = PML_SET_ADDR(physPage) | PML_SET_P(1) | PML_SET_RW(1) | PML_SET_US(1);
+        g_TempPage[pml1Index] = PML_SET_ADDR(physPage) | PML_SET_P(1) | PML_SET_RW(1);
+        if(user)
+            g_TempPage[pml1Index] |= PML_SET_US(1);
         if(disableCache)
             g_TempPage[pml1Index] |= PML_SET_PCD(1);
         if(writeThrough)
@@ -207,8 +212,31 @@ namespace VirtualMemoryManager
             : : "r" (virtPage)
         );
     }
+
     void UnmapPage(uint64 virtPage)
     {
+        uint64 pml4Index = GET_PML4_INDEX(virtPage);
+        uint64 pml3Index = GET_PML3_INDEX(virtPage);
+        uint64 pml2Index = GET_PML2_INDEX(virtPage);
+        uint64 pml1Index = GET_PML1_INDEX(virtPage);
 
+        uint64 pml4Entry = g_PML4[pml4Index];
+        uint64* pml3 = (uint64*)PML_GET_ADDR(pml4Entry);
+        MapTempToPage((uint64)pml3);
+
+        uint64 pml3Entry = g_TempPage[pml3Index];
+        uint64* pml2 = (uint64*)PML_GET_ADDR(pml3Entry);
+        MapTempToPage((uint64)pml2);
+
+        uint64 pml2Entry = g_TempPage[pml2Index];
+        uint64* pml1 = (uint64*)PML_GET_ADDR(pml2Entry);
+        MapTempToPage((uint64)pml1);
+
+        g_TempPage[pml1Index] = PML_SET_ADDR(0) | PML_SET_P(0);
+
+        __asm__ __volatile__ (
+            "invlpg (%0)"
+            : : "r" (virtPage)
+        );
     }
 }
