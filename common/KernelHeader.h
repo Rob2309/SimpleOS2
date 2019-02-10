@@ -26,7 +26,9 @@ struct MemoryDescriptor {
     unsigned long long physicalStart;
     unsigned long long virtualStart;
     unsigned long long numPages;
-    unsigned long long attributes;
+    enum : unsigned long long {
+        ATTRIBUTE_RUNTIME = 0x8000000000000000
+    } attributes;
 };
 
 struct ModuleDescriptor {
@@ -51,6 +53,7 @@ struct KernelHeader {
     uint32 screenWidth;
     uint32 screenHeight;
     uint32 screenScanlineWidth;
+    uint32 screenBufferSize;
     uint32* screenBuffer; 
 
     void* stack;

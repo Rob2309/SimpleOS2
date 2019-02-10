@@ -25,6 +25,9 @@
 ISRCommon:
     pushAll
 
+    mov ax, 0x10
+    mov ss, ax
+
     mov ax, ds
     push rax
 

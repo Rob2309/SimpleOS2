@@ -99,7 +99,7 @@ namespace GDT
 
         g_TSS = { 0 };
         g_TSS.iopbOffset = sizeof(TSS);
-        g_TSS.rsp0 = (uint64)&g_InterruptStack[0];
+        g_TSS.rsp0 = (uint64)g_InterruptStack + 4096;
 
         TSSDesc* tssDesc = (TSSDesc*)&g_GDT[5];
         *tssDesc = { 0 };

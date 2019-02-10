@@ -32,37 +32,40 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     PhysicalMemoryManager::Init(info);
     VirtualMemoryManager::Init(info);
 
+    printf("Test\n");
+
     GDT::Init();
     IDT::Init();
     IDT::EnableInterrupts();
 
-    APIC::Init();
-    APIC::StartTimer(128, 0xFFFFFF, true);
+    //APIC::Init();
+    //APIC::StartTimer(128, 0xFFFFFF, true);
 
-    IDT::SetISR(95, ISRHandlerTest);
+    //IDT::SetISR(95, ISRHandlerTest);
 
     __asm__ __volatile__ (
         "cli;"
-        "mov $0x23, %%rax;"
+        "mov $0x23, %%rax;" // 0x23
         "mov %%ax, %%ds;"
         "mov %%ax, %%es;"
         "mov %%ax, %%fs;"
         "mov %%ax, %%gs;"
+        "mov %%rsp, %%rax;"
         "push $0x23;"
-        "push %%rsp;"
+        "push %%rax;"
         "pushfq;"
-        "push $0x1B;"
+        "push $0x1B;"           // 0x1B
         "leaq 1f(%%rip), %%rax;"
         "push %%rax;"
         "iretq;"
-        "1: add $4, %%rsp;"
+        "1: nop"
         : : : "rax"
     );
 
     printf("Hello from usermode!\n");
 
     __asm__ __volatile__ (
-        "int $95"
+        "int $40"
     );
 
     while(true);
