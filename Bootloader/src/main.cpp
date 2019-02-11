@@ -69,7 +69,7 @@ extern "C" EFI_STATUS efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
         return EFI_LOAD_ERROR;
     }
     
-    FileIO::FileData fontData = FileIO::ReadFile(L"EFI\\BOOT\\font.img", MemoryType::Font);
+    FileIO::FileData fontData = FileIO::ReadFile(L"EFI\\BOOT\\font.fnt", MemoryType::Font);
     if(fontData.size == 0) {
         Console::Print(L"Failed to load font\r\nPress any key to exit...\r\n");
         EFIUtil::WaitForKey();
