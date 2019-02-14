@@ -37,25 +37,19 @@
 
 namespace Paging
 {
-    static uint64 g_HighMemBase;
+    static uint64 g_HighMemBase = 0;
 
     void Init(KernelHeader* header)
     {
-        uint64* oldPageBuffer;
-        __asm__ __volatile__ (
-            "movq %%cr3, %0"
-            : "=r"(oldPageBuffer)
-        );
-
         uint64* pageBuffer = (uint64*)Allocate(4096 * 2);
         
-        for(int i = 0; i < 512; i++)
+        for(uint64 i = 0; i < 512; i++)
             pageBuffer[i] = 0;
         pageBuffer[511] = PML_SET_ADDR((uint64)&pageBuffer[512]) | PML_SET_P(1) | PML_SET_RW(1);
         pageBuffer[0] = pageBuffer[511];
 
-        for(int i = 0; i < 512; i++)
-            pageBuffer[512 + i] = PML_SET_ADDR((uint64)i << 30) | PML_SET_P(1) | PML_SET_RW(1) | PML1_SET_PAT(1);
+        for(uint64 i = 0; i < 512; i++)
+            pageBuffer[512 + i] = PML_SET_ADDR(i << 30) | PML_SET_P(1) | PML_SET_RW(1) | PML1_SET_PAT(1);
         
         header->highMemoryBase = ((uint64)511 << 39) | 0xFFFF000000000000;
         g_HighMemBase = header->highMemoryBase;

@@ -10,6 +10,8 @@ namespace MemoryManager {
 
     static uint64 g_HighMemBase;
 
+    static uint64* g_PML4;
+
     void* GetPhysicalMapPointer()
     {
         return g_PhysMap;
@@ -69,6 +71,7 @@ namespace MemoryManager {
         g_PhysMapPages = (header->physMapSize + 4095) / 4096;
         g_PhysMapSegments = header->physMapSegments;
         g_HighMemBase = header->highMemoryBase;
+        g_PML4 = header->pageBuffer;
 
         printf("Physical memory map at 0x%x\n", g_PhysMap);
         printf("Size needed for physical memory map: %i Bytes\n", g_PhysMapPages * 4096);

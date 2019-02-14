@@ -68,6 +68,8 @@ extern "C" EFI_STATUS efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
     Paging::Init(header);
     header = (KernelHeader*)Paging::ConvertPtr(header);
 
+    uint32 test = *(uint32*)(0xFEE00000 + 0x20);
+
     FileIO::FileData kernelData = FileIO::ReadFile(L"EFI\\BOOT\\kernel.sys");
     if(kernelData.size == 0) {
         Console::Print(L"Failed to load kernel image\r\nPress any key to exit...\r\n");
