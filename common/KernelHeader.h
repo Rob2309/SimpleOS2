@@ -31,4 +31,8 @@ struct KernelHeader {
 
     void* stack;
     uint64 stackSize;
+
+    uint64* pageBuffer;
+    uint64 pageBufferSize;
+    uint64 highMemoryBase;
 };

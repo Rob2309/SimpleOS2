@@ -1,11 +1,10 @@
 #pragma once
 
-#include "types.h"
+#include "KernelHeader.h"
 
 namespace Paging
 {
-    void Init();
+    void Init(KernelHeader* header);
 
-    uint64 MapHighPage(uint64 physPage);
-    uint64 MapHighPages(uint64 physPage, uint64 numPages);
+    void* ConvertPtr(void* ptr);
 }

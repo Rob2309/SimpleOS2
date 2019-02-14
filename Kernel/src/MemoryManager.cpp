@@ -1,12 +1,14 @@
-#include "PhysicalMemoryManager.h"
+#include "MemoryManager.h"
 
 #include "conio.h"
 
-namespace PhysicalMemoryManager {
+namespace MemoryManager {
 
     static PhysicalMapSegment* g_PhysMap = nullptr;
     static uint64 g_PhysMapPages = 0;
     static uint64 g_PhysMapSegments;
+
+    static uint64 g_HighMemBase;
 
     void* GetPhysicalMapPointer()
     {
@@ -17,11 +19,13 @@ namespace PhysicalMemoryManager {
         return g_PhysMapPages;
     }
 
-    static PhysicalMapSegment* FindSegment(uint64 pageAddress) {
+    static PhysicalMapSegment* FindSegment(void* page) {
+        page = KernelToPhysPtr(page);
+
         PhysicalMapSegment* physMap = g_PhysMap;
 
         for(uint64 s = 0; s < g_PhysMapSegments; s++) {
-            if(physMap->base <= pageAddress && (physMap->base + physMap->numPages * 4096 - 4096) >= pageAddress) {
+            if(physMap->base <= (uint64)page && (physMap->base + physMap->numPages * 4096 - 1) >= (uint64)page) {
                 return physMap;
             } else {
                 physMap = (PhysicalMapSegment*)((char*)physMap + sizeof(PhysicalMapSegment) + (physMap->numPages + 7) / 8);
@@ -31,19 +35,29 @@ namespace PhysicalMemoryManager {
         return nullptr;
     }
 
-    static void MarkUsed(PhysicalMapSegment* segment, uint64 page, uint64 numPages) {
+    static void MarkUsed(void* page, uint64 numPages) {
+        PhysicalMapSegment* segment = FindSegment(page);
+
+        page = KernelToPhysPtr(page);
+        uint64 index = ((uint64)page - segment->base) / 4096;
+
         for(uint64 i = 0; i < numPages; i++) {
-            uint64 byte = (page + i) / 8;
-            uint64 bit = (page + i) % 8;
+            uint64 byte = (index + i) / 8;
+            uint64 bit = (index + i) % 8;
 
             segment->map[byte] |= (1 << bit);
         }
     }
 
-    static void MarkFree(PhysicalMapSegment* segment, uint64 page, uint64 numPages) {
+    static void MarkFree(void* page, uint64 numPages) {
+        PhysicalMapSegment* segment = FindSegment(page);
+
+        page = KernelToPhysPtr(page);
+        uint64 index = ((uint64)page - segment->base) / 4096;
+
         for(uint64 i = 0; i < numPages; i++) {
-            uint64 byte = (page + i) / 8;
-            uint64 bit = (page + i) % 8;
+            uint64 byte = (index + i) / 8;
+            uint64 bit = (index + i) % 8;
 
             segment->map[byte] &= ~(1 << bit);
         }
@@ -54,6 +68,7 @@ namespace PhysicalMemoryManager {
         g_PhysMap = header->physMap;
         g_PhysMapPages = (header->physMapSize + 4095) / 4096;
         g_PhysMapSegments = header->physMapSegments;
+        g_HighMemBase = header->highMemoryBase;
 
         printf("Physical memory map at 0x%x\n", g_PhysMap);
         printf("Size needed for physical memory map: %i Bytes\n", g_PhysMapPages * 4096);
@@ -68,18 +83,13 @@ namespace PhysicalMemoryManager {
 
         printf("Available memory: %i MB\n", availableMemory / 1024 / 1024);
 
-        PhysicalMapSegment* seg = FindSegment((uint64)header);
-        MarkUsed(seg, ((uint64)header - seg->base) / 4096, (sizeof(KernelHeader) + 4095) / 4096);
-        seg = FindSegment((uint64)(header->kernelImage.buffer));
-        MarkUsed(seg, ((uint64)(header->kernelImage.buffer) - seg->base) / 4096, (header->kernelImage.size + 4095) / 4096);
-        seg = FindSegment((uint64)(header->helloWorldImage.buffer));
-        MarkUsed(seg, ((uint64)(header->helloWorldImage.buffer) - seg->base) / 4096, (header->helloWorldImage.size + 4095) / 4096);
-        seg = FindSegment((uint64)(header->fontImage.buffer));
-        MarkUsed(seg, ((uint64)(header->fontImage.buffer) - seg->base) / 4096, (header->fontImage.size + 4095) / 4096);
-        seg = FindSegment((uint64)(header->physMap));
-        MarkUsed(seg, ((uint64)(header->physMap) - seg->base) / 4096, (header->physMapSize + 4095) / 4096);
-        seg = FindSegment((uint64)(header->stack));
-        MarkUsed(seg, ((uint64)(header->stack) - seg->base) / 4096, (header->stackSize + 4095) / 4096);
+        MarkUsed(header, (sizeof(KernelHeader) + 4095) / 4096);
+        MarkUsed(header->kernelImage.buffer, (header->kernelImage.size + 4095) / 4096);
+        MarkUsed(header->helloWorldImage.buffer, (header->helloWorldImage.size + 4095) / 4096);
+        MarkUsed(header->fontImage.buffer, (header->fontImage.size + 4095) / 4096);
+        MarkUsed(header->physMap, (header->physMapSize + 4095) / 4096);
+        MarkUsed(header->stack, (header->stackSize + 4095) / 4096);
+        MarkUsed(header->pageBuffer, (header->pageBufferSize + 4095) / 4096);
 
         printf("Physical memory map initialized\n");
     }
@@ -106,7 +116,7 @@ namespace PhysicalMemoryManager {
                     numFree++;
                     if(numFree == numPages) {
                         uint64 basePage = p - numPages + 1;
-                        MarkUsed(seg, basePage, numPages);
+                        MarkUsed((void*)basePage, numPages);
                         return (void*)(seg->base + basePage * 4096);
                     }
                 } else {
@@ -121,8 +131,17 @@ namespace PhysicalMemoryManager {
     }
     void FreePages(void* pages, uint64 numPages)
     {
-        PhysicalMapSegment* seg = FindSegment((uint64)pages);
-        MarkFree(seg, ((uint64)pages - seg->base) / 4096, numPages);
+        MarkFree(pages, numPages);
+    }
+
+    void* PhysToKernelPtr(void* ptr)
+    {
+        return (char*)ptr + g_HighMemBase;
+    }
+
+    void* KernelToPhysPtr(void* ptr)
+    {
+        return (char*)ptr - g_HighMemBase;
     }
 
 }

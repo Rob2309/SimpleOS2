@@ -65,6 +65,8 @@ extern "C" EFI_STATUS efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
     Console::Print(L"Loading modules...\r\n");
 
     KernelHeader* header = (KernelHeader*)Allocate(sizeof(KernelHeader));
+    Paging::Init(header);
+    header = (KernelHeader*)Paging::ConvertPtr(header);
 
     FileIO::FileData kernelData = FileIO::ReadFile(L"EFI\\BOOT\\kernel.sys");
     if(kernelData.size == 0) {
@@ -91,7 +93,7 @@ extern "C" EFI_STATUS efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
 
     Elf64Addr kernelEntryPoint = 0;
     uint64 size = GetELFSize(kernelData.data);
-    uint8* processBuffer = (uint8*)Allocate(size);
+    uint8* processBuffer = (uint8*)Paging::ConvertPtr(Allocate(size));
     
     if(!PrepareELF(kernelData.data, processBuffer, &kernelEntryPoint)) {
         Console::Print(L"Failed to prepare kernel\r\nPress any key to exit...\r\n");
@@ -104,10 +106,10 @@ extern "C" EFI_STATUS efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
     header->kernelImage.buffer = processBuffer;
     header->kernelImage.size = size;
 
-    header->fontImage.buffer = fontData.data;
+    header->fontImage.buffer = (uint8*)Paging::ConvertPtr(fontData.data);
     header->fontImage.size = fontData.size;
 
-    header->helloWorldImage.buffer = testData.data;
+    header->helloWorldImage.buffer = (uint8*)Paging::ConvertPtr(testData.data);
     header->helloWorldImage.size = testData.size;
 
     if(kernelEntryPoint == 0) {
@@ -119,15 +121,15 @@ extern "C" EFI_STATUS efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
     header->screenWidth = resBestX;
     header->screenHeight = resBestY;
     header->screenScanlineWidth = resBestScanlineWidth;
-    header->screenBuffer = (uint32*)EFIUtil::Graphics->Mode->FrameBufferBase;
+    header->screenBuffer = (uint32*)Paging::ConvertPtr((void*)EFIUtil::Graphics->Mode->FrameBufferBase);
     header->screenBufferSize = EFIUtil::Graphics->Mode->FrameBufferSize;
 
-    void* newStack = Allocate(16 * 4096);
+    void* newStack = Paging::ConvertPtr(Allocate(16 * 4096));
     header->stack = newStack;
     header->stackSize = 16 * 4096;
 
     PhysicalMap::PhysMapInfo physMap = PhysicalMap::Build();
-    header->physMap = physMap.map;
+    header->physMap = (PhysicalMapSegment*)Paging::ConvertPtr(physMap.map);
     header->physMapSegments = physMap.numSegments;
     header->physMapSize = physMap.size;
 

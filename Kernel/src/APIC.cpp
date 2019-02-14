@@ -4,8 +4,7 @@
 
 #include "IDT.h"
 
-#include "VirtualMemoryManager.h"
-#include "PhysicalMemoryManager.h"
+#include "MemoryManager.h"
 
 #include "port.h"
 
@@ -82,10 +81,8 @@ namespace APIC
             : "ecx"
         );
 
-        g_APICBase = ((uint64)edx << 32) | (eax & 0xFFFFF000);
+        g_APICBase = (uint64)MemoryManager::PhysToKernelPtr((void*)(((uint64)edx << 32) | (eax & 0xFFFFF000)));
         printf("APIC Base: 0x%x\n", g_APICBase);
-
-        VirtualMemoryManager::MapPage(g_APICBase, g_APICBase, true, true);
 
         IDT::SetISR(ISRNumbers::APICError, ISR_Error);
         IDT::SetISR(ISRNumbers::APICSpurious, ISR_Spurious);

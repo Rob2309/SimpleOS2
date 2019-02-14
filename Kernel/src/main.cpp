@@ -2,8 +2,7 @@
 
 #include "terminal.h"
 #include "conio.h"
-#include "PhysicalMemoryManager.h"
-#include "VirtualMemoryManager.h"
+#include "MemoryManager.h"
 #include "GDT.h"
 #include "IDT.h"
 
@@ -16,8 +15,7 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
 
     printf("Kernel at 0x%x\n", info->kernelImage.buffer);
     
-    PhysicalMemoryManager::Init(info);
-    VirtualMemoryManager::Init(info);
+    MemoryManager::Init(info);
 
     GDT::Init();
     IDT::Init();
