@@ -50,8 +50,9 @@ namespace Paging
         uint64* pageBuffer = (uint64*)Allocate(4096 * 2);
         
         for(int i = 0; i < 512; i++)
-            pageBuffer[i] = oldPageBuffer[i];
+            pageBuffer[i] = 0;
         pageBuffer[511] = PML_SET_ADDR((uint64)&pageBuffer[512]) | PML_SET_P(1) | PML_SET_RW(1);
+        pageBuffer[0] = pageBuffer[511];
 
         for(int i = 0; i < 512; i++)
             pageBuffer[512 + i] = PML_SET_ADDR((uint64)i << 30) | PML_SET_P(1) | PML_SET_RW(1) | PML1_SET_PAT(1);
