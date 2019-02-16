@@ -2,7 +2,7 @@
 
 efi_include_flags := $(addprefix -I, dep/gnu-efi/inc dep/gnu-efi/inc/x86_64 common)
 
-c_headers := $(wildcard $(localdir)/src/*.h)
+c_headers := $(wildcard $(localdir)/src/*.h) $(wildcard common/*.h)
 
 c_sources := $(wildcard $(localdir)/src/*.c)
 cpp_sources := $(wildcard $(localdir)/src/*.cpp)

@@ -3,7 +3,7 @@
 #include "types.h"
 
 struct ModuleDescriptor {
-    uint64 size;
+    uint64 numPages;
     uint8* buffer;
 };
 
@@ -16,23 +16,22 @@ struct PhysicalMapSegment {
 struct KernelHeader {
     ModuleDescriptor kernelImage;
     ModuleDescriptor ramdiskImage;
-    ModuleDescriptor helloWorldImage;
     ModuleDescriptor fontImage;
 
     uint32 screenWidth;
     uint32 screenHeight;
     uint32 screenScanlineWidth;
-    uint32 screenBufferSize;
+    uint32 screenBufferPages;
     uint32* screenBuffer; 
 
     PhysicalMapSegment* physMap;
-    uint64 physMapSize;
+    uint64 physMapPages;
     uint64 physMapSegments;
 
     void* stack;
-    uint64 stackSize;
+    uint64 stackPages;
 
     uint64* pageBuffer;
-    uint64 pageBufferSize;
+    uint64 pageBufferPages;
     uint64 highMemoryBase;
 };

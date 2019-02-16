@@ -68,7 +68,7 @@ namespace MemoryManager {
     void Init(KernelHeader* header)
     {
         g_PhysMap = header->physMap;
-        g_PhysMapPages = (header->physMapSize + 4095) / 4096;
+        g_PhysMapPages = header->physMapPages;
         g_PhysMapSegments = header->physMapSegments;
         g_HighMemBase = header->highMemoryBase;
         g_PML4 = header->pageBuffer;
@@ -87,12 +87,11 @@ namespace MemoryManager {
         printf("Available memory: %i MB\n", availableMemory / 1024 / 1024);
 
         MarkUsed(header, (sizeof(KernelHeader) + 4095) / 4096);
-        MarkUsed(header->kernelImage.buffer, (header->kernelImage.size + 4095) / 4096);
-        MarkUsed(header->helloWorldImage.buffer, (header->helloWorldImage.size + 4095) / 4096);
-        MarkUsed(header->fontImage.buffer, (header->fontImage.size + 4095) / 4096);
-        MarkUsed(header->physMap, (header->physMapSize + 4095) / 4096);
-        MarkUsed(header->stack, (header->stackSize + 4095) / 4096);
-        MarkUsed(header->pageBuffer, (header->pageBufferSize + 4095) / 4096);
+        MarkUsed(header->kernelImage.buffer, header->kernelImage.numPages);
+        MarkUsed(header->fontImage.buffer, header->fontImage.numPages);
+        MarkUsed(header->physMap, header->physMapPages);
+        MarkUsed(header->stack, header->stackPages);
+        MarkUsed(header->pageBuffer, header->pageBufferPages);
 
         printf("Physical memory map initialized\n");
     }
