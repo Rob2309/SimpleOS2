@@ -13,4 +13,11 @@ namespace MemoryManager {
     void* PhysToKernelPtr(void* ptr);
     void* KernelToPhysPtr(void* ptr);
 
+    uint64 CreateProcessMap();
+    void FreeProcessMap(uint64 pml4Entry);
+    void SwitchProcessMap(uint64 pml4Entry);
+
+    void* FindProcessMemory(uint64 numPages);
+    void MapProcessPage(void* phys, void* virt);
+
 }

@@ -8,6 +8,26 @@
 
 #include "APIC.h"
 
+#include "Scheduler.h"
+
+uint8 stack1[4096];
+uint8 stack2[4096];
+
+void Process1()
+{
+    while(true);
+}
+
+void Process2()
+{
+    while(true);
+}
+
+void TimerEvent(IDT::Registers* regs)
+{
+    Scheduler::Tick(regs);
+}
+
 extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     
     Terminal::Init((uint32*)info->fontImage.buffer, info->screenBuffer, info->screenWidth, info->screenHeight, info->screenScanlineWidth, info->screenColorsInverted);
@@ -20,7 +40,15 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
 
     GDT::Init();
     IDT::Init();
+    
     APIC::Init();
+    APIC::SetTimerEvent(TimerEvent);
+
+    Scheduler::RegisterProcess(0, (uint64)&stack1[4096], (uint64)&Process1, false);
+    Scheduler::RegisterProcess(0, (uint64)&stack2[4096], (uint64)&Process2, false);
+
+    //IDT::EnableInterrupts();
+    //APIC::StartTimer(1000);
 
     while(true);
 
