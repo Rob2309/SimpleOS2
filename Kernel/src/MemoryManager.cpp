@@ -21,13 +21,11 @@ namespace MemoryManager {
         return g_PhysMapPages;
     }
 
-    static PhysicalMapSegment* FindSegment(void* page) {
-        page = KernelToPhysPtr(page);
-
+    static PhysicalMapSegment* FindSegment(void* physPage) {
         PhysicalMapSegment* physMap = g_PhysMap;
 
         for(uint64 s = 0; s < g_PhysMapSegments; s++) {
-            if(physMap->base <= (uint64)page && (physMap->base + physMap->numPages * 4096 - 1) >= (uint64)page) {
+            if(physMap->base <= (uint64)physPage && (physMap->base + physMap->numPages * 4096 - 1) >= (uint64)physPage) {
                 return physMap;
             } else {
                 physMap = (PhysicalMapSegment*)((char*)physMap + sizeof(PhysicalMapSegment) + (physMap->numPages + 7) / 8);
@@ -37,32 +35,34 @@ namespace MemoryManager {
         return nullptr;
     }
 
-    static void MarkUsed(void* page, uint64 numPages) {
-        PhysicalMapSegment* segment = FindSegment(page);
-
-        page = KernelToPhysPtr(page);
-        uint64 index = ((uint64)page - segment->base) / 4096;
-
+    static void MarkUsed(PhysicalMapSegment* segment, uint64 pageIndex, uint64 numPages) {
         for(uint64 i = 0; i < numPages; i++) {
-            uint64 byte = (index + i) / 8;
-            uint64 bit = (index + i) % 8;
+            uint64 byte = (pageIndex + i) / 8;
+            uint64 bit = (pageIndex + i) % 8;
 
             segment->map[byte] |= (1 << bit);
         }
     }
+    static void MarkUsed(void* physPage, uint64 numPages) {
+        PhysicalMapSegment* segment = FindSegment(physPage);
+        uint64 index = ((uint64)physPage - segment->base) / 4096;
 
-    static void MarkFree(void* page, uint64 numPages) {
-        PhysicalMapSegment* segment = FindSegment(page);
+        MarkUsed(segment, index, numPages);
+    }
 
-        page = KernelToPhysPtr(page);
-        uint64 index = ((uint64)page - segment->base) / 4096;
-
+    static void MarkFree(PhysicalMapSegment* segment, uint64 pageIndex, uint64 numPages) {
         for(uint64 i = 0; i < numPages; i++) {
-            uint64 byte = (index + i) / 8;
-            uint64 bit = (index + i) % 8;
+            uint64 byte = (pageIndex + i) / 8;
+            uint64 bit = (pageIndex + i) % 8;
 
             segment->map[byte] &= ~(1 << bit);
         }
+    }
+    static void MarkFree(void* physPage, uint64 numPages) {
+        PhysicalMapSegment* segment = FindSegment(physPage);
+        uint64 index = ((uint64)physPage - segment->base) / 4096;
+
+        MarkFree(segment, index, numPages);
     }
 
     void Init(KernelHeader* header)
@@ -86,23 +86,14 @@ namespace MemoryManager {
 
         printf("Available memory: %i MB\n", availableMemory / 1024 / 1024);
 
-        MarkUsed(header, (sizeof(KernelHeader) + 4095) / 4096);
-        MarkUsed(header->kernelImage.buffer, header->kernelImage.numPages);
-        MarkUsed(header->fontImage.buffer, header->fontImage.numPages);
-        MarkUsed(header->physMap, header->physMapPages);
-        MarkUsed(header->stack, header->stackPages);
-        MarkUsed(header->pageBuffer, header->pageBufferPages);
+        MarkUsed(KernelToPhysPtr(header), (sizeof(KernelHeader) + 4095) / 4096);
+        MarkUsed(KernelToPhysPtr(header->kernelImage.buffer), header->kernelImage.numPages);
+        MarkUsed(KernelToPhysPtr(header->fontImage.buffer), header->fontImage.numPages);
+        MarkUsed(KernelToPhysPtr(header->physMap), header->physMapPages);
+        MarkUsed(KernelToPhysPtr(header->stack), header->stackPages);
+        MarkUsed(KernelToPhysPtr(header->pageBuffer), header->pageBufferPages);
 
         printf("Physical memory map initialized\n");
-    }
-
-    void* AllocatePage()
-    {
-        return AllocatePages(1);
-    }
-    void FreePage(void* page)
-    {
-        FreePages(page, 1);
     }
 
     void* AllocatePages(uint64 numPages)
@@ -118,7 +109,7 @@ namespace MemoryManager {
                     numFree++;
                     if(numFree == numPages) {
                         uint64 basePage = p - numPages + 1;
-                        MarkUsed((void*)basePage, numPages);
+                        MarkUsed(seg, basePage, numPages);
                         return (void*)(seg->base + basePage * 4096);
                     }
                 } else {
