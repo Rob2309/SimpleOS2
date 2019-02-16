@@ -3,6 +3,8 @@
 #include "terminal.h"
 #include "types.h"
 
+static uint32 g_TerminalColor = 0xFFFFFF;
+
 static char* IntToStringBase(int base, char* buffer, char* symbols, int64 num) {
     if(num == 0) {
         *buffer = '0';
@@ -74,7 +76,7 @@ static char* UInt64ToHexStringPadded(uint64 num) {
 static void PrintString(const char* str) {
     int i = 0;
     while(str[i] != '\0') {
-        Terminal::PutChar(str[i]);
+        Terminal::PutChar(str[i], g_TerminalColor);
         i++;    
     }
 }
@@ -109,10 +111,20 @@ void printf(const char* format, ...)
             Terminal::NewLine();
             i++;
         } else {
-            Terminal::PutChar(c);
+            Terminal::PutChar(c, g_TerminalColor);
             i++;
         }
     }
 
     __builtin_va_end(arg);
+}
+
+void SetTerminalColor(uint32 color)
+{
+    g_TerminalColor = color;
+}
+
+void SetTerminalColor(uint8 r, uint8 g, uint8 b)
+{
+    SetTerminalColor((r << 16) | (g << 8) | b);
 }

@@ -21,7 +21,9 @@ namespace Terminal {
     static int g_ScreenScanline;
     static int g_ScreenHeight;
 
-    void Init(uint32* fontBuffer, uint32* videoBuffer, int width, int height, int scanline)
+    static bool g_InvertColors;
+
+    void Init(uint32* fontBuffer, uint32* videoBuffer, int width, int height, int scanline, bool invertColors)
     {
         g_CursorX = 0;
         g_CursorY = 0;
@@ -35,6 +37,8 @@ namespace Terminal {
 
         g_VideoBuffer = videoBuffer;
         g_FontBuffer = fontBuffer;
+
+        g_InvertColors = invertColors;
     }
 
     static void Blt(uint32* dest, uint32* src, int srcX, int srcY, int dstX, int dstY, int width, int height, int srcScan, int dstScan)
@@ -42,6 +46,14 @@ namespace Terminal {
         for(int y = 0; y < height; y++)
             for(int x = 0; x < width; x++) {
                 dest[(dstX + x) + (dstY + y) * dstScan] = src[(srcX + x) + (srcY + y) * srcScan];
+            }
+    }
+
+    static void BltColor(uint32* dest, uint32* src, int srcX, int srcY, int dstX, int dstY, int width, int height, int srcScan, int dstScan, uint32 color)
+    {
+        for(int y = 0; y < height; y++)
+            for(int x = 0; x < width; x++) {
+                dest[(dstX + x) + (dstY + y) * dstScan] = src[(srcX + x) + (srcY + y) * srcScan] & color;
             }
     }
 
@@ -54,11 +66,11 @@ namespace Terminal {
         }
     }
 
-    static void RenderChar(char c, int xPos, int yPos) {
+    static void RenderChar(char c, int xPos, int yPos, uint32 color) {
         int srcX = (c % g_FontCharsPerRow) * g_CharWidth;
         int srcY = (c / g_FontCharsPerRow) * g_CharHeight;
         
-        Blt(g_VideoBuffer, g_FontBuffer, srcX, srcY, xPos * g_CharWidth + g_Margin, yPos * g_CharHeight + g_Margin, g_CharWidth, g_CharHeight, g_FontCharsPerRow * g_CharWidth, g_ScreenScanline);
+        BltColor(g_VideoBuffer, g_FontBuffer, srcX, srcY, xPos * g_CharWidth + g_Margin, yPos * g_CharHeight + g_Margin, g_CharWidth, g_CharHeight, g_FontCharsPerRow * g_CharWidth, g_ScreenScanline, color);
     }
 
     static void AdvanceCursor() 
@@ -82,9 +94,16 @@ namespace Terminal {
         g_CursorX = x;
         g_CursorY = y;
     }
-    void PutChar(char c)
+    void PutChar(char c, uint32 color)
     {
-        RenderChar(c, g_CursorX, g_CursorY);
+        if(g_InvertColors) {
+            uint8 r = (color >> 16) & 0xFF;
+            uint8 g = (color >> 8) & 0xFF;
+            uint8 b = (color) & 0xFF;
+            color = (b << 16) | (g << 8) | r;
+        }
+
+        RenderChar(c, g_CursorX, g_CursorY, color);
         AdvanceCursor();
     }
     void NewLine()
