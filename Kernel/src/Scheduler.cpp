@@ -37,6 +37,7 @@ namespace Scheduler {
         p->registers.rip = rip;
         p->registers.cs = user ? 0x1B : 0x08;
         p->registers.ds = user ? 0x23 : 0x10;
+        p->registers.rflags = 0b000000000001000000000;
         
         p->next = g_ProcessList;
         g_ProcessList = p;
@@ -44,6 +45,8 @@ namespace Scheduler {
 
     void Tick(IDT::Registers* regs)
     {
+        printf("Switching process\n");
+
         if(g_RunningProcess == nullptr) {
             g_RunningProcess = g_ProcessList;
         } else {
@@ -58,8 +61,6 @@ namespace Scheduler {
         g_RunningProcess->status = ProcessInfo::STATUS_RUNNING;
         MemoryManager::SwitchProcessMap(g_RunningProcess->pml4Entry);
         *regs = g_RunningProcess->registers;
-
-        printf("Switching process\n");
     }
 
 }

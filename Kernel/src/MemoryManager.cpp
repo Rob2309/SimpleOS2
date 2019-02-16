@@ -175,7 +175,7 @@ namespace MemoryManager {
 
     static void FreeProcessPML1(uint64* pml1)
     {
-        FreePage(pml1);
+        FreePages(KernelToPhysPtr(pml1));
     }
     static void FreeProcessPML2(uint64* pml2)
     {
@@ -184,7 +184,7 @@ namespace MemoryManager {
             if(PML_GET_P(pml2Entry))
                 FreeProcessPML1((uint64*)PhysToKernelPtr((void*)PML_GET_ADDR(pml2Entry)));
         }
-        FreePage(pml2);
+        FreePages(KernelToPhysPtr(pml2));
     }
     static void FreeProcessPML3(uint64* pml3)
     {
@@ -193,12 +193,12 @@ namespace MemoryManager {
             if(PML_GET_P(pml3Entry))
                 FreeProcessPML2((uint64*)PhysToKernelPtr((void*)PML_GET_ADDR(pml3Entry)));
         }
-        FreePage(pml3);
+        FreePages(KernelToPhysPtr(pml3));
     }
 
     uint64 CreateProcessMap()
     {
-        uint64* pml3 = (uint64*)AllocatePage();
+        uint64* pml3 = (uint64*)PhysToKernelPtr(AllocatePages());
         for(int i = 0; i < 512; i++)
             pml3[i] = 0;
 
@@ -216,7 +216,7 @@ namespace MemoryManager {
 
         __asm__ __volatile__ (
             "movq %0, %%cr3"
-            : : "r"(g_PML4)
+            : : "r"(KernelToPhysPtr(g_PML4))
         );
     }
 
@@ -234,7 +234,7 @@ namespace MemoryManager {
         uint64 pml4Entry = g_PML4[pml4Index];
         uint64* pml3;
         if(!PML_GET_P(pml4Entry)) {
-            pml3 = (uint64*)AllocatePage();
+            pml3 = (uint64*)PhysToKernelPtr(AllocatePages());
             for(int i = 0; i < 512; i++)
                 pml3[i] = 0;
             g_PML4[pml4Index] = PML_SET_ADDR((uint64)KernelToPhysPtr(pml3)) | PML_SET_P(1) | PML_SET_RW(1) | PML_SET_US(1);
@@ -245,7 +245,7 @@ namespace MemoryManager {
         uint64 pml3Entry = pml3[pml3Index];
         uint64* pml2;
         if(!PML_GET_P(pml3Entry)) {
-            pml2 = (uint64*)AllocatePage();
+            pml2 = (uint64*)PhysToKernelPtr(AllocatePages());
             for(int i = 0; i < 512; i++)
                 pml2[i] = 0;
             pml3[pml3Index] = PML_SET_ADDR((uint64)KernelToPhysPtr(pml2)) | PML_SET_P(1) | PML_SET_RW(1) | PML_SET_US(1);
@@ -256,7 +256,7 @@ namespace MemoryManager {
         uint64 pml2Entry = pml2[pml2Index];
         uint64* pml1;
         if(!PML_GET_P(pml2Entry)) {
-            pml1 = (uint64*)AllocatePage();
+            pml1 = (uint64*)PhysToKernelPtr(AllocatePages());
             for(int i = 0; i < 512; i++)
                 pml1[i] = 0;
             pml2[pml2Index] = PML_SET_ADDR((uint64)KernelToPhysPtr(pml1)) | PML_SET_P(1) | PML_SET_RW(1) | PML_SET_US(1);

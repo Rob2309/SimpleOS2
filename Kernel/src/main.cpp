@@ -15,11 +15,13 @@ uint8 stack2[4096];
 
 void Process1()
 {
+    printf("Process1\n");
     while(true);
 }
 
 void Process2()
 {
+    printf("Process2\n");
     while(true);
 }
 
@@ -47,8 +49,8 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     Scheduler::RegisterProcess(0, (uint64)&stack1[4096], (uint64)&Process1, false);
     Scheduler::RegisterProcess(0, (uint64)&stack2[4096], (uint64)&Process2, false);
 
-    //IDT::EnableInterrupts();
-    //APIC::StartTimer(1000);
+    IDT::EnableInterrupts();
+    APIC::StartTimer(1000);
 
     while(true);
 
