@@ -82,13 +82,6 @@ extern "C" EFI_STATUS efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
         return EFI_LOAD_ERROR;
     }
 
-    FileIO::FileData testData = FileIO::ReadFile(L"EFI\\BOOT\\Test.elf");
-    if(testData.size == 0) {
-        Console::Print(L"Failed to load test program\r\nPress any key to exit...\r\n");
-        EFIUtil::WaitForKey();
-        return EFI_LOAD_ERROR;
-    }
-
     Console::Print(L"Preparing kernel...\r\n");
 
     Elf64Addr kernelEntryPoint = 0;
@@ -104,13 +97,10 @@ extern "C" EFI_STATUS efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
     Free(kernelData.data, kernelData.size);
 
     header->kernelImage.buffer = processBuffer;
-    header->kernelImage.size = size;
+    header->kernelImage.numPages = (size + 4095) / 4096;
 
     header->fontImage.buffer = (uint8*)Paging::ConvertPtr(fontData.data);
-    header->fontImage.size = fontData.size;
-
-    header->helloWorldImage.buffer = (uint8*)Paging::ConvertPtr(testData.data);
-    header->helloWorldImage.size = testData.size;
+    header->fontImage.numPages = (fontData.size + 4095) / 4096;
 
     if(kernelEntryPoint == 0) {
         Console::Print(L"Kernel entry point not found\r\nPress any key to exit...\r\n");
@@ -122,16 +112,16 @@ extern "C" EFI_STATUS efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
     header->screenHeight = resBestY;
     header->screenScanlineWidth = resBestScanlineWidth;
     header->screenBuffer = (uint32*)Paging::ConvertPtr((void*)EFIUtil::Graphics->Mode->FrameBufferBase);
-    header->screenBufferSize = EFIUtil::Graphics->Mode->FrameBufferSize;
+    header->screenBufferPages = (EFIUtil::Graphics->Mode->FrameBufferSize + 4095) / 4096;
 
     void* newStack = Paging::ConvertPtr(Allocate(16 * 4096));
     header->stack = newStack;
-    header->stackSize = 16 * 4096;
+    header->stackPages = 16;
 
     PhysicalMap::PhysMapInfo physMap = PhysicalMap::Build();
     header->physMap = (PhysicalMapSegment*)Paging::ConvertPtr(physMap.map);
     header->physMapSegments = physMap.numSegments;
-    header->physMapSize = physMap.size;
+    header->physMapPages = (physMap.size + 4095) / 4096;
 
     Console::Print(L"Exiting Boot services and starting kernel...\r\nPress any key to continue...\r\n");
     EFIUtil::WaitForKey();
@@ -148,7 +138,7 @@ extern "C" EFI_STATUS efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
         return EFI_LOAD_ERROR;
     }
 
-    char* kernelStackTop = (char*)(header->stack) + header->stackSize;
+    char* kernelStackTop = (char*)(header->stack) + header->stackPages * 4096;
 
     __asm__ __volatile__ (
         ".intel_syntax noprefix;"

@@ -62,7 +62,7 @@ namespace Paging
         g_HighMemBase = ((uint64)511 << 39) | 0xFFFF000000000000;
         
         header->pageBuffer = (uint64*)ConvertPtr(pagingBuffer);
-        header->pageBufferSize = 4096 + 4096 + 512 * 4096;
+        header->pageBufferPages = 1 + 1 + 512;
         header->highMemoryBase = g_HighMemBase;
     }
 
