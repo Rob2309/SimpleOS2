@@ -71,7 +71,7 @@ namespace Terminal {
             if(g_CursorY == g_ScreenCharsPerCol) {
                 g_CursorY = g_ScreenCharsPerCol - 1;
 
-                Blt(g_VideoBuffer, g_VideoBuffer, g_Margin, g_Margin + g_CharHeight, g_Margin, g_Margin, g_ScreenCharsPerRow * g_CharWidth, (g_ScreenCharsPerCol - 1) * g_CharHeight, g_FontCharsPerRow * g_CharWidth, g_ScreenScanline);
+                Blt(g_VideoBuffer, g_VideoBuffer, g_Margin, g_Margin + g_CharHeight, g_Margin, g_Margin, g_ScreenCharsPerRow * g_CharWidth, (g_ScreenCharsPerCol - 1) * g_CharHeight, g_ScreenScanline, g_ScreenScanline);
                 Fill(g_VideoBuffer, 0, g_Margin, g_Margin + (g_ScreenCharsPerCol - 1) * g_CharHeight, g_ScreenCharsPerRow * g_CharWidth, g_CharHeight, g_ScreenScanline);
             }
         }
