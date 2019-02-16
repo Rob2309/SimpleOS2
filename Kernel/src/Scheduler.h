@@ -10,4 +10,6 @@ namespace Scheduler {
     void Start();
     void Tick(IDT::Registers* regs);
 
+    void ProcessWait(uint64 ms);
+
 }

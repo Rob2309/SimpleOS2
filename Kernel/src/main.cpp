@@ -9,9 +9,24 @@
 
 #include "Scheduler.h"
 
+#include "ELF.h"
+
+#include "Syscall.h"
+
+uint64 g_TimeCounter = 0;
+
 void TimerEvent(IDT::Registers* regs)
 {
+    g_TimeCounter += 10;
     Scheduler::Tick(regs);
+}
+
+void SyscallInterrupt(IDT::Registers* regs)
+{
+    switch(regs->rax) {
+    case Syscall::FunctionPrint: printf((char*)(regs->rdi)); break;
+    case Syscall::FunctionWait: Scheduler::ProcessWait(regs->rdi); Scheduler::Tick(regs); break;
+    }
 }
 
 extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
@@ -26,12 +41,35 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
 
     GDT::Init();
     IDT::Init();
+    IDT::SetISR(Syscall::InterruptNumber, SyscallInterrupt);
     
+    uint64 pages = (GetELFSize(info->ramdiskImage.buffer) + 4095) / 4096;
+    uint8* loadBase = (uint8*)0x16000;
+    uint64 pml4Entry = MemoryManager::CreateProcessMap();
+    MemoryManager::SwitchProcessMap(pml4Entry);
+
+    uint8* processBuffer = (uint8*)MemoryManager::AllocatePages(pages);
+    for(uint64 i = 0; i < pages; i++) {
+        MemoryManager::MapProcessPage(processBuffer + i * 4096, loadBase + i * 4096);
+    }
+
+    Elf64Addr entryPoint;
+    if(!PrepareELF(info->ramdiskImage.buffer, loadBase, &entryPoint)) {
+        printf("Failed to setup process\n");
+        while(true);
+    }
+
+    uint8* stack = (uint8*)MemoryManager::AllocatePages(10);
+    for(int i = 0; i < 10; i++)
+        MemoryManager::MapProcessPage(stack + i * 4096, (void*)(0x1000 + i * 4096));
+
+    Scheduler::RegisterProcess(pml4Entry, 0x1000 + 10 * 4096, entryPoint, true);
+
     APIC::Init();
     APIC::SetTimerEvent(TimerEvent);
 
     IDT::EnableInterrupts();
-    APIC::StartTimer(1000);
+    APIC::StartTimer(10);
 
     Scheduler::Start();
 

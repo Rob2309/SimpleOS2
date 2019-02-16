@@ -4,6 +4,8 @@
 #include "memutil.h"
 #include "conio.h"
 
+#include "terminal.h"
+
 struct ProcessInfo
 {
     ProcessInfo* next;
@@ -16,9 +18,13 @@ struct ProcessInfo
 
     uint64 pml4Entry;
 
+    uint64 waitEnd;
+
     // Process state
     IDT::Registers registers;
 };
+
+extern uint64 g_TimeCounter;
 
 namespace Scheduler {
 
@@ -40,10 +46,26 @@ namespace Scheduler {
         p->registers.rip = rip;
         p->registers.cs = user ? 0x1B : 0x08;
         p->registers.ds = user ? 0x23 : 0x10;
+        p->registers.ss = user ? 0x23 : 0x10;
         p->registers.rflags = 0b000000000001000000000;
         
         p->next = g_ProcessList;
         g_ProcessList = p;
+    }
+    
+    static ProcessInfo* FindNextProcess(ProcessInfo* searchStart) {
+        ProcessInfo* res = searchStart;
+        while(true) {
+            if(res->waitEnd < g_TimeCounter)
+                return res;
+
+            res = res->next;
+            if(res == nullptr)
+                res = g_ProcessList;
+            if(res == searchStart)
+                break;
+        }
+        return g_IdleProcess;
     }
 
     void Tick(IDT::Registers* regs)
@@ -51,14 +73,13 @@ namespace Scheduler {
         g_RunningProcess->status = ProcessInfo::STATUS_READY;
         g_RunningProcess->registers = *regs;
         
-        g_RunningProcess = g_RunningProcess->next;
-        if(g_RunningProcess == nullptr)
-            g_RunningProcess = g_ProcessList;
-        if(g_RunningProcess == nullptr) {
-            g_RunningProcess = g_IdleProcess;
-            printf("Switching to idle process\n");
-        }
+        ProcessInfo* nextProcess;
+        if(g_RunningProcess == g_IdleProcess || g_RunningProcess->next == nullptr)
+            nextProcess = FindNextProcess(g_ProcessList);
+        else
+            nextProcess = FindNextProcess(g_RunningProcess->next);
 
+        g_RunningProcess = nextProcess;
         g_RunningProcess->status = ProcessInfo::STATUS_RUNNING;
         MemoryManager::SwitchProcessMap(g_RunningProcess->pml4Entry);
         *regs = g_RunningProcess->registers;
@@ -104,6 +125,11 @@ namespace Scheduler {
             "iretq"
             : : "r"(p->registers.userrsp), "r"(p->registers.rflags), "r"(p->registers.rip)
         );
+    }
+
+    void ProcessWait(uint64 ms)
+    {
+        g_RunningProcess->waitEnd = g_TimeCounter + ms;
     }
 
 }
