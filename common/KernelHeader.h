@@ -22,7 +22,8 @@ struct KernelHeader {
     uint32 screenHeight;
     uint32 screenScanlineWidth;
     uint32 screenBufferPages;
-    uint32* screenBuffer; 
+    uint32* screenBuffer;
+    bool screenColorsInverted;
 
     PhysicalMapSegment* physMap;
     uint64 physMapPages;

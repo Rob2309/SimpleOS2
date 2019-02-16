@@ -113,6 +113,7 @@ extern "C" EFI_STATUS efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
     header->screenScanlineWidth = resBestScanlineWidth;
     header->screenBuffer = (uint32*)Paging::ConvertPtr((void*)EFIUtil::Graphics->Mode->FrameBufferBase);
     header->screenBufferPages = (EFIUtil::Graphics->Mode->FrameBufferSize + 4095) / 4096;
+    header->screenColorsInverted = EFIUtil::Graphics->Mode->Info->PixelFormat == PixelRedGreenBlueReserved8BitPerColor;
 
     void* newStack = Paging::ConvertPtr(Allocate(16 * 4096));
     header->stack = newStack;
