@@ -68,8 +68,6 @@ extern "C" EFI_STATUS efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
     Paging::Init(header);
     header = (KernelHeader*)Paging::ConvertPtr(header);
 
-    uint32 test = *(uint32*)(0xFEE00000 + 0x20);
-
     FileIO::FileData kernelData = FileIO::ReadFile(L"EFI\\BOOT\\kernel.sys");
     if(kernelData.size == 0) {
         Console::Print(L"Failed to load kernel image\r\nPress any key to exit...\r\n");
@@ -96,7 +94,7 @@ extern "C" EFI_STATUS efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
     Elf64Addr kernelEntryPoint = 0;
     uint64 size = GetELFSize(kernelData.data);
     uint8* processBuffer = (uint8*)Paging::ConvertPtr(Allocate(size));
-    
+
     if(!PrepareELF(kernelData.data, processBuffer, &kernelEntryPoint)) {
         Console::Print(L"Failed to prepare kernel\r\nPress any key to exit...\r\n");
         EFIUtil::WaitForKey();
@@ -138,30 +136,12 @@ extern "C" EFI_STATUS efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
     Console::Print(L"Exiting Boot services and starting kernel...\r\nPress any key to continue...\r\n");
     EFIUtil::WaitForKey();
 
-    UINTN memoryMapSize = 0;
-    EFI_MEMORY_DESCRIPTOR* memMap;
-    UINTN mapKey;
-    UINTN descSize;
-    UINT32 descVersion;
-    err = EFIUtil::SystemTable->BootServices->GetMemoryMap(&memoryMapSize, memMap, &mapKey, &descSize, &descVersion);
-    if(err != EFI_BUFFER_TOO_SMALL) {
-        Console::Print(L"Failed to get memory map size\r\nPress any key to exit...\r\n");
-        EFIUtil::WaitForKey();
-        return EFI_LOAD_ERROR;
-    }
-    memMap = (EFI_MEMORY_DESCRIPTOR*)Allocate(memoryMapSize + 4096);
-    memoryMapSize += 4096;
-    err = EFIUtil::SystemTable->BootServices->GetMemoryMap(&memoryMapSize, memMap, &mapKey, &descSize, &descVersion);
-    if(err != EFI_SUCCESS) {
-        Console::Print(L"Failed to query memory map\r\nPress any key to exit...\r\n");
-        EFIUtil::WaitForKey();
-        return EFI_LOAD_ERROR;
-    }
+    EfiMemoryMap memMap = EFIUtil::GetMemoryMap();
 
     typedef void (*KernelMain)(KernelHeader* header);
     KernelMain kernelMain = (KernelMain)kernelEntryPoint;
 
-    err = EFIUtil::SystemTable->BootServices->ExitBootServices(EFIUtil::LoadedImage, mapKey);
+    err = EFIUtil::SystemTable->BootServices->ExitBootServices(EFIUtil::LoadedImage, memMap.key);
     if(err != EFI_SUCCESS) {
         Console::Print(L"Failed to exit boot services\r\nPress any key to exit...\r\n");
         EFIUtil::WaitForKey();

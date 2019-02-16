@@ -1,6 +1,22 @@
 #pragma once
 
 #include <efi.h>
+#include "types.h"
+
+struct EfiMemoryMap
+{
+    UINTN size;
+    UINTN length;
+    EFI_MEMORY_DESCRIPTOR* entries;
+    UINTN entrySize;
+    UINT32 version;
+    UINTN key;
+
+    inline EFI_MEMORY_DESCRIPTOR& operator[] (uint64 index)
+    {
+        return *(EFI_MEMORY_DESCRIPTOR*)((char*)entries + index * entrySize);
+    }
+};
 
 namespace EFIUtil {
 
@@ -10,5 +26,7 @@ namespace EFIUtil {
     extern EFI_GRAPHICS_OUTPUT_PROTOCOL* Graphics;
 
     void WaitForKey();
+
+    EfiMemoryMap GetMemoryMap();
 
 }

@@ -1,6 +1,7 @@
 #include "paging.h"
 
 #include "allocator.h"
+#include "efiutil.h"
 
 #define PML_GET_NX(entry)           ((entry) & 0x8000000000000000)
 #define PML_GET_ADDR(entry)         ((entry) & 0x000FFFFFFFFFF000)
@@ -41,25 +42,28 @@ namespace Paging
 
     void Init(KernelHeader* header)
     {
-        uint64* pageBuffer = (uint64*)Allocate(4096 * 2);
-        
-        for(uint64 i = 0; i < 512; i++)
-            pageBuffer[i] = 0;
-        pageBuffer[511] = PML_SET_ADDR((uint64)&pageBuffer[512]) | PML_SET_P(1) | PML_SET_RW(1);
-        pageBuffer[0] = pageBuffer[511];
+        uint64* pagingBuffer = (uint64*)Allocate(4096 + 4096 + 512 * 4096);
 
-        for(uint64 i = 0; i < 512; i++)
-            pageBuffer[512 + i] = PML_SET_ADDR(i << 30) | PML_SET_P(1) | PML_SET_RW(1) | PML1_SET_PAT(1);
-        
-        header->highMemoryBase = ((uint64)511 << 39) | 0xFFFF000000000000;
-        g_HighMemBase = header->highMemoryBase;
-        header->pageBuffer = (uint64*)ConvertPtr(pageBuffer);
-        header->pageBufferSize = 4096 * 2;
+        for(int i = 0; i < 512; i++)
+            pagingBuffer[i] = 0;
+        pagingBuffer[0] = pagingBuffer[511] = PML_SET_ADDR((uint64)&pagingBuffer[512]) | PML_SET_P(1) | PML_SET_RW(1);
+
+        for(int i = 0; i < 512; i++)
+            pagingBuffer[512 + i] = PML_SET_ADDR((uint64)&pagingBuffer[1024 + 512 * i]) | PML_SET_P(1) | PML_SET_RW(1);
+
+        for(uint64 i = 0; i < 512 * 512; i++)
+            pagingBuffer[1024 + i] = PML_SET_ADDR(i << 21) | PML_SET_P(1) | PML_SET_RW(1) | PML1_SET_PAT(1);
 
         __asm__ __volatile__ (
             "movq %0, %%cr3"
-            : : "r"(pageBuffer)
+            : : "r"(pagingBuffer)
         );
+
+        g_HighMemBase = ((uint64)511 << 39) | 0xFFFF000000000000;
+        
+        header->pageBuffer = (uint64*)ConvertPtr(pagingBuffer);
+        header->pageBufferSize = 4096 + 4096 + 512 * 4096;
+        header->highMemoryBase = g_HighMemBase;
     }
 
     void* ConvertPtr(void* ptr)
