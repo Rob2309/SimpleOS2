@@ -76,7 +76,10 @@ static char* UInt64ToHexStringPadded(uint64 num) {
 static void PrintString(const char* str) {
     int i = 0;
     while(str[i] != '\0') {
-        Terminal::PutChar(str[i], g_TerminalColor);
+        if(str[i] == '\n')
+            Terminal::NewLine();
+        else
+            Terminal::PutChar(str[i], g_TerminalColor);
         i++;    
     }
 }

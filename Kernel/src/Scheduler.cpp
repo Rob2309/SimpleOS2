@@ -18,6 +18,8 @@ struct ProcessInfo
 
     uint64 pml4Entry;
 
+    uint64 pid;
+
     uint64 waitEnd;
 
     // Process state
@@ -34,6 +36,8 @@ namespace Scheduler {
     static ProcessInfo* g_RunningProcess;
     static ProcessInfo* g_ProcessList = nullptr;
 
+    static uint64 g_PIDCounter = 1;
+
     void RegisterProcess(uint64 pml4Entry, uint64 rsp, uint64 rip, bool user)
     {
         ProcessInfo* p = (ProcessInfo*)MemoryManager::PhysToKernelPtr(MemoryManager::AllocatePages());
@@ -41,6 +45,7 @@ namespace Scheduler {
 
         p->pml4Entry = pml4Entry;
         p->status = ProcessInfo::STATUS_READY;
+        p->pid = g_PIDCounter++;
 
         p->registers.userrsp = rsp;
         p->registers.rip = rip;
@@ -99,6 +104,7 @@ namespace Scheduler {
 
         p->pml4Entry = 0;
         p->status = ProcessInfo::STATUS_READY;
+        p->pid = 0;
 
         p->registers.userrsp = (uint64)&g_IdleProcessStack[256];
         p->registers.rip = (uint64)&IdleProcess;
@@ -130,6 +136,11 @@ namespace Scheduler {
     void ProcessWait(uint64 ms)
     {
         g_RunningProcess->waitEnd = g_TimeCounter + ms;
+    }
+
+    uint64 GetCurrentPID()
+    {
+        return g_RunningProcess->pid;
     }
 
 }

@@ -12,4 +12,6 @@ namespace Scheduler {
 
     void ProcessWait(uint64 ms);
 
+    uint64 GetCurrentPID();
+
 }

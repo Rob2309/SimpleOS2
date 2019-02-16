@@ -6,6 +6,7 @@ namespace Syscall
 {
     constexpr uint8 InterruptNumber = 0x80;
 
+    constexpr uint64 FunctionGetPID = 0;
     constexpr uint64 FunctionPrint = 1;
     constexpr uint64 FunctionWait = 2;
 
@@ -23,5 +24,16 @@ namespace Syscall
             "int $0x80"
             : : "a"(FunctionWait), "D"(ms)
         );
+    }
+
+    inline uint64 GetPID()
+    {
+        uint64 pid;
+        __asm__ __volatile__ (
+            "int $0x80"
+            : "=a"(pid) 
+            : "a"(FunctionGetPID)
+        );
+        return pid;
     }
 }
