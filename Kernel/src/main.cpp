@@ -13,6 +13,8 @@
 
 #include "Syscall.h"
 
+#include "Ramdisk.h"
+
 uint64 g_TimeCounter = 0;
 
 void TimerEvent(IDT::Registers* regs)
@@ -32,9 +34,11 @@ void SyscallInterrupt(IDT::Registers* regs)
     }
 }
 
-static void SetupTestProcess(uint8* img, uint8* loadBase)
+static void SetupTestProcess(uint8* loadBase)
 {
-    uint64 pages = (GetELFSize(img) + 4095) / 4096;
+    File f = Ramdisk::GetFileData("test.elf");
+
+    uint64 pages = (GetELFSize(f.data) + 4095) / 4096;
     uint64 pml4Entry = MemoryManager::CreateProcessMap();
     MemoryManager::SwitchProcessMap(pml4Entry);
 
@@ -44,7 +48,7 @@ static void SetupTestProcess(uint8* img, uint8* loadBase)
     }
 
     Elf64Addr entryPoint;
-    if(!PrepareELF(img, loadBase, &entryPoint)) {
+    if(!PrepareELF(f.data, loadBase, &entryPoint)) {
         printf("Failed to setup process\n");
         while(true);
     }
@@ -70,11 +74,12 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     IDT::Init();
     IDT::SetISR(Syscall::InterruptNumber, SyscallInterrupt);
 
+    Ramdisk::Init(info->ramdiskImage.buffer);
+
     APIC::Init();
     APIC::SetTimerEvent(TimerEvent);
 
-    SetupTestProcess(info->ramdiskImage.buffer, (uint8*)0x16000);
-    //SetupTestProcess(info->ramdiskImage.buffer, (uint8*)0xF8000);
+    SetupTestProcess((uint8*)0x16000);
 
     IDT::EnableInterrupts();
     APIC::StartTimer(10);

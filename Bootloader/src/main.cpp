@@ -82,7 +82,7 @@ extern "C" EFI_STATUS efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
         return EFI_LOAD_ERROR;
     }
 
-    FileIO::FileData ramdiskData = FileIO::ReadFile(L"EFI\\BOOT\\ramdisk.img");
+    FileIO::FileData ramdiskData = FileIO::ReadFile(L"EFI\\BOOT\\initrd");
     if(ramdiskData.size == 0) {
         Console::Print(L"Failed to load ramdisk\r\nPress any key to exit...\r\n");
         EFIUtil::WaitForKey();
