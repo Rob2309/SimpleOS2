@@ -3,18 +3,20 @@
 This is a very simple x86_64 OS I am creating for learning purposes.
 
 ## Implemented features:
-- Simple UEFI Bootloader that loads modules listed in a configuration file (currently supports ELF and IMG files)
-- Basic physical memory management
-- Terminal that can print text (no input functionality yet)
+- Simple UEFI Bootloader
+- Basic Physical and Virtual memory management
+- Terminal that can print colored text (no input functionality yet)
 - Basic Interrupt handling
+- APIC Timer support
+- Multitasking & Basic process management
+- Basic System calls via interrupt 0x80
+- Process forking and exiting
 
 ## Planned features:
 - HDD support (SATA)
-- Color support for terminal
-- virtual memory management
 - full APIC support
-- Multitasking / Multi Core support
-- Process and Thread management
+- Multi Core support
+- Thread management
 - USB support (maybe)
 
 ## Specs
