@@ -2,8 +2,6 @@
 
 #include "conio.h"
 
-#include "IDT.h"
-
 #include "MemoryManager.h"
 
 #include "port.h"
@@ -31,7 +29,7 @@ namespace APIC
     static void ISR_Timer(IDT::Registers* regs)
     {
         if(g_TimerEvent != nullptr)
-            g_TimerEvent();
+            g_TimerEvent(regs);
         SendEOI();
     }
     static void ISR_Error(IDT::Registers* regs)

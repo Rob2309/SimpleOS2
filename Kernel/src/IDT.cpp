@@ -83,6 +83,7 @@ namespace IDT {
             : "=r"(cr2)
         );
         printf("CR2: 0x%x\n", cr2);
+        printf("Error: 0x%X\n", regs->errorCode);
         while(true);
     }
 

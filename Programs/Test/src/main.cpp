@@ -1,18 +1,14 @@
 #include "Syscall.h"
 
-void Print(const char* str)
-{
-    __asm__ __volatile__ (
-        "int $0x80"
-        : : "a"(Syscall::FunctionPrint), "D"(str)
-    );
-}
-
 extern "C" void main()
 {
+    Syscall::Print("Parent starting\n");
 
-    Print("Hello World from the Test Program\n");
-
+    if(Syscall::Fork() == 0) {
+        Syscall::Print("Child process\n");
+    } else {
+        Syscall::Print("Parent process\n");
+    }
+    
     while(true);
-
 }

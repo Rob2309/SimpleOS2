@@ -82,6 +82,13 @@ extern "C" EFI_STATUS efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
         return EFI_LOAD_ERROR;
     }
 
+    FileIO::FileData ramdiskData = FileIO::ReadFile(L"EFI\\BOOT\\ramdisk.img");
+    if(ramdiskData.size == 0) {
+        Console::Print(L"Failed to load ramdisk\r\nPress any key to exit...\r\n");
+        EFIUtil::WaitForKey();
+        return EFI_LOAD_ERROR;
+    }
+
     Console::Print(L"Preparing kernel...\r\n");
 
     Elf64Addr kernelEntryPoint = 0;
@@ -101,6 +108,9 @@ extern "C" EFI_STATUS efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
 
     header->fontImage.buffer = (uint8*)Paging::ConvertPtr(fontData.data);
     header->fontImage.numPages = (fontData.size + 4095) / 4096;
+
+    header->ramdiskImage.buffer = (uint8*)Paging::ConvertPtr(ramdiskData.data);
+    header->ramdiskImage.numPages = (ramdiskData.size + 4095) / 4096;
 
     if(kernelEntryPoint == 0) {
         Console::Print(L"Kernel entry point not found\r\nPress any key to exit...\r\n");
