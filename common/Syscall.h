@@ -9,6 +9,7 @@ namespace Syscall
     constexpr uint64 FunctionGetPID = 0;
     constexpr uint64 FunctionPrint = 1;
     constexpr uint64 FunctionWait = 2;
+    constexpr uint64 FunctionExit = 3;
 
     inline void Print(const char* msg)
     {
@@ -35,5 +36,13 @@ namespace Syscall
             : "a"(FunctionGetPID)
         );
         return pid;
+    }
+
+    inline void Exit(uint64 code)
+    {
+        __asm__ __volatile__ (
+            "int $0x80"
+            : : "a"(FunctionExit), "D"(code)
+        );
     }
 }

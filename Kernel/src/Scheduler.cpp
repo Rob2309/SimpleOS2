@@ -138,6 +138,27 @@ namespace Scheduler {
         g_RunningProcess->waitEnd = g_TimeCounter + ms;
     }
 
+    void ProcessExit(uint64 code, IDT::Registers* regs)
+    {
+        uint64 pid = g_RunningProcess->pid;
+
+        if(g_RunningProcess == g_ProcessList) {
+            g_ProcessList = g_ProcessList->next;
+        } else {
+            ProcessInfo* temp = g_ProcessList;
+            while(temp->next != g_RunningProcess)
+                temp = temp->next;
+            temp->next = g_RunningProcess->next;
+        }
+
+        MemoryManager::FreeProcessMap(g_RunningProcess->pml4Entry);
+
+        g_RunningProcess = g_IdleProcess;
+        *regs = g_IdleProcess->registers;
+
+        printf("Process %i exited with code %i\n", pid, code);
+    }
+
     uint64 GetCurrentPID()
     {
         return g_RunningProcess->pid;

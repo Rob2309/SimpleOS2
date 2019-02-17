@@ -19,5 +19,6 @@ namespace MemoryManager {
 
     void* FindProcessMemory(uint64 numPages);
     void MapProcessPage(void* phys, void* virt);
+    void UnmapProcessPage(void* virt);
 
 }

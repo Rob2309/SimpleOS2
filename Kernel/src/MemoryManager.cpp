@@ -176,6 +176,12 @@ namespace MemoryManager {
 
     static void FreeProcessPML1(uint64* pml1)
     {
+        for(int i = 0; i < 512; i++) {
+            uint64 pml1Entry = pml1[i];
+            if(PML_GET_P(pml1Entry)) {
+                MemoryManager::FreePages((void*)PML_GET_ADDR(pml1Entry));
+            }
+        }
         FreePages(KernelToPhysPtr(pml1));
     }
     static void FreeProcessPML2(uint64* pml2)
@@ -266,6 +272,29 @@ namespace MemoryManager {
         }
 
         pml1[pml1Index] = PML_SET_ADDR((uint64)phys) | PML_SET_P(1) | PML_SET_RW(1) | PML_SET_US(1);
+
+        __asm__ __volatile__ (
+            "invlpg (%0)"
+            : : "r"(virt)
+        );
+    }
+    void UnmapProcessPage(void* virt)
+    {
+        uint64 pml4Index = GET_PML4_INDEX((uint64)virt);
+        uint64 pml3Index = GET_PML3_INDEX((uint64)virt);
+        uint64 pml2Index = GET_PML2_INDEX((uint64)virt);
+        uint64 pml1Index = GET_PML1_INDEX((uint64)virt);
+
+        uint64 pml4Entry = g_PML4[pml4Index];
+        uint64* pml3 = (uint64*)PhysToKernelPtr((void*)PML_GET_ADDR(pml4Entry));
+
+        uint64 pml3Entry = pml3[pml3Index];
+        uint64* pml2 = (uint64*)PhysToKernelPtr((void*)PML_GET_ADDR(pml3Entry));
+
+        uint64 pml2Entry = pml2[pml2Index];
+        uint64* pml1 = (uint64*)PhysToKernelPtr((void*)PML_GET_ADDR(pml2Entry));
+
+        pml1[pml1Index] = 0;
 
         __asm__ __volatile__ (
             "invlpg (%0)"

@@ -27,6 +27,7 @@ void SyscallInterrupt(IDT::Registers* regs)
     case Syscall::FunctionGetPID: regs->rax = Scheduler::GetCurrentPID(); break;
     case Syscall::FunctionPrint: printf("%i: %s", Scheduler::GetCurrentPID(), (char*)(regs->rdi)); break;
     case Syscall::FunctionWait: Scheduler::ProcessWait(regs->rdi); Scheduler::Tick(regs); break;
+    case Syscall::FunctionExit: Scheduler::ProcessExit(regs->rdi, regs); Scheduler::Tick(regs); break;
     }
 }
 
