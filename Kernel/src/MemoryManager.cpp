@@ -1,6 +1,7 @@
 #include "MemoryManager.h"
 
 #include "conio.h"
+#include "memutil.h"
 
 #define PML_GET_NX(entry)           ((entry) & 0x8000000000000000)
 #define PML_GET_ADDR(entry)         ((entry) & 0x000FFFFFFFFFF000)
@@ -212,6 +213,39 @@ namespace MemoryManager {
         uint64 pml4Entry = PML_SET_ADDR((uint64)KernelToPhysPtr(pml3)) | PML_SET_P(1) | PML_SET_US(1) | PML_SET_RW(1);
         return pml4Entry;
     }
+    uint64 ForkProcessMap()
+    {
+        uint64 newPML4Entry = CreateProcessMap();
+
+        uint64* pml3 = (uint64*)PhysToKernelPtr((void*)PML_GET_ADDR(g_PML4[0]));
+
+        for(uint64 i = 0; i < 512; i++) {
+            uint64 pml3Entry = pml3[i];
+            if(PML_GET_P(pml3Entry)) {
+                uint64* pml2 = (uint64*)PhysToKernelPtr((void*)PML_GET_ADDR(pml3Entry));
+                for(uint64 j = 0; j < 512; j++) {
+                    uint64 pml2Entry = pml2[j];
+                    if(PML_GET_P(pml2Entry)) {
+                        uint64* pml1 = (uint64*)PhysToKernelPtr((void*)PML_GET_ADDR(pml2Entry));
+                        for(uint64 k = 0; k < 512; k++) {
+                            uint64 pml1Entry = pml1[k];
+                            if(PML_GET_P(pml1Entry)) {
+                                char* virt = (char*)((k << 12) | (j << 21) | (i << 30));
+
+                                uint64* dest = (uint64*)PhysToKernelPtr(AllocatePages());
+                                uint64* src = (uint64*)PhysToKernelPtr((void*)PML_GET_ADDR(pml1Entry));
+                                memcpy(dest, src, 4096);
+                                MapProcessPage(newPML4Entry, KernelToPhysPtr(dest), virt, false);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return newPML4Entry;
+    }
+
     void FreeProcessMap(uint64 pml4Entry)
     {
         uint64* pml3 = (uint64*)PhysToKernelPtr((void*)PML_GET_ADDR(pml4Entry));
@@ -227,27 +261,13 @@ namespace MemoryManager {
         );
     }
 
-    void* FindProcessMemory(uint64 numPages)
+    void MapProcessPage(uint64 pml4Entry, void* phys, void* virt, bool invalidate)
     {
-        return nullptr;
-    }
-    void MapProcessPage(void* phys, void* virt)
-    {
-        uint64 pml4Index = GET_PML4_INDEX((uint64)virt);
         uint64 pml3Index = GET_PML3_INDEX((uint64)virt);
         uint64 pml2Index = GET_PML2_INDEX((uint64)virt);
         uint64 pml1Index = GET_PML1_INDEX((uint64)virt);
 
-        uint64 pml4Entry = g_PML4[pml4Index];
-        uint64* pml3;
-        if(!PML_GET_P(pml4Entry)) {
-            pml3 = (uint64*)PhysToKernelPtr(AllocatePages());
-            for(int i = 0; i < 512; i++)
-                pml3[i] = 0;
-            g_PML4[pml4Index] = PML_SET_ADDR((uint64)KernelToPhysPtr(pml3)) | PML_SET_P(1) | PML_SET_RW(1) | PML_SET_US(1);
-        } else {
-            pml3 = (uint64*)PhysToKernelPtr((void*)PML_GET_ADDR(pml4Entry));
-        }
+        uint64* pml3 = (uint64*)PhysToKernelPtr((void*)PML_GET_ADDR(pml4Entry));
 
         uint64 pml3Entry = pml3[pml3Index];
         uint64* pml2;
@@ -273,19 +293,19 @@ namespace MemoryManager {
 
         pml1[pml1Index] = PML_SET_ADDR((uint64)phys) | PML_SET_P(1) | PML_SET_RW(1) | PML_SET_US(1);
 
-        __asm__ __volatile__ (
-            "invlpg (%0)"
-            : : "r"(virt)
-        );
+        if(invalidate) {
+            __asm__ __volatile__ (
+                "invlpg (%0)"
+                : : "r"(virt)
+            );
+        }
     }
-    void UnmapProcessPage(void* virt)
+    void UnmapProcessPage(uint64 pml4Entry, void* virt, bool invalidate)
     {
-        uint64 pml4Index = GET_PML4_INDEX((uint64)virt);
         uint64 pml3Index = GET_PML3_INDEX((uint64)virt);
         uint64 pml2Index = GET_PML2_INDEX((uint64)virt);
         uint64 pml1Index = GET_PML1_INDEX((uint64)virt);
 
-        uint64 pml4Entry = g_PML4[pml4Index];
         uint64* pml3 = (uint64*)PhysToKernelPtr((void*)PML_GET_ADDR(pml4Entry));
 
         uint64 pml3Entry = pml3[pml3Index];
@@ -296,10 +316,12 @@ namespace MemoryManager {
 
         pml1[pml1Index] = 0;
 
-        __asm__ __volatile__ (
-            "invlpg (%0)"
-            : : "r"(virt)
-        );
+        if(invalidate) {
+            __asm__ __volatile__ (
+                "invlpg (%0)"
+                : : "r"(virt)
+            );
+        }
     }
 
 }

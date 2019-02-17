@@ -10,6 +10,7 @@ namespace Syscall
     constexpr uint64 FunctionPrint = 1;
     constexpr uint64 FunctionWait = 2;
     constexpr uint64 FunctionExit = 3;
+    constexpr uint64 FunctionFork = 4;
 
     inline void Print(const char* msg)
     {
@@ -44,5 +45,15 @@ namespace Syscall
             "int $0x80"
             : : "a"(FunctionExit), "D"(code)
         );
+    }
+
+    inline uint64 Fork()
+    {
+        uint64 ret;
+        __asm__ __volatile__ (
+            "int $0x80"
+            : "=a"(ret) : "a"(FunctionFork)
+        );
+        return ret;
     }
 }

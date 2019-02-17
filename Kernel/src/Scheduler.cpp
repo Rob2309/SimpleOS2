@@ -38,8 +38,7 @@ namespace Scheduler {
 
     static uint64 g_PIDCounter = 1;
 
-    void RegisterProcess(uint64 pml4Entry, uint64 rsp, uint64 rip, bool user)
-    {
+    ProcessInfo* RegisterProcessInternal(uint64 pml4Entry, uint64 rsp, uint64 rip, bool user) {
         ProcessInfo* p = (ProcessInfo*)MemoryManager::PhysToKernelPtr(MemoryManager::AllocatePages());
         memset(p, 0, sizeof(ProcessInfo));
 
@@ -56,6 +55,13 @@ namespace Scheduler {
         
         p->next = g_ProcessList;
         g_ProcessList = p;
+
+        return p;
+    }
+
+    uint64 RegisterProcess(uint64 pml4Entry, uint64 rsp, uint64 rip, bool user)
+    {
+        return RegisterProcessInternal(pml4Entry, rsp, rip, user)->pid;
     }
     
     static ProcessInfo* FindNextProcess(ProcessInfo* searchStart) {
@@ -157,6 +163,16 @@ namespace Scheduler {
         *regs = g_IdleProcess->registers;
 
         printf("Process %i exited with code %i\n", pid, code);
+    }
+
+    void ProcessFork(IDT::Registers* regs)
+    {
+        uint64 pml4Entry = MemoryManager::ForkProcessMap();
+        
+        ProcessInfo* pInfo = RegisterProcessInternal(pml4Entry, regs->userrsp, regs->rip, true);
+        regs->rax = pInfo->pid;
+        pInfo->registers = *regs;
+        pInfo->registers.rax = 0;
     }
 
     uint64 GetCurrentPID()

@@ -28,6 +28,7 @@ void SyscallInterrupt(IDT::Registers* regs)
     case Syscall::FunctionPrint: printf("%i: %s", Scheduler::GetCurrentPID(), (char*)(regs->rdi)); break;
     case Syscall::FunctionWait: Scheduler::ProcessWait(regs->rdi); Scheduler::Tick(regs); break;
     case Syscall::FunctionExit: Scheduler::ProcessExit(regs->rdi, regs); Scheduler::Tick(regs); break;
+    case Syscall::FunctionFork: Scheduler::ProcessFork(regs); break;
     }
 }
 
@@ -39,7 +40,7 @@ static void SetupTestProcess(uint8* img, uint8* loadBase)
 
     uint8* processBuffer = (uint8*)MemoryManager::AllocatePages(pages);
     for(uint64 i = 0; i < pages; i++) {
-        MemoryManager::MapProcessPage(processBuffer + i * 4096, loadBase + i * 4096);
+        MemoryManager::MapProcessPage(pml4Entry, processBuffer + i * 4096, loadBase + i * 4096);
     }
 
     Elf64Addr entryPoint;
@@ -50,7 +51,7 @@ static void SetupTestProcess(uint8* img, uint8* loadBase)
 
     uint8* stack = (uint8*)MemoryManager::AllocatePages(10);
     for(int i = 0; i < 10; i++)
-        MemoryManager::MapProcessPage(stack + i * 4096, (void*)(0x1000 + i * 4096));
+        MemoryManager::MapProcessPage(pml4Entry, stack + i * 4096, (void*)(0x1000 + i * 4096));
 
     Scheduler::RegisterProcess(pml4Entry, 0x1000 + 10 * 4096, entryPoint, true);
 }
@@ -73,7 +74,7 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     APIC::SetTimerEvent(TimerEvent);
 
     SetupTestProcess(info->ramdiskImage.buffer, (uint8*)0x16000);
-    SetupTestProcess(info->ramdiskImage.buffer, (uint8*)0xF8000);
+    //SetupTestProcess(info->ramdiskImage.buffer, (uint8*)0xF8000);
 
     IDT::EnableInterrupts();
     APIC::StartTimer(10);
