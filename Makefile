@@ -3,8 +3,13 @@ export ELF_GCC := gcc
 export NASM := nasm
 
 root_partition_img_deps := 
-clean_files := *.img *.vdi
+clean_files := *.img *.vdi initrd
 include_paths := 
+
+ramdisk_files := 
+ramdisk_command := 
+
+include RamdiskBuilder/module.mk
 
 include Bootloader/module.mk
 include Kernel/module.mk
@@ -24,14 +29,17 @@ partition.vdi: partition.img
 	rm -rf $@
 	VBoxManage convertfromraw $< $@ --format VDI --uuid 430eee2a-0fdf-4d2a-88f0-5b99ea8cffca
 
-partition.img: $(root_partition_img_deps)
+partition.img: $(root_partition_img_deps) initrd
 	dd if=/dev/zero of=$@ bs=512 count=102400
 	mkfs.fat $@
 	mmd -i $@ ::/EFI
 	mmd -i $@ ::/EFI/BOOT
 	mcopy -i $@ $^ ::/EFI/BOOT
 
+initrd: $(RDBUILDER) $(ramdisk_files)
+	$(RDBUILDER) $@ $(ramdisk_command)
+
 clean: FORCE
-	rm -rf ${clean_files}
+	rm -rf $(clean_files)
 
 FORCE: 

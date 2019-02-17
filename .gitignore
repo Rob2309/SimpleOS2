@@ -6,6 +6,9 @@
 *.ELF
 *.BIN
 *.sys
+*.out
 
 VM
 *.vdi
+
+initrd

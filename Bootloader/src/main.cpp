@@ -74,15 +74,8 @@ extern "C" EFI_STATUS efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
         EFIUtil::WaitForKey();
         return EFI_LOAD_ERROR;
     }
-    
-    FileIO::FileData fontData = FileIO::ReadFile(L"EFI\\BOOT\\font.fnt");
-    if(fontData.size == 0) {
-        Console::Print(L"Failed to load font\r\nPress any key to exit...\r\n");
-        EFIUtil::WaitForKey();
-        return EFI_LOAD_ERROR;
-    }
 
-    FileIO::FileData ramdiskData = FileIO::ReadFile(L"EFI\\BOOT\\ramdisk.img");
+    FileIO::FileData ramdiskData = FileIO::ReadFile(L"EFI\\BOOT\\initrd");
     if(ramdiskData.size == 0) {
         Console::Print(L"Failed to load ramdisk\r\nPress any key to exit...\r\n");
         EFIUtil::WaitForKey();
@@ -105,9 +98,6 @@ extern "C" EFI_STATUS efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
 
     header->kernelImage.buffer = processBuffer;
     header->kernelImage.numPages = (size + 4095) / 4096;
-
-    header->fontImage.buffer = (uint8*)Paging::ConvertPtr(fontData.data);
-    header->fontImage.numPages = (fontData.size + 4095) / 4096;
 
     header->ramdiskImage.buffer = (uint8*)Paging::ConvertPtr(ramdiskData.data);
     header->ramdiskImage.numPages = (ramdiskData.size + 4095) / 4096;

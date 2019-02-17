@@ -125,7 +125,6 @@ namespace MemoryManager {
 
         MarkUsed(KernelToPhysPtr(header), (sizeof(KernelHeader) + 4095) / 4096);
         MarkUsed(KernelToPhysPtr(header->kernelImage.buffer), header->kernelImage.numPages);
-        MarkUsed(KernelToPhysPtr(header->fontImage.buffer), header->fontImage.numPages);
         MarkUsed(KernelToPhysPtr(header->ramdiskImage.buffer), header->ramdiskImage.numPages);
         MarkUsed(KernelToPhysPtr(header->physMap), header->physMapPages);
         MarkUsed(KernelToPhysPtr(header->stack), header->stackPages);

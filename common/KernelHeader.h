@@ -16,7 +16,6 @@ struct PhysicalMapSegment {
 struct KernelHeader {
     ModuleDescriptor kernelImage;
     ModuleDescriptor ramdiskImage;
-    ModuleDescriptor fontImage;
 
     uint32 screenWidth;
     uint32 screenHeight;
