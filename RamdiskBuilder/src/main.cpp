@@ -26,6 +26,10 @@ int main(int argc, char** argv)
         std::cout << "Adding file " << srcFile << " as " << destFile << std::endl;
 
         FILE* file = fopen(srcFile.c_str(), "rb");
+        if(file == nullptr) {
+            std::cout << "Failed to read file " << srcFile << std::endl;
+            return 1;
+        }
         fseek(file, 0, SEEK_END);
         long size = ftell(file);
         fseek(file, 0, SEEK_SET);

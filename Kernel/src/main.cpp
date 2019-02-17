@@ -61,8 +61,9 @@ static void SetupTestProcess(uint8* loadBase)
 }
 
 extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
-    
-    Terminal::Init((uint32*)info->fontImage.buffer, info->screenBuffer, info->screenWidth, info->screenHeight, info->screenScanlineWidth, info->screenColorsInverted);
+    Ramdisk::Init(info->ramdiskImage.buffer);
+
+    Terminal::Init((uint32*)Ramdisk::GetFileData("font.fnt").data, info->screenBuffer, info->screenWidth, info->screenHeight, info->screenScanlineWidth, info->screenColorsInverted);
     Terminal::Clear();
 
     SetTerminalColor(180, 180, 180);
@@ -73,8 +74,6 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     GDT::Init();
     IDT::Init();
     IDT::SetISR(Syscall::InterruptNumber, SyscallInterrupt);
-
-    Ramdisk::Init(info->ramdiskImage.buffer);
 
     APIC::Init();
     APIC::SetTimerEvent(TimerEvent);
