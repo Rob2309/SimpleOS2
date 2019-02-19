@@ -63,7 +63,7 @@ static void SetupTestProcess(uint8* loadBase)
 extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     Ramdisk::Init(info->ramdiskImage.buffer);
 
-    Terminal::Init((uint32*)Ramdisk::GetFileData("font.fnt").data, info->screenBuffer, info->screenWidth, info->screenHeight, info->screenScanlineWidth, info->screenColorsInverted);
+    Terminal::Init(info->screenBuffer, info->screenWidth, info->screenHeight, info->screenScanlineWidth, info->screenColorsInverted);
     Terminal::Clear();
 
     SetTerminalColor(180, 180, 180);
