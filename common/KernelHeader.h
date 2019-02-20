@@ -10,7 +10,9 @@ struct ModuleDescriptor {
 struct PhysicalMapSegment {
     uint64 base;
     uint64 numPages;
-    uint8 map[];
+
+    PhysicalMapSegment* next;
+    PhysicalMapSegment* prev;
 };
 
 struct KernelHeader {
@@ -24,9 +26,8 @@ struct KernelHeader {
     uint32* screenBuffer;
     bool screenColorsInverted;
 
-    PhysicalMapSegment* physMap;
-    uint64 physMapPages;
-    uint64 physMapSegments;
+    PhysicalMapSegment* physMapStart;
+    PhysicalMapSegment* physMapEnd;
 
     void* stack;
     uint64 stackPages;

@@ -6,6 +6,7 @@ extern "C" void main()
 
     if(Syscall::Fork() == 0) {
         Syscall::Print("Child process\n");
+        Syscall::Exit(0);
     } else {
         Syscall::Print("Parent process\n");
     }

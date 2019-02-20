@@ -42,7 +42,7 @@ namespace Paging
 
     void Init(KernelHeader* header)
     {
-        uint64* pagingBuffer = (uint64*)Allocate(4096 + 4096 + 512 * 4096);
+        uint64* pagingBuffer = (uint64*)Allocate(4096 + 4096 + 512 * 4096, (EFI_MEMORY_TYPE)0x80000001);
 
         for(int i = 0; i < 512; i++)
             pagingBuffer[i] = 0;

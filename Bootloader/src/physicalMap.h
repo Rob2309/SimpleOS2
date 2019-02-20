@@ -1,16 +1,10 @@
 #pragma once
 
 #include "KernelHeader.h"
+#include "efiutil.h"
 
 namespace PhysicalMap {
-
-    struct PhysMapInfo
-    {
-        PhysicalMapSegment* map;
-        uint64 size;
-        uint64 numSegments;
-    };
     
-    PhysMapInfo Build();
+    PhysicalMapSegment* Build(EfiMemoryMap memMap);
 
 }

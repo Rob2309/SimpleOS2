@@ -64,7 +64,7 @@ extern "C" EFI_STATUS efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
 
     Console::Print(L"Loading modules...\r\n");
 
-    KernelHeader* header = (KernelHeader*)Allocate(sizeof(KernelHeader));
+    KernelHeader* header = (KernelHeader*)Allocate(sizeof(KernelHeader), (EFI_MEMORY_TYPE)0x80000001);
     Paging::Init(header);
     header = (KernelHeader*)Paging::ConvertPtr(header);
 
@@ -86,7 +86,7 @@ extern "C" EFI_STATUS efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
 
     Elf64Addr kernelEntryPoint = 0;
     uint64 size = GetELFSize(kernelData.data);
-    uint8* processBuffer = (uint8*)Paging::ConvertPtr(Allocate(size));
+    uint8* processBuffer = (uint8*)Paging::ConvertPtr(Allocate(size, (EFI_MEMORY_TYPE)0x80000001));
 
     if(!PrepareELF(kernelData.data, processBuffer, &kernelEntryPoint)) {
         Console::Print(L"Failed to prepare kernel\r\nPress any key to exit...\r\n");
@@ -115,23 +115,14 @@ extern "C" EFI_STATUS efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
     header->screenBufferPages = (EFIUtil::Graphics->Mode->FrameBufferSize + 4095) / 4096;
     header->screenColorsInverted = EFIUtil::Graphics->Mode->Info->PixelFormat == PixelRedGreenBlueReserved8BitPerColor;
 
-    void* newStack = Paging::ConvertPtr(Allocate(16 * 4096));
+    void* newStack = Paging::ConvertPtr(Allocate(16 * 4096, (EFI_MEMORY_TYPE)0x80000001));
     header->stack = newStack;
     header->stackPages = 16;
-
-    PhysicalMap::PhysMapInfo physMap = PhysicalMap::Build();
-    header->physMap = (PhysicalMapSegment*)Paging::ConvertPtr(physMap.map);
-    header->physMapSegments = physMap.numSegments;
-    header->physMapPages = (physMap.size + 4095) / 4096;
 
     Console::Print(L"Exiting Boot services and starting kernel...\r\nPress any key to continue...\r\n");
     EFIUtil::WaitForKey();
 
     EfiMemoryMap memMap = EFIUtil::GetMemoryMap();
-
-    typedef void (*KernelMain)(KernelHeader* header);
-    KernelMain kernelMain = (KernelMain)kernelEntryPoint;
-
     err = EFIUtil::SystemTable->BootServices->ExitBootServices(EFIUtil::LoadedImage, memMap.key);
     if(err != EFI_SUCCESS) {
         Console::Print(L"Failed to exit boot services\r\nPress any key to exit...\r\n");
@@ -139,6 +130,13 @@ extern "C" EFI_STATUS efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
         return EFI_LOAD_ERROR;
     }
 
+    header->physMapStart = PhysicalMap::Build(memMap);
+    header->physMapEnd = header->physMapStart;
+    while(header->physMapEnd->next != nullptr)
+        header->physMapEnd = header->physMapEnd->next;
+
+    typedef void (*KernelMain)(KernelHeader* header);
+    KernelMain kernelMain = (KernelMain)kernelEntryPoint;
     char* kernelStackTop = (char*)(header->stack) + header->stackPages * 4096;
 
     __asm__ __volatile__ (

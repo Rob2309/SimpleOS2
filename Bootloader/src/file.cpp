@@ -33,7 +33,7 @@ namespace FileIO {
         uint64 size = info->FileSize;
         Free(info, infoSize);
 
-        uint8* buffer = (uint8*)Allocate(size);
+        uint8* buffer = (uint8*)Allocate(size, (EFI_MEMORY_TYPE)0x80000001);
 
         err = file->Read(file, &size, buffer);
         if(err != EFI_SUCCESS) {

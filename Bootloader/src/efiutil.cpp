@@ -34,7 +34,7 @@ namespace EFIUtil {
             Console::Print(L"Failed to get memory map size\r\n");
             return { 0, 0, nullptr, 0, 0, 0 };
         }
-        memMap = (EFI_MEMORY_DESCRIPTOR*)Allocate(memoryMapSize + 4096);
+        memMap = (EFI_MEMORY_DESCRIPTOR*)Allocate(memoryMapSize + 4096, (EFI_MEMORY_TYPE)0x80000001);
         memoryMapSize += 4096;
         err = EFIUtil::SystemTable->BootServices->GetMemoryMap(&memoryMapSize, memMap, &mapKey, &descSize, &descVersion);
         if(err != EFI_SUCCESS) {
