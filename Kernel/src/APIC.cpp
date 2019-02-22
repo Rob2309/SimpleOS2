@@ -72,7 +72,7 @@ namespace APIC
     {
         uint32 eax, edx;
         __asm__ __volatile__ (
-            "movl $0x1B, %%ecx;"
+            "movl $0x1B, %%ecx;"    // msr 0x1B contains the physical address of the APIC registers
             "rdmsr"
             : "=a"(eax), "=d"(edx)
             :

@@ -96,8 +96,10 @@ namespace GDT
         g_GDT[4].limit2flags = 0b10101111;
         g_GDT[4].base3 = 0x00;
 
+        // TSS, needed for inter priviledge level interrupts
         g_TSS = { 0 };
         g_TSS.iopbOffset = sizeof(TSS);
+        // this is the stack pointer that will be loaded when an interrupt CHANGES the priviledge level to 0
         g_TSS.rsp0 = (uint64)g_InterruptStack + sizeof(g_InterruptStack);
 
         TSSDesc* tssDesc = (TSSDesc*)&g_GDT[5];
@@ -130,7 +132,7 @@ namespace GDT
         );
 
         __asm__ __volatile__ (
-            "ltr %%ax"
+            "ltr %%ax"              // tell cpu to use new TSS
             : : "a" (5 * 8)
         );
     }

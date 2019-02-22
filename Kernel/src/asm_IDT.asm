@@ -41,22 +41,22 @@
 ISRCommon:
     pushAll
 
-    mov ax, 0x10
+    mov ax, 0x10    ; kernel data selector
     mov ss, ax
 
-    mov ax, ds
+    mov ax, ds      ; save old ds
     push rax
 
-    mov rax, 0x10
+    mov rax, 0x10   ; load kernel data selectors
     mov ds, ax
     mov es, ax
     mov fs, ax
     mov gs, ax
 
-    mov rdi, rsp
-    call ISRCommonHandler wrt ..plt
+    mov rdi, rsp                    ; rdi is the first function argument, thus has to hold the address of the IDT::Registers struct (see IDT.h)
+    call ISRCommonHandler wrt ..plt ; call the C interrupt handler
 
-    pop rax
+    pop rax         ; restore old data selectors
     mov ds, ax
     mov es, ax
     mov fs, ax
@@ -64,7 +64,7 @@ ISRCommon:
 
     popAll
 
-    add rsp, 16
+    add rsp, 16     ; pop error code and interrupt number from stack
     sti
     o64 a64 iret
 
@@ -72,8 +72,8 @@ ISRCommon:
     GLOBAL ISRSTUB_%1
     ISRSTUB_%1:
         cli
-        push QWORD 0 
-        push QWORD %1
+        push QWORD 0    ; push fake error code
+        push QWORD %1   ; push interrupt number
         jmp ISRCommon
 %endmacro
 
@@ -81,7 +81,7 @@ ISRCommon:
     GLOBAL ISRSTUB_%1
     ISRSTUB_%1:
         cli
-        push QWORD %1
+        push QWORD %1   ; push interrupt number
         jmp ISRCommon
 %endmacro
 
