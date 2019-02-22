@@ -8,6 +8,7 @@ uint64 GetELFSize(const uint8* image)
 
     uint64 size = 0;
 
+    // The size needed for an elf image is just the largest address of the PT_LOAD segments
     ElfSegmentHeader* phList = (ElfSegmentHeader*)(image + header->phOffset);
     for(int s = 0; s < header->phEntryCount; s++) {
         ElfSegmentHeader* segment = &phList[s];
@@ -32,9 +33,11 @@ bool PrepareELF(const uint8* diskImg, uint8* processImg, Elf64Addr* entryPoint)
             const uint8* src = diskImg + segment->dataOffset;
             uint8* dest = processImg + segment->virtualAddress;
 
+            // Load the data into the segment
             for(uint64 i = 0; i < segment->dataSize; i++)
                 dest[i] = src[i];
             
+            // fill the rest of the segment with zeros
             for(uint64 i = segment->dataSize; i < segment->virtualSize; i++)
                 dest[i] = 0;
         } else if(segment->type == PT_DYNAMIC) {

@@ -82,8 +82,9 @@ namespace Scheduler {
     void Tick(IDT::Registers* regs)
     {
         g_RunningProcess->status = ProcessInfo::STATUS_READY;
-        g_RunningProcess->registers = *regs;
+        g_RunningProcess->registers = *regs; // save all registers in process info
         
+        // Find next process to execute
         ProcessInfo* nextProcess;
         if(g_RunningProcess == g_IdleProcess || g_RunningProcess->next == nullptr)
             nextProcess = FindNextProcess(g_ProcessList);
@@ -92,10 +93,14 @@ namespace Scheduler {
 
         g_RunningProcess = nextProcess;
         g_RunningProcess->status = ProcessInfo::STATUS_RUNNING;
+        // Load paging structures for the process
         MemoryManager::SwitchProcessMap(g_RunningProcess->pml4Entry);
+        // Load registers from saved state
         *regs = g_RunningProcess->registers;
     }
 
+    // This is the "process" that will run, when no other process is ready to run
+    // it will just hlt and wait for the next interrupt
     static void IdleProcess()
     {
         while(true) {
@@ -105,6 +110,7 @@ namespace Scheduler {
 
     void Start()
     {
+        // Init idle process
         ProcessInfo* p = (ProcessInfo*)MemoryManager::PhysToKernelPtr(MemoryManager::AllocatePages());
         memset(p, 0, sizeof(ProcessInfo));
 
@@ -124,17 +130,17 @@ namespace Scheduler {
         g_RunningProcess = g_IdleProcess;
 
         __asm__ __volatile__ (
-            "pushq $0x10;"
-            "pushq %0;"
-            "pushq %1;"
-            "pushq $0x08;"
-            "pushq %2;"
-            "movq $0x10, %%rax;"
+            "pushq $0x10;"      // kernel data selector
+            "pushq %0;"         // rsp
+            "pushq %1;"         // rflags
+            "pushq $0x08;"      // kernel code selector
+            "pushq %2;"         // rip
+            "movq $0x10, %%rax;"// load kernel data selectors
             "mov %%rax, %%ds;"
             "mov %%rax, %%es;"
             "mov %%rax, %%fs;"
             "mov %%rax, %%gs;"
-            "iretq"
+            "iretq"             // "return" to idle process
             : : "r"(p->registers.userrsp), "r"(p->registers.rflags), "r"(p->registers.rip)
         );
     }
@@ -148,6 +154,7 @@ namespace Scheduler {
     {
         uint64 pid = g_RunningProcess->pid;
 
+        // Remove process from list
         if(g_RunningProcess == g_ProcessList) {
             g_ProcessList = g_ProcessList->next;
         } else {
@@ -157,8 +164,10 @@ namespace Scheduler {
             temp->next = g_RunningProcess->next;
         }
 
+        // Delete paging structures for this process
         MemoryManager::FreeProcessMap(g_RunningProcess->pml4Entry);
 
+        // Switch to idle process
         g_RunningProcess = g_IdleProcess;
         *regs = g_IdleProcess->registers;
 
@@ -167,11 +176,15 @@ namespace Scheduler {
 
     void ProcessFork(IDT::Registers* regs)
     {
+        // Copy process memory and paging structures
         uint64 pml4Entry = MemoryManager::ForkProcessMap();
         
+        // Register an exact copy of the current process
         ProcessInfo* pInfo = RegisterProcessInternal(pml4Entry, regs->userrsp, regs->rip, true);
+        // return child process pid to parent process
         regs->rax = pInfo->pid;
         pInfo->registers = *regs;
+        // return zero to child process
         pInfo->registers.rax = 0;
     }
 

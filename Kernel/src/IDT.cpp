@@ -135,7 +135,7 @@ namespace IDT {
 
         __asm__ __volatile__ (
             ".intel_syntax noprefix;"
-            "lidtq [%0];"
+            "lidtq [%0];"               // tell cpu to use new IDT
             ".att_syntax prefix;"
             :
             : "r" (&g_IDTDesc)

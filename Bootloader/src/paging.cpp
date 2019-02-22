@@ -42,24 +42,28 @@ namespace Paging
 
     void Init(KernelHeader* header)
     {
+        // 1 Page for PML4, 1 Page for first PML3, 512 pages for PML2s (will map 512GB of virtual memory)
         uint64* pagingBuffer = (uint64*)Allocate(4096 + 4096 + 512 * 4096);
 
         for(int i = 0; i < 512; i++)
             pagingBuffer[i] = 0;
+        // Make 512 GB at 0 and 512 GB at 0xFFFFFF8000000000 map to the same PML3
         pagingBuffer[0] = pagingBuffer[511] = PML_SET_ADDR((uint64)&pagingBuffer[512]) | PML_SET_P(1) | PML_SET_RW(1);
 
+        // Fill all PML3 entries with the addresses of the corresponding PML2s
         for(int i = 0; i < 512; i++)
             pagingBuffer[512 + i] = PML_SET_ADDR((uint64)&pagingBuffer[1024 + 512 * i]) | PML_SET_P(1) | PML_SET_RW(1);
 
+        // Fill all PML2 entries with the corresponding physical address
         for(uint64 i = 0; i < 512 * 512; i++)
             pagingBuffer[1024 + i] = PML_SET_ADDR(i << 21) | PML_SET_P(1) | PML_SET_RW(1) | PML1_SET_PAT(1);
 
         __asm__ __volatile__ (
-            "movq %0, %%cr3"
+            "movq %0, %%cr3"        // cr3 holds the physical address of PML4, if written, invalidates all TLB entries
             : : "r"(pagingBuffer)
         );
 
-        g_HighMemBase = ((uint64)511 << 39) | 0xFFFF000000000000;
+        g_HighMemBase = ((uint64)511 << 39) | 0xFFFF000000000000;   // This is the starting address of physical ram in the higher half virtual memory
         
         header->pageBuffer = (uint64*)ConvertPtr(pagingBuffer);
         header->pageBufferPages = 1 + 1 + 512;
@@ -68,6 +72,7 @@ namespace Paging
 
     void* ConvertPtr(void* ptr)
     {
+        // To convert a pointer from physical address to higher half address, just add the high memory base
         return (void*)((uint64)ptr + g_HighMemBase);
     }
 

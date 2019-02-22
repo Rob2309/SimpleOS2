@@ -8,6 +8,7 @@ namespace PhysicalMap {
     static void CleanupMemMap(EFI_MEMORY_DESCRIPTOR* map, uint64& count, uint64 entrySize)
     {
         // Make every usable memory segment have type ConventionalMemory
+        // Make every other segment have Type UnusableMemory
         for(uint64 s = 0; s < count; s++) {
             EFI_MEMORY_DESCRIPTOR* seg = (EFI_MEMORY_DESCRIPTOR*)((char*)(map) + s * entrySize);
             if(seg->Type == EfiLoaderCode ||
