@@ -43,7 +43,7 @@ namespace Paging
     void Init(KernelHeader* header)
     {
         // 1 Page for PML4, 1 Page for first PML3, 512 pages for PML2s (will map 512GB of virtual memory)
-        uint64* pagingBuffer = (uint64*)Allocate(4096 + 4096 + 512 * 4096);
+        uint64* pagingBuffer = (uint64*)Allocate(4096 + 4096 + 512 * 4096, (EFI_MEMORY_TYPE)0x80000001);
 
         for(int i = 0; i < 512; i++)
             pagingBuffer[i] = 0;

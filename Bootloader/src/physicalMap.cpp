@@ -2,6 +2,7 @@
 
 #include "efiutil.h"
 #include "allocator.h"
+#include "paging.h"
 
 namespace PhysicalMap {
     
@@ -82,55 +83,44 @@ namespace PhysicalMap {
         }
     }
 
-    PhysMapInfo Build()
+    PhysicalMapSegment* Build(EfiMemoryMap memMap)
     {
-        UINTN memoryMapSize = 0;
-        EFI_MEMORY_DESCRIPTOR* memMap;
-        UINTN mapKey;
-        UINTN descSize;
-        UINT32 descVersion;
-        
-        EFI_STATUS err = EFIUtil::SystemTable->BootServices->GetMemoryMap(&memoryMapSize, memMap, &mapKey, &descSize, &descVersion);
-        memMap = (EFI_MEMORY_DESCRIPTOR*)Allocate(memoryMapSize + 4096);
-        memoryMapSize += 4096;
-        err = EFIUtil::SystemTable->BootServices->GetMemoryMap(&memoryMapSize, memMap, &mapKey, &descSize, &descVersion);
-
-        uint64 length = memoryMapSize / descSize;
-        CleanupMemMap(memMap, length, descSize);
+        CleanupMemMap(memMap.entries, memMap.length, memMap.entrySize);
 
         uint64 sizeNeeded = 0;
         uint64 numSegments = 0;
 
-        for(uint64 i = 0; i < length; i++) {
-            EFI_MEMORY_DESCRIPTOR* desc = (EFI_MEMORY_DESCRIPTOR*)((char*)memMap + i * descSize);
+        PhysicalMapSegment* firstSegment = nullptr;
+        PhysicalMapSegment* lastSegment = nullptr;
+
+        for(uint64 i = 0; i < memMap.length; i++) {
+            EFI_MEMORY_DESCRIPTOR& desc = memMap[i];
             
-            if(desc->Type == EfiConventionalMemory)
+            if(desc.Type == EfiConventionalMemory)
             {
-                numSegments++;
+                PhysicalMapSegment* seg = (PhysicalMapSegment*)Paging::ConvertPtr((void*)desc.PhysicalStart);
 
-                sizeNeeded += sizeof(PhysicalMapSegment);
-                sizeNeeded += (desc->NumberOfPages + 7) / 8;
+                if(firstSegment == nullptr) {
+                    firstSegment = seg;
+                    lastSegment = firstSegment;
+
+                    firstSegment->base = desc.PhysicalStart;
+                    firstSegment->numPages = desc.NumberOfPages;
+                    firstSegment->prev = nullptr;
+                    firstSegment->next = nullptr;
+                } else {
+                    lastSegment->next = seg;
+                    seg->prev = lastSegment;
+                    lastSegment = seg;
+                    
+                    seg->base = desc.PhysicalStart;
+                    seg->numPages = desc.NumberOfPages;
+                    seg->next = nullptr;
+                }
             }
         }
 
-        PhysicalMapSegment* physMapBase = (PhysicalMapSegment*)Allocate(sizeNeeded);
-        PhysicalMapSegment* physMap = physMapBase;
-         for(uint64 i = 0; i < length; i++) {
-            EFI_MEMORY_DESCRIPTOR* desc = (EFI_MEMORY_DESCRIPTOR*)((char*)memMap + i * descSize);
-            if(desc->Type == EfiConventionalMemory)
-            {
-                physMap->base = desc->PhysicalStart;
-                physMap->numPages = desc->NumberOfPages;
-
-                uint64 numBytes = (desc->NumberOfPages + 7) / 8;
-                for(int b = 0; b < numBytes; b++)
-                    physMap->map[b] = 0;
-
-                physMap = (PhysicalMapSegment*)((char*)physMap + sizeof(PhysicalMapSegment) + (physMap->numPages + 7) / 8);
-            }
-        }
-
-        return { physMapBase, sizeNeeded, numSegments };
+        return firstSegment;
     }
 
 }

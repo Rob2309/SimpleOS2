@@ -70,7 +70,7 @@ extern "C" EFI_STATUS efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
     Console::Print(L"Loading modules...\r\n");
 
     // Allocate the Header that will be passed to the kernel
-    KernelHeader* header = (KernelHeader*)Allocate(sizeof(KernelHeader));
+    KernelHeader* header = (KernelHeader*)Allocate(sizeof(KernelHeader), (EFI_MEMORY_TYPE)0x80000001);
     // Create paging structures to map the topmost 512GB to physical memory
     Paging::Init(header);
     // Convert the header pointer to a high-memory pointer
@@ -97,7 +97,7 @@ extern "C" EFI_STATUS efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
     Elf64Addr kernelEntryPoint = 0;
     uint64 size = GetELFSize(kernelData.data);
     // allocate the buffer the relocated kernel image will be in
-    uint8* processBuffer = (uint8*)Paging::ConvertPtr(Allocate(size));
+    uint8* processBuffer = (uint8*)Paging::ConvertPtr(Allocate(size, (EFI_MEMORY_TYPE)0x80000001));
 
     // relocate the kernel into the buffer
     if(!PrepareELF(kernelData.data, processBuffer, &kernelEntryPoint)) {
@@ -129,32 +129,29 @@ extern "C" EFI_STATUS efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
     header->screenColorsInverted = EFIUtil::Graphics->Mode->Info->PixelFormat == PixelRedGreenBlueReserved8BitPerColor;
 
     // Allocate 16 pages as a kernel stack
-    void* newStack = Paging::ConvertPtr(Allocate(16 * 4096));
+    void* newStack = Paging::ConvertPtr(Allocate(16 * 4096, (EFI_MEMORY_TYPE)0x80000001));
     header->stack = newStack;
     header->stackPages = 16;
-
-    // Create the physical map to pass to the kernel
-    PhysicalMap::PhysMapInfo physMap = PhysicalMap::Build();
-    header->physMap = (PhysicalMapSegment*)Paging::ConvertPtr(physMap.map);
-    header->physMapSegments = physMap.numSegments;
-    header->physMapPages = (physMap.size + 4095) / 4096;
 
     Console::Print(L"Exiting Boot services and starting kernel...\r\nPress any key to continue...\r\n");
     EFIUtil::WaitForKey();
 
     // We have to get the most recent memory map before calling ExitBootServices
     EfiMemoryMap memMap = EFIUtil::GetMemoryMap();
-
-    typedef void (*KernelMain)(KernelHeader* header);
-    KernelMain kernelMain = (KernelMain)kernelEntryPoint;
-
     err = EFIUtil::SystemTable->BootServices->ExitBootServices(EFIUtil::LoadedImage, memMap.key);
     if(err != EFI_SUCCESS) {
         Console::Print(L"Failed to exit boot services\r\nPress any key to exit...\r\n");
         EFIUtil::WaitForKey();
         return EFI_LOAD_ERROR;
     }
+    
+    header->physMapStart = PhysicalMap::Build(memMap);
+    header->physMapEnd = header->physMapStart;
+    while(header->physMapEnd->next != nullptr)
+        header->physMapEnd = header->physMapEnd->next;
 
+    typedef void (*KernelMain)(KernelHeader* header);
+    KernelMain kernelMain = (KernelMain)kernelEntryPoint;
     char* kernelStackTop = (char*)(header->stack) + header->stackPages * 4096;
 
     __asm__ __volatile__ (
