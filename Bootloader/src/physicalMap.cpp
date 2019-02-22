@@ -98,8 +98,10 @@ namespace PhysicalMap {
             
             if(desc.Type == EfiConventionalMemory)
             {
+                // Just store this structure in the physical page it represents
                 PhysicalMapSegment* seg = (PhysicalMapSegment*)Paging::ConvertPtr((void*)desc.PhysicalStart);
 
+                // Insert it into the list
                 if(firstSegment == nullptr) {
                     firstSegment = seg;
                     lastSegment = firstSegment;
