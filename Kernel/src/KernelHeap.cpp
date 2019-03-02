@@ -16,21 +16,7 @@ namespace KernelHeap {
 
     static Group* g_HeapStart;
     static Group* g_HeapEnd;
-    static uint64 g_HeapPos;
-
-    void Init()
-    {
-        void* g = MemoryManager::AllocatePages(1);
-        MemoryManager::MapKernelPage(g, (void*)HeapBase);
-        g_HeapStart = (Group*)HeapBase;
-        g_HeapPos = (uint64)g_HeapStart + 4096;
-
-        g_HeapStart->size = 4096;
-        g_HeapStart->next = nullptr;
-        g_HeapStart->prev = nullptr;
-
-        g_HeapEnd = g_HeapStart;
-    }
+    static uint64 g_HeapPos = HeapBase;
 
     static Group* FindGroup(uint64 size)
     {
