@@ -15,6 +15,8 @@
 
 #include "Ramdisk.h"
 
+#include "KernelHeap.h"
+
 uint64 g_TimeCounter = 0;
 
 void TimerEvent(IDT::Registers* regs)
@@ -70,6 +72,7 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     printf("Kernel at 0x%x\n", info->kernelImage.buffer);
     
     MemoryManager::Init(info);
+    KernelHeap::Init();
 
     GDT::Init();
     IDT::Init();
