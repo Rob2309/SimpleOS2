@@ -7,6 +7,8 @@ namespace MemoryManager {
 
     void Init(KernelHeader* header);
 
+    void Dump();
+
     void* AllocatePages(uint64 numPages = 1);
     void FreePages(void* pages, uint64 numPages = 1);
 

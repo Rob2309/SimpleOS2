@@ -2,6 +2,7 @@
 
 #include "conio.h"
 #include "memutil.h"
+#include "FreeList.h"
 
 #define PML_GET_NX(entry)           ((entry) & 0x8000000000000000)
 #define PML_GET_ADDR(entry)         ((entry) & 0x000FFFFFFFFFF000)
@@ -38,15 +39,22 @@
 
 namespace MemoryManager {
 
-    static PhysicalMapSegment* g_PhysMapStart = nullptr;
+    static FreeList g_FreeList;
 
     static uint64 g_HighMemBase;
 
     static uint64* g_PML4;
 
+    void Dump()
+    {
+        for(auto seg : g_FreeList) {
+            printf("0x%x - 0x%x\n", seg.base, seg.base + seg.size - 1);
+        }
+    }
+
     void Init(KernelHeader* header)
     {
-        g_PhysMapStart = header->physMapStart;
+        g_FreeList = FreeList(header->physMapStart);
         g_HighMemBase = header->highMemoryBase;
         g_PML4 = header->pageBuffer;
 
@@ -54,11 +62,8 @@ namespace MemoryManager {
         g_PML4[0] = 0;
 
         uint64 availableMemory = 0;
-
-        PhysicalMapSegment* physMap = g_PhysMapStart;
-        while(physMap != nullptr) {
-            availableMemory += physMap->numPages * 4096;
-            physMap = physMap->next;
+        for(auto a : g_FreeList) {
+            availableMemory += a.size;
         }
 
         uint64* heapPML3 = (uint64*)PhysToKernelPtr(AllocatePages(1));
@@ -70,68 +75,21 @@ namespace MemoryManager {
         printf("Memory manager initialized\n");
     }
 
-    static void RemoveSegment(PhysicalMapSegment* seg) {
-        if(seg == g_PhysMapStart) {
-            g_PhysMapStart = seg->next;
-            if(seg->next != nullptr)
-                seg->next->prev = nullptr;
-        } else {
-            seg->prev->next = seg->next;
-            if(seg->next != nullptr)
-                seg->next->prev = seg->prev;
-        }
-    }
-    static void JoinSegment(PhysicalMapSegment* cmp)
-    {
-        uint64 start = cmp->base;
-        uint64 end = cmp->base + cmp->numPages * 4096;
-
-        PhysicalMapSegment* seg = g_PhysMapStart;
-        while(seg != nullptr) {
-            if(seg->base == end) {
-                cmp->numPages += seg->numPages;
-                RemoveSegment(seg);
-                JoinSegment(cmp);
-                return;
-            } else if(seg->base + seg->numPages * 4096 == start) {
-                seg->numPages += cmp->numPages;
-                RemoveSegment(cmp);
-                JoinSegment(seg);
-                return;
-            }
-            seg = seg->next;
-        }
-    }
-
     void* AllocatePages(uint64 numPages)
     {
-        PhysicalMapSegment* seg = g_PhysMapStart;
-        while(seg != nullptr) {
-            if(seg->numPages >= numPages) {
-                seg->numPages -= numPages;
-                void* res = (void*)(seg->base + seg->numPages * 4096);
-                if(seg->numPages == 0) {
-                    RemoveSegment(seg);
-                }
-                return res;
-            }
-            seg = seg->next;
+        void* p = g_FreeList.FindFree(numPages * 4096);
+        if(p == nullptr) {
+            return nullptr;
         }
 
-        return nullptr;
+        g_FreeList.MarkUsed(p, numPages * 4096);
+
+        return KernelToPhysPtr(p);
     }
 
     void FreePages(void* pages, uint64 numPages)
     {
-        PhysicalMapSegment* seg = (PhysicalMapSegment*)PhysToKernelPtr(pages);
-        seg->base = (uint64)pages;
-        seg->numPages = numPages;
-        seg->prev = nullptr;
-        seg->next = g_PhysMapStart;
-        g_PhysMapStart->prev = seg;
-        g_PhysMapStart = seg;
-
-        JoinSegment(g_PhysMapStart);
+        g_FreeList.MarkFree(PhysToKernelPtr(pages), numPages * 4096);
     }
 
     void* PhysToKernelPtr(void* ptr)
