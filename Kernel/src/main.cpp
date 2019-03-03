@@ -73,19 +73,6 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     
     MemoryManager::Init(info);
 
-    void* a = new char[4088];
-    printf("A: 0x%x\n", a);
-    void* b = new char[4088];
-    printf("B: 0x%x\n", b);
-    void* c = new char[4088];
-    printf("C: 0x%x\n", c);
-    delete[] b;
-    void* d = new char[8184];
-    printf("D: 0x%x\n", d);
-    delete[] a;
-    void* e = new char[8184];
-    printf("E: 0x%x\n", e);
-
     GDT::Init();
     IDT::Init();
     IDT::SetISR(Syscall::InterruptNumber, SyscallInterrupt);
