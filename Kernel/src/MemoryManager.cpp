@@ -61,8 +61,13 @@ namespace MemoryManager {
             physMap = physMap->next;
         }
 
+        uint64* heapPML3 = (uint64*)PhysToKernelPtr(AllocatePages(1));
+        for(int i = 0; i < 512; i++)
+            heapPML3[i] = 0;
+        g_PML4[510] = PML_SET_ADDR((uint64)KernelToPhysPtr(heapPML3)) | PML_SET_P(1) | PML_SET_RW(1);
+
         printf("Available memory: %i MB\n", availableMemory / 1024 / 1024);
-        printf("Physical memory map initialized\n");
+        printf("Memory manager initialized\n");
     }
 
     static void RemoveSegment(PhysicalMapSegment* seg) {
@@ -222,6 +227,69 @@ namespace MemoryManager {
         __asm__ __volatile__ (
             "movq %0, %%cr3"
             : : "r"(KernelToPhysPtr(g_PML4))
+        );
+    }
+
+    void MapKernelPage(void* phys, void* virt)
+    {
+        uint64 pml4Index = GET_PML4_INDEX((uint64)virt);
+        uint64 pml3Index = GET_PML3_INDEX((uint64)virt);
+        uint64 pml2Index = GET_PML2_INDEX((uint64)virt);
+        uint64 pml1Index = GET_PML1_INDEX((uint64)virt);
+
+        uint64 pml4Entry = g_PML4[pml4Index];
+        uint64* pml3 = (uint64*)PhysToKernelPtr((void*)PML_GET_ADDR(pml4Entry));
+
+        uint64 pml3Entry = pml3[pml3Index];
+        uint64* pml2;
+        if(!PML_GET_P(pml3Entry)) {
+            pml2 = (uint64*)PhysToKernelPtr(AllocatePages());
+            for(int i = 0; i < 512; i++)
+                pml2[i] = 0;
+            pml3[pml3Index] = PML_SET_ADDR((uint64)KernelToPhysPtr(pml2)) | PML_SET_P(1) | PML_SET_RW(1);
+        } else {
+            pml2 = (uint64*)PhysToKernelPtr((void*)PML_GET_ADDR(pml3Entry));
+        }
+
+        uint64 pml2Entry = pml2[pml2Index];
+        uint64* pml1;
+        if(!PML_GET_P(pml2Entry)) {
+            pml1 = (uint64*)PhysToKernelPtr(AllocatePages());
+            for(int i = 0; i < 512; i++)
+                pml1[i] = 0;
+            pml2[pml2Index] = PML_SET_ADDR((uint64)KernelToPhysPtr(pml1)) | PML_SET_P(1) | PML_SET_RW(1);
+        } else {
+            pml1 = (uint64*)PhysToKernelPtr((void*)PML_GET_ADDR(pml2Entry));
+        }
+
+        pml1[pml1Index] = PML_SET_ADDR((uint64)phys) | PML_SET_P(1) | PML_SET_RW(1);
+
+        __asm__ __volatile__ (
+            "invlpg (%0)"
+            : : "r"(virt)
+        );
+    }
+    void UnmapKernelPage(void* virt)
+    {
+        uint64 pml4Index = GET_PML4_INDEX((uint64)virt);
+        uint64 pml3Index = GET_PML3_INDEX((uint64)virt);
+        uint64 pml2Index = GET_PML2_INDEX((uint64)virt);
+        uint64 pml1Index = GET_PML1_INDEX((uint64)virt);
+
+        uint64 pml4Entry = g_PML4[pml4Entry];
+        uint64* pml3 = (uint64*)PhysToKernelPtr((void*)PML_GET_ADDR(pml4Entry));
+
+        uint64 pml3Entry = pml3[pml3Index];
+        uint64* pml2 = (uint64*)PhysToKernelPtr((void*)PML_GET_ADDR(pml3Entry));
+
+        uint64 pml2Entry = pml2[pml2Index];
+        uint64* pml1 = (uint64*)PhysToKernelPtr((void*)PML_GET_ADDR(pml2Entry));
+
+        pml1[pml1Index] = 0;
+
+        __asm__ __volatile__ (
+            "invlpg (%0)"
+            : : "r"(virt)
         );
     }
 

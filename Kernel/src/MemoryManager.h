@@ -19,6 +19,8 @@ namespace MemoryManager {
 
     void SwitchProcessMap(uint64 pml4Entry);
 
+    void MapKernelPage(void* phys, void* virt);
+    void UnmapKernelPage(void* virt);
     void MapProcessPage(uint64 pml4Entry, void* phys, void* virt, bool invalidate = true);
     void UnmapProcessPage(uint64 pml4Entry, void* virt, bool invalidate = true);
 
