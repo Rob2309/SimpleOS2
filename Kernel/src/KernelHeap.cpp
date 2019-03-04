@@ -39,6 +39,11 @@ namespace KernelHeap {
     }
     void Free(void* block)
     {
+        if(block == nullptr)
+            return;
+
+        printf("Block: 0x%x\n", block);
+
         uint64* b = (uint64*)block - 1;
         uint64 size = *b;
 

@@ -17,6 +17,8 @@
 
 #include "KernelHeap.h"
 
+#include "VFS.h"
+
 uint64 g_TimeCounter = 0;
 
 void TimerEvent(IDT::Registers* regs)
@@ -76,6 +78,8 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     GDT::Init();
     IDT::Init();
     IDT::SetISR(Syscall::InterruptNumber, SyscallInterrupt);
+
+    VFS::Init();
 
     APIC::Init();
     APIC::SetTimerEvent(TimerEvent);
