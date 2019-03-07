@@ -81,6 +81,27 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
 
     VFS::Init();
 
+    if(!VFS::CreateFile("/", "doc", VFS::FILETYPE_DIRECTORY))
+        ;//printf("Failed to create /doc\n");
+    if(!VFS::CreateFile("/doc", "test.txt", VFS::FILETYPE_FILE))
+        ;//printf("Failed to create /doc/test.txt\n");
+
+    char msg[] = "Hello World!";
+
+    uint64 f = VFS::OpenFile("/doc/test.txt", VFS::OpenFileModeWrite);
+    if(f == 0)
+        printf("Failed to open /doc/test.txt for writing\n");
+    VFS::WriteFile(f, msg, sizeof(msg));
+    VFS::CloseFile(f);
+
+    f = VFS::OpenFile("/doc/test.txt", VFS::OpenFileModeRead);
+    if(f == 0)
+        printf("Failed to open /doc/test.txt for reading\n");
+    char buffer[128];
+    uint64 length = VFS::ReadFile(f, buffer, sizeof(buffer));
+    printf("/doc/test.txt (%i): %s\n", length, buffer);
+    VFS::CloseFile(f);
+
     APIC::Init();
     APIC::SetTimerEvent(TimerEvent);
 

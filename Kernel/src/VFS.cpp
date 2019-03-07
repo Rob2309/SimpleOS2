@@ -74,8 +74,11 @@ namespace VFS {
                 }
                 if(ret == nullptr)
                     return nullptr;
-
-                return FindFile(ret, &path[end + 1]);
+                
+                if(path[end] == '\0')
+                    return ret;
+                else 
+                    return FindFile(ret, &path[end + 1]);
             } else {
                 end++;
             }
