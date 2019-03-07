@@ -27,10 +27,10 @@ $(output_file): $(c_objects) $(cpp_objects) $(asm_objects)
 
 $(localdir)/obj/%.o: $(localdir)/src/%.c $(c_headers) $(cross_headers)
 	@ mkdir -p $(dir $@)
-	$(ELF_GCC) -g -fPIC -ffreestanding $(elf_include_flags) -c $< -o $@
+	$(ELF_GCC) -g -fPIC -ffreestanding -fno-stack-protector -fno-exceptions $(elf_include_flags) -c $< -o $@
 $(localdir)/obj/%.o: $(localdir)/src/%.cpp $(c_headers) $(cross_headers)
 	@ mkdir -p $(dir $@)
-	$(ELF_GCC) -g -fPIC -ffreestanding $(elf_include_flags) -c $< -o $@
+	$(ELF_GCC) -g -fPIC -ffreestanding -fno-stack-protector -fno-exceptions $(elf_include_flags) -c $< -o $@
 $(localdir)/obj/%.o: $(localdir)/src/%.asm $(c_headers) $(cross_headers)
 	@ mkdir -p $(dir $@)
 	$(NASM) -g -f elf64 $(elf_nasm_include_flags) $< -o $@
