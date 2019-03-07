@@ -2,25 +2,39 @@
 
 #include "RamdiskStructs.h"
 #include "string.h"
+#include "VFS.h"
+#include "conio.h"
 
 namespace Ramdisk {
 
-    static uint8* g_RD;
+    static uint64 g_DevFile;
+    static RamdiskHeader g_Header;
+    static RamdiskFile* g_Files;
 
-    void Init(uint8* img)
+    void Init(const char* dev)
     {
-        g_RD = img;
+        g_DevFile = VFS::OpenFile(dev, VFS::OpenFileModeRead);
+        if(g_DevFile == 0)
+            printf("Failed to init Ramdisk driver\n");
+
+        VFS::SeekFile(g_DevFile, 0);
+        VFS::ReadFile(g_DevFile, &g_Header, sizeof(g_Header));
+
+        g_Files = new RamdiskFile[g_Header.numFiles];
+        VFS::ReadFile(g_DevFile, g_Files, g_Header.numFiles * sizeof(RamdiskFile));
     }
 
     File GetFileData(const char* name)
     {
-        RamdiskHeader* header = (RamdiskHeader*)g_RD;
-
-        for(int i = 0; i < header->numFiles; i++) {
-            if(strcmp(header->files[i].name, name) == 0) {
+        for(int i = 0; i < g_Header.numFiles; i++) {
+            if(strcmp(g_Files[i].name, name) == 0) {
                 File res;
-                res.size = header->files[i].size;
-                res.data = g_RD + header->files[i].dataOffset;
+                res.size = g_Files[i].size;
+                res.data = new uint8[res.size];
+
+                VFS::SeekFile(g_DevFile, g_Files[i].dataOffset);
+                VFS::ReadFile(g_DevFile, res.data, res.size);
+
                 return res;
             }
         }

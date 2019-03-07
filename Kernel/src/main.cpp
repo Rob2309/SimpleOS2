@@ -18,6 +18,7 @@
 #include "KernelHeap.h"
 
 #include "VFS.h"
+#include "RamDevice.h"
 
 uint64 g_TimeCounter = 0;
 
@@ -54,7 +55,7 @@ static void SetupTestProcess(uint8* loadBase)
     Elf64Addr entryPoint;
     if(!PrepareELF(f.data, loadBase, &entryPoint)) {
         printf("Failed to setup process\n");
-        while(true);
+        return;
     }
 
     uint8* stack = (uint8*)MemoryManager::AllocatePages(10);
@@ -62,11 +63,11 @@ static void SetupTestProcess(uint8* loadBase)
         MemoryManager::MapProcessPage(pml4Entry, stack + i * 4096, (void*)(0x1000 + i * 4096));
 
     Scheduler::RegisterProcess(pml4Entry, 0x1000 + 10 * 4096, entryPoint, true);
+
+    delete[] f.data;
 }
 
 extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
-    Ramdisk::Init(info->ramdiskImage.buffer);
-
     Terminal::Init(info->screenBuffer, info->screenWidth, info->screenHeight, info->screenScanlineWidth, info->screenColorsInverted);
     Terminal::Clear();
 
@@ -80,27 +81,10 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     IDT::SetISR(Syscall::InterruptNumber, SyscallInterrupt);
 
     VFS::Init();
+    VFS::CreateFolder("/", "dev");
 
-    if(!VFS::CreateFile("/", "doc", VFS::FILETYPE_DIRECTORY))
-        ;//printf("Failed to create /doc\n");
-    if(!VFS::CreateFile("/doc", "test.txt", VFS::FILETYPE_FILE))
-        ;//printf("Failed to create /doc/test.txt\n");
-
-    char msg[] = "Hello World!";
-
-    uint64 f = VFS::OpenFile("/doc/test.txt", VFS::OpenFileModeWrite);
-    if(f == 0)
-        printf("Failed to open /doc/test.txt for writing\n");
-    VFS::WriteFile(f, msg, sizeof(msg));
-    VFS::CloseFile(f);
-
-    f = VFS::OpenFile("/doc/test.txt", VFS::OpenFileModeRead);
-    if(f == 0)
-        printf("Failed to open /doc/test.txt for reading\n");
-    char buffer[128];
-    uint64 length = VFS::ReadFile(f, buffer, sizeof(buffer));
-    printf("/doc/test.txt (%i): %s\n", length, buffer);
-    VFS::CloseFile(f);
+    RamDevice* initrdDev = new RamDevice("ram0", info->ramdiskImage.buffer, info->ramdiskImage.numPages * 4096);
+    Ramdisk::Init("/dev/ram0");
 
     APIC::Init();
     APIC::SetTimerEvent(TimerEvent);

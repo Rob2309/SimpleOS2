@@ -3,6 +3,7 @@
 #include "ArrayList.h"
 #include "string.h"
 #include "conio.h"
+#include "Device.h"
 
 namespace VFS {
 
@@ -11,7 +12,11 @@ namespace VFS {
         static constexpr uint64 StatusOpenedForRead = 0x1;
         static constexpr uint64 StatusOpenedForWrite = 0x2;
 
-        FileType type;
+        enum Type {
+            TYPE_FILE,
+            TYPE_DIRECTORY,
+            TYPE_DEVICE,
+        } type;
 
         union {
             struct {
@@ -22,9 +27,13 @@ namespace VFS {
                 uint64 numFiles;
                 File* files;
             } directory;
+            struct {
+                uint64 devID;
+            } device;
         };
 
-        uint64 status;
+        uint64 numReaders;
+        uint64 numWriters;
 
         char name[50];
     };
@@ -44,10 +53,11 @@ namespace VFS {
 
     void Init()
     {
-        g_RootFile.type = FILETYPE_DIRECTORY;
+        g_RootFile.type = File::TYPE_DIRECTORY;
         g_RootFile.directory.numFiles = 0;
         g_RootFile.directory.files = nullptr;
-        g_RootFile.status = 0;
+        g_RootFile.numReaders = 0;
+        g_RootFile.numWriters = 0;
         memset(g_RootFile.name, 0, sizeof(g_RootFile.name));
 
         g_FileDescriptors = new ArrayList<FileDescriptor>();
@@ -58,7 +68,7 @@ namespace VFS {
         if(path[0] == '\0') {
             return folder;
         }
-        if(folder->type != FILETYPE_DIRECTORY) {
+        if(folder->type != File::TYPE_DIRECTORY) {
             return nullptr;
         }
 
@@ -85,17 +95,18 @@ namespace VFS {
         }
     }
 
-    bool CreateFile(const char* path, const char* name, FileType type)
+    static File* CreateNode(const char* path, const char* name, File::Type type)
     {
         File* folder = FindFile(&g_RootFile, path + 1);
         if(folder == nullptr)
-            return false;
-        if(!folder->type == FILETYPE_DIRECTORY)
-            return false;
+            return nullptr;
+        if(folder->type != File::TYPE_DIRECTORY)
+            return nullptr;
 
         File newFile;
         newFile.type = type;
-        newFile.status = 0;
+        newFile.numReaders = 0;
+        newFile.numWriters = 0;
         memcpy(newFile.name, name, strlen(name) + 1);
         newFile.file.size = 0;
         newFile.file.data = nullptr;
@@ -106,27 +117,55 @@ namespace VFS {
         folder->directory.numFiles++;
         delete[] folder->directory.files;
         folder->directory.files = n;
+        return &folder->directory.files[folder->directory.numFiles - 1];
+    }
+
+    bool CreateFile(const char* folder, const char* name) {
+        File* f = CreateNode(folder, name, File::TYPE_FILE);
+        if(f == nullptr)
+            return false;
+
+        f->file.size = 0;
+        f->file.data = nullptr;
         return true;
+    }
+
+    bool CreateFolder(const char* folder, const char* name) {
+        File* f = CreateNode(folder, name, File::TYPE_DIRECTORY);
+        if(f == nullptr)
+            return false;
+
+        f->directory.numFiles = 0;
+        f->directory.files = nullptr;
+        return true;
+    }
+
+    bool CreateDeviceFile(const char* folder, const char* name, uint64 devID) {
+        File* f = CreateNode(folder, name, File::TYPE_DEVICE);
+        if(f == nullptr)
+            return false;
+
+        f->device.devID = devID;
+        return true;
+    }
+
+    bool RemoveFile(const char* file) {
+        return false;
     }
 
     uint64 OpenFile(const char* path, uint64 mode) {
         File* file = FindFile(&g_RootFile, path + 1);
-        if(file == nullptr || file->type != FILETYPE_FILE) {
+        if(file == nullptr || file->type == File::TYPE_DIRECTORY) {
             return 0;
         }
 
-        if(file->status & File::StatusOpenedForWrite)
+        if(file->numWriters > 0)
             return 0;
-        if((mode & OpenFileModeWrite) && (file->status & File::StatusOpenedForRead))
+        if((mode & OpenFileModeWrite) && file->numReaders > 0)
             return 0;
 
-        file->status |= mode;
-
-        if(mode & OpenFileModeWrite) {
-            delete[] file->file.data;
-            file->file.size = 0;
-            file->file.data = nullptr;
-        }
+        file->numReaders += (mode & OpenFileModeRead ? 1 : 0);
+        file->numWriters += (mode & OpenFileModeWrite ? 1 : 0);
 
         FileDescriptor desc;
         desc.file = file;
@@ -135,15 +174,36 @@ namespace VFS {
         desc.pos = 0;
         g_FileDescCounter++;
 
+        if(file->type == File::TYPE_DEVICE)
+            Device::GetByID(file->device.devID)->SetPos(0);
+
         g_FileDescriptors->push_back(desc);
         return desc.id;
     }
 
     void CloseFile(uint64 file) {
         for(auto a = g_FileDescriptors->begin(); a != g_FileDescriptors->end(); ++a) {
-            if((*a).id == file) {
-                (*a).file->status = 0;
+            if(a->id == file) {
+                a->file->numReaders -= (a->mode & OpenFileModeRead ? 1 : 0);
+                a->file->numWriters -= (a->mode & OpenFileModeWrite ? 1 : 0);
                 g_FileDescriptors->erase(a);
+                return;
+            }
+        }
+    }
+
+    void SeekFile(uint64 file, uint64 pos)
+    {
+        for(auto d : *g_FileDescriptors) {
+            if(d.id == file) {
+                if(d.file->type == File::TYPE_FILE) {
+                    if(d.file->file.size >= pos)
+                        d.pos = d.file->file.size - 1;
+                    else
+                        d.pos = pos;
+                } else if(d.file->type == File::TYPE_DEVICE) {
+                    Device::GetByID(d.file->device.devID)->SetPos(pos);
+                }
                 return;
             }
         }
@@ -152,13 +212,17 @@ namespace VFS {
     uint64 ReadFile(uint64 file, void* buffer, uint64 bufferSize) {
         for(auto d : *g_FileDescriptors) {
             if(d.id == file) {
-                uint64 rem = d.file->file.size - d.pos;
-                if(rem > bufferSize)
-                    rem = bufferSize;
+                if(d.file->type == File::TYPE_FILE) {
+                    uint64 rem = d.file->file.size - d.pos;
+                    if(rem > bufferSize)
+                        rem = bufferSize;
 
-                memcpy(buffer, &d.file->file.data[d.pos], rem);
-                d.pos += rem;
-                return rem;
+                    memcpy(buffer, &d.file->file.data[d.pos], rem);
+                    d.pos += rem;
+                    return rem;
+                } else if(d.file->type == File::TYPE_DEVICE) {
+                    return Device::GetByID(d.file->device.devID)->Read(buffer, bufferSize);
+                }
             }
         }
 
@@ -168,14 +232,18 @@ namespace VFS {
     void WriteFile(uint64 file, void* buffer, uint64 bufferSize) {
         for(auto d : *g_FileDescriptors) {
             if(d.id == file) {
-                uint64 newSize = d.file->file.size + bufferSize;
-                char* newData = new char[newSize];
-                memcpy(newData, d.file->file.data, d.file->file.size);
-                delete[] d.file->file.data;
-                d.file->file.data = newData;
-                d.file->file.size = newSize;
-                memcpy(&d.file->file.data[d.pos], buffer, bufferSize);
-                d.pos += bufferSize;
+                if(d.file->type == File::TYPE_FILE) {
+                    uint64 newSize = d.file->file.size + bufferSize;
+                    char* newData = new char[newSize];
+                    memcpy(newData, d.file->file.data, d.file->file.size);
+                    delete[] d.file->file.data;
+                    d.file->file.data = newData;
+                    d.file->file.size = newSize;
+                    memcpy(&d.file->file.data[d.pos], buffer, bufferSize);
+                    d.pos += bufferSize;
+                } else if(d.file->type == File::TYPE_DEVICE) {
+                    Device::GetByID(d.file->device.devID)->Write(buffer, bufferSize);
+                }
 
                 return;
             }

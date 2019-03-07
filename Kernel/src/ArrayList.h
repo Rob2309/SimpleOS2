@@ -17,6 +17,7 @@ public:
         Iterator& operator--() { m_Pos--; }
 
         T& operator* () { return m_Data[m_Pos]; }
+        T* operator-> () { return &m_Data[m_Pos]; }
 
         bool operator== (const Iterator& r) const { return m_Pos == r.m_Pos; }
         bool operator!= (const Iterator& r) const { return !(*this == r); }
@@ -71,6 +72,12 @@ public:
             m_Data[i].~T();
         }
     }
+
+    T& operator[] (uint64 index) {
+        return m_Data[index];
+    }
+
+    uint64 size() const { return m_Size; }
 
     Iterator begin() { return Iterator(m_Data, 0); }
     Iterator end() { return Iterator(m_Data, m_Size); }

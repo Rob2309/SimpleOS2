@@ -10,7 +10,7 @@ struct File
 
 namespace Ramdisk {
 
-    void Init(uint8* img);
+    void Init(const char* dev);
 
     File GetFileData(const char* name);
 
