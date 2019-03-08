@@ -31,10 +31,11 @@ public:
         bool operator== (const Iterator& r) const { return m_Node == r.m_Node; }
         bool operator!= (const Iterator& r) const { return !(*this == r); }
 
-        Iterator& operator++() { m_Node = m_Node->next; }
-        Iterator& operator--() { m_Node = m_Node->prev; }
+        Iterator& operator++() { m_Node = m_Node->next; return *this; }
+        Iterator& operator--() { m_Node = m_Node->prev; return *this; }
 
         Segment& operator*() { return m_Node->seg; }
+        Segment* operator->() { return &m_Node->seg; }
     };
 
 public:
