@@ -35,6 +35,7 @@ public:
         Iterator& operator--() { m_Node = m_Node->prev; return *this; }
 
         Segment& operator*() { return m_Node->seg; }
+        Segment* operator->() { return &m_Node->seg; }
     };
 
 public:
