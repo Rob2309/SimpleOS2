@@ -82,6 +82,18 @@ namespace VFS {
         }
     }
 
+    void Mount(const char* mountPoint, FileSystem* fs)
+    {
+        Node* f = FindPath(mountPoint);
+        if(f == nullptr || f->type != Node::TYPE_DIRECTORY)
+            return;
+        if(f->directory.numFiles != 0)
+            return;
+
+        f->fs = fs;
+        f->fs->Mount(*f);
+    }
+
     bool CreateFile(const char* folder, const char* name) 
     {
         Node* f = FindPath(folder);
@@ -180,6 +192,15 @@ namespace VFS {
             if(a->id == file) {
                 g_FileDescriptors->erase(a);
                 return;
+            }
+        }
+    }
+
+    uint64 GetFileSize(uint64 file)
+    {
+        for(FileDescriptor& desc : *g_FileDescriptors) {
+            if(desc.id == file) {
+                return desc.node->file.size;
             }
         }
     }

@@ -1,17 +1,26 @@
 #pragma once
 
-#include "types.h"
+#include "VFS.h"
+#include "RamdiskStructs.h"
 
-struct File 
+class RamdiskFS : public VFS::FileSystem
 {
-    uint64 size;
-    uint8* data;
+public:
+    RamdiskFS(const char* dev);
+    ~RamdiskFS();
+
+    void Mount(VFS::Node& mountPoint);
+    void Unmount();
+
+    void CreateNode(VFS::Node& folder, VFS::Node& node);
+    void DestroyNode(VFS::Node& folder, VFS::Node& node);
+
+    uint64 ReadFile(const VFS::Node& node, uint64 pos, void* buffer, uint64 bufferSize);
+    void WriteFile(VFS::Node& node, uint64 pos, void* buffer, uint64 bufferSize);
+
+    void ReadDirEntries(VFS::Node& folder);
+
+private:
+    uint64 m_DevFile;
+    RamdiskHeader m_Header;
 };
-
-namespace Ramdisk {
-
-    void Init(const char* dev);
-
-    File GetFileData(const char* name);
-
-}

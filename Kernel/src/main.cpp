@@ -41,9 +41,16 @@ void SyscallInterrupt(IDT::Registers* regs)
 
 static void SetupTestProcess(uint8* loadBase)
 {
-    File f = Ramdisk::GetFileData("test.elf");
+    uint64 file = VFS::OpenFile("/initrd/test.elf");
+    if(file == 0)
+        printf("Failed to open test.elf\n");
 
-    uint64 pages = (GetELFSize(f.data) + 4095) / 4096;
+    uint64 fileSize = VFS::GetFileSize(file);
+    uint8* fileBuffer = new uint8[fileSize];
+    VFS::ReadFile(file, fileBuffer, fileSize);
+    VFS::CloseFile(file);
+
+    uint64 pages = (GetELFSize(fileBuffer) + 4095) / 4096;
     uint64 pml4Entry = MemoryManager::CreateProcessMap();
     MemoryManager::SwitchProcessMap(pml4Entry);
 
@@ -53,7 +60,7 @@ static void SetupTestProcess(uint8* loadBase)
     }
 
     Elf64Addr entryPoint;
-    if(!PrepareELF(f.data, loadBase, &entryPoint)) {
+    if(!PrepareELF(fileBuffer, loadBase, &entryPoint)) {
         printf("Failed to setup process\n");
         return;
     }
@@ -64,7 +71,7 @@ static void SetupTestProcess(uint8* loadBase)
 
     Scheduler::RegisterProcess(pml4Entry, 0x1000 + 10 * 4096, entryPoint, true);
 
-    delete[] f.data;
+    delete[] fileBuffer;
 }
 
 extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
@@ -83,9 +90,12 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     VFS::Init();
     if(!VFS::CreateFolder("/", "dev"))
         printf("Failed to create /dev folder\n");
+    if(!VFS::CreateFolder("/", "initrd"))
+        printf("Failed to create /initrd folder\n");
 
     RamDevice* initrdDev = new RamDevice("ram0", info->ramdiskImage.buffer, info->ramdiskImage.numPages * 4096);
-    Ramdisk::Init("/dev/ram0");
+    RamdiskFS* ramfs = new RamdiskFS("/dev/ram0");
+    VFS::Mount("/initrd", ramfs);
 
     APIC::Init();
     APIC::SetTimerEvent(TimerEvent);

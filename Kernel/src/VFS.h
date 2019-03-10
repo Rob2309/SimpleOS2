@@ -63,6 +63,8 @@ namespace VFS {
     uint64 OpenFile(const char* path);
     void CloseFile(uint64 file);
 
+    uint64 GetFileSize(uint64 file);
+
     uint64 ReadFile(uint64 file, void* buffer, uint64 bufferSize);
     void WriteFile(uint64 file, void* buffer, uint64 bufferSize);
     void SeekFile(uint64 file, uint64 pos);
