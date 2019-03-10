@@ -17,13 +17,11 @@ namespace VFS {
     };
 
     static Node g_RootNode;
-    static ArrayList<FileDescriptor>* g_FileDescriptors;
+    static ArrayList<FileDescriptor> g_FileDescriptors;
     static uint64 g_FileDescCounter = 1;
 
     void Init()
     {
-        g_FileDescriptors = new ArrayList<FileDescriptor>();
-
         g_RootNode.type = Node::TYPE_DIRECTORY;
         g_RootNode.directory.numFiles = 0;
         g_RootNode.directory.files = nullptr;
@@ -181,16 +179,16 @@ namespace VFS {
         desc.node = n;
         desc.pos = 0;
 
-        g_FileDescriptors->push_back(desc);
+        g_FileDescriptors.push_back(desc);
 
         return desc.id;
     }
     void CloseFile(uint64 file) 
     {
-        for(auto a = g_FileDescriptors->begin(); a != g_FileDescriptors->end(); ++a)
+        for(auto a = g_FileDescriptors.begin(); a != g_FileDescriptors.end(); ++a)
         {
             if(a->id == file) {
-                g_FileDescriptors->erase(a);
+                g_FileDescriptors.erase(a);
                 return;
             }
         }
@@ -198,7 +196,7 @@ namespace VFS {
 
     uint64 GetFileSize(uint64 file)
     {
-        for(FileDescriptor& desc : *g_FileDescriptors) {
+        for(FileDescriptor& desc : g_FileDescriptors) {
             if(desc.id == file) {
                 return desc.node->file.size;
             }
@@ -207,7 +205,7 @@ namespace VFS {
 
     uint64 ReadFile(uint64 file, void* buffer, uint64 bufferSize)
     {
-        for(FileDescriptor& desc : *g_FileDescriptors) {
+        for(FileDescriptor& desc : g_FileDescriptors) {
             if(desc.id == file) {
                 if(desc.node->type == Node::TYPE_DEVICE) {
                     Device* dev = Device::GetByID(desc.node->device.devID);
@@ -227,7 +225,7 @@ namespace VFS {
 
     void WriteFile(uint64 file, void* buffer, uint64 bufferSize)
     {
-        for(FileDescriptor& desc : *g_FileDescriptors) {
+        for(FileDescriptor& desc : g_FileDescriptors) {
             if(desc.id == file) {
                 if(desc.node->type == Node::TYPE_DEVICE) {
                     Device* dev = Device::GetByID(desc.node->device.devID);
@@ -245,7 +243,7 @@ namespace VFS {
 
     void SeekFile(uint64 file, uint64 pos)
     {
-        for(FileDescriptor& desc : *g_FileDescriptors) {
+        for(FileDescriptor& desc : g_FileDescriptors) {
             if(desc.id == file) {
                 desc.pos = pos;
             }
