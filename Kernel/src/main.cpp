@@ -84,8 +84,8 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     if(!VFS::CreateFolder("/", "dev"))
         printf("Failed to create /dev folder\n");
 
-    //RamDevice* initrdDev = new RamDevice("ram0", info->ramdiskImage.buffer, info->ramdiskImage.numPages * 4096);
-    //Ramdisk::Init("/dev/ram0");
+    RamDevice* initrdDev = new RamDevice("ram0", info->ramdiskImage.buffer, info->ramdiskImage.numPages * 4096);
+    Ramdisk::Init("/dev/ram0");
 
     APIC::Init();
     APIC::SetTimerEvent(TimerEvent);

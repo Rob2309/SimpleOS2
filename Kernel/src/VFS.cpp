@@ -10,16 +10,20 @@ namespace VFS {
 
     struct FileDescriptor
     {
-        FileSystem* fs;
-        uint64 fsNode;
+        uint64 id;
 
+        Node* node;
         uint64 pos;
     };
 
     static Node g_RootNode;
+    static ArrayList<FileDescriptor>* g_FileDescriptors;
+    static uint64 g_FileDescCounter = 1;
 
     void Init()
     {
+        g_FileDescriptors = new ArrayList<FileDescriptor>();
+
         g_RootNode.type = Node::TYPE_DIRECTORY;
         g_RootNode.directory.numFiles = 0;
         g_RootNode.directory.files = nullptr;
@@ -152,6 +156,79 @@ namespace VFS {
         f->directory.numFiles++;
         
         return true;
+    }
+
+    uint64 OpenFile(const char* path)
+    {
+        Node* n = FindPath(path);
+        if(n == nullptr || n->type == Node::TYPE_DIRECTORY)
+            return 0;
+
+        FileDescriptor desc;
+        desc.id = g_FileDescCounter++;
+        desc.node = n;
+        desc.pos = 0;
+
+        g_FileDescriptors->push_back(desc);
+
+        return desc.id;
+    }
+    void CloseFile(uint64 file) 
+    {
+        for(auto a = g_FileDescriptors->begin(); a != g_FileDescriptors->end(); ++a)
+        {
+            if(a->id == file) {
+                g_FileDescriptors->erase(a);
+                return;
+            }
+        }
+    }
+
+    uint64 ReadFile(uint64 file, void* buffer, uint64 bufferSize)
+    {
+        for(FileDescriptor& desc : *g_FileDescriptors) {
+            if(desc.id == file) {
+                if(desc.node->type == Node::TYPE_DEVICE) {
+                    Device* dev = Device::GetByID(desc.node->device.devID);
+                    uint64 ret = dev->Read(desc.pos, buffer, bufferSize);
+                    desc.pos += ret;
+                    return ret;
+                } else {
+                    uint64 ret = desc.node->fs->ReadFile(*desc.node, desc.pos, buffer, bufferSize);
+                    desc.pos += ret;
+                    return ret;
+                }
+            }
+        }
+
+        return 0;
+    }
+
+    void WriteFile(uint64 file, void* buffer, uint64 bufferSize)
+    {
+        for(FileDescriptor& desc : *g_FileDescriptors) {
+            if(desc.id == file) {
+                if(desc.node->type == Node::TYPE_DEVICE) {
+                    Device* dev = Device::GetByID(desc.node->device.devID);
+                    dev->Write(desc.pos, buffer, bufferSize);
+                    desc.pos += bufferSize;
+                    return;
+                } else {
+                    desc.node->fs->WriteFile(*desc.node, desc.pos, buffer, bufferSize);
+                    desc.pos += bufferSize;
+                    return;
+                }
+            }
+        }
+    }
+
+    void SeekFile(uint64 file, uint64 pos)
+    {
+        for(FileDescriptor& desc : *g_FileDescriptors) {
+            if(desc.id == file) {
+                desc.pos = pos;
+            }
+        }
     }
 
 }
