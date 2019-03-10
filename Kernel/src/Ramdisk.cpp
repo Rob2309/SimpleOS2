@@ -13,7 +13,7 @@ namespace Ramdisk {
 
     void Init(const char* dev)
     {
-        g_DevFile = VFS::OpenFile(dev, VFS::OpenFileModeRead);
+        /*g_DevFile = VFS::OpenFile(dev, VFS::OpenFileModeRead);
         if(g_DevFile == 0)
             printf("Failed to init Ramdisk driver\n");
 
@@ -22,11 +22,11 @@ namespace Ramdisk {
 
         g_Files = new RamdiskFile[g_Header.numFiles];
         VFS::ReadFile(g_DevFile, g_Files, g_Header.numFiles * sizeof(RamdiskFile));
-    }
+    */}
 
     File GetFileData(const char* name)
     {
-        for(int i = 0; i < g_Header.numFiles; i++) {
+        /*for(int i = 0; i < g_Header.numFiles; i++) {
             if(strcmp(g_Files[i].name, name) == 0) {
                 File res;
                 res.size = g_Files[i].size;
@@ -39,7 +39,7 @@ namespace Ramdisk {
             }
         }
 
-        return { 0, nullptr };
+        return { 0, nullptr };*/
     }
 
 }
