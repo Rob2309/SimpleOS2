@@ -48,6 +48,9 @@ bool PrepareELF(const uint8* diskImg, uint8* processImg, Elf64Addr* entryPoint)
             Elf64XWord pltrelEntrySize = sizeof(ElfRelA);
             Elf64XWord pltrelCount = 0;
 
+            Elf64Addr initArrayAddr = 0;
+            Elf64XWord initArraySz = 0;
+
             ElfDynamicEntry* dyn = (ElfDynamicEntry*)(processImg + segment->virtualAddress);
             while(dyn->tag != DT_NULL) {
                 if(dyn->tag == DT_SYMTAB) {
@@ -70,6 +73,10 @@ bool PrepareELF(const uint8* diskImg, uint8* processImg, Elf64Addr* entryPoint)
                 }
                 else if(dyn->tag == DT_RELAENT) {
                     relaEntrySize = dyn->value;
+                } else if(dyn->tag == DT_INIT_ARRAY) {
+                    initArrayAddr = dyn->value;
+                } else if(dyn->tag == DT_INIT_ARRAYSZ) {
+                    initArraySz = dyn->value;
                 }
 
                 dyn++;
@@ -154,6 +161,16 @@ bool PrepareELF(const uint8* diskImg, uint8* processImg, Elf64Addr* entryPoint)
                 case 8: *(unsigned long long*)target = finalAddend; break;
                 default: break;
                 }
+            }
+
+            if(initArrayAddr != 0) {
+                initArrayAddr += (uint64)processImg;
+
+                typedef void (**INITARRAY)();
+                INITARRAY arr = (INITARRAY)initArrayAddr;
+
+                for(int i = 0; i < initArraySz / 8; i++)
+                    arr[i]();
             }
         }
     }
