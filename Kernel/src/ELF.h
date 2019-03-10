@@ -130,6 +130,8 @@ struct ElfDynamicEntry {
 #define DT_RELSZ 18
 #define DT_RELENT 19
 #define DT_JMPREL 23
+#define DT_INIT_ARRAY 0x19
+#define DT_INIT_ARRAYSZ 0x1B
 
 struct ElfSymbol {
     Elf64Word symbolNameOffset;

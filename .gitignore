@@ -4,6 +4,7 @@
 *.img
 
 *.ELF
+*.elf
 *.BIN
 *.sys
 *.out
