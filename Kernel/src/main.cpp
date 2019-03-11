@@ -19,6 +19,7 @@
 
 #include "VFS.h"
 #include "RamDevice.h"
+#include "ZeroDevice.h"
 
 uint64 g_TimeCounter = 0;
 
@@ -88,14 +89,17 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     IDT::SetISR(Syscall::InterruptNumber, SyscallInterrupt);
 
     VFS::Init();
+
     if(!VFS::CreateFolder("/", "dev"))
         printf("Failed to create /dev folder\n");
     if(!VFS::CreateFolder("/", "initrd"))
         printf("Failed to create /initrd folder\n");
 
-    RamDevice* initrdDev = new RamDevice("ram0", info->ramdiskImage.buffer, info->ramdiskImage.numPages * 4096);
+    new RamDevice("ram0", info->ramdiskImage.buffer, info->ramdiskImage.numPages * 4096);
     RamdiskFS* ramfs = new RamdiskFS("/dev/ram0");
     VFS::Mount("/initrd", ramfs);
+
+    new ZeroDevice("zero");
 
     APIC::Init();
     APIC::SetTimerEvent(TimerEvent);

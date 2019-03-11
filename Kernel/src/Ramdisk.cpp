@@ -24,14 +24,16 @@ void RamdiskFS::Mount(VFS::Node& mountPoint)
     VFS::ReadFile(m_DevFile, files, m_Header.numFiles * sizeof(RamdiskFile));
 
     mountPoint.directory.numFiles = m_Header.numFiles;
-    mountPoint.directory.files = new VFS::Node[m_Header.numFiles];
+    mountPoint.directory.files = new uint64[m_Header.numFiles];
     for(int i = 0; i < m_Header.numFiles; i++)
     {
-        mountPoint.directory.files[i].type = VFS::Node::TYPE_FILE;
-        mountPoint.directory.files[i].file.size = files[i].size;
-        memcpy(mountPoint.directory.files[i].name, files[i].name, 50);
-        mountPoint.directory.files[i].fs = this;
-        mountPoint.directory.files[i].fsNode = files[i].dataOffset;
+        VFS::Node* n = VFS::GetFreeNode();
+        n->type = VFS::Node::TYPE_FILE;
+        n->file.size = files[i].size;
+        memcpy(n->name, files[i].name, 50);
+        n->fs = this;
+        n->fsNode = files[i].dataOffset;
+        mountPoint.directory.files[i] = n->id;
     }
 }
 void RamdiskFS::Unmount()
