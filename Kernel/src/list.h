@@ -1,0 +1,108 @@
+#pragma once
+
+namespace std {
+
+    template<typename T>
+    class list
+    {
+    public:
+        struct Node {
+            Node* next;
+            Node* prev;
+            T obj;
+        };
+        class Iterator
+        {
+        public:
+            explicit Iterator(Node* node) : m_Node(node) { }
+
+            Iterator& operator++() { m_Node = m_Node->next; }
+            Iterator& operator--() { m_Node = m_Node->prev; }
+
+            T& operator* () { return m_Node->obj; }
+            T* operator-> () { return &m_Node->obj; }
+
+            bool operator== (const Iterator& r) const { return m_Node == r.m_Node; }
+            bool operator!= (const Iterator& r) const { return !(*this == r); }
+        public:
+            Node* m_Node;
+        };
+
+    public:
+        list()
+            : m_Head(nullptr), m_Tail(nullptr)
+        { }
+        ~list()
+        {
+            Node* n = m_Head;
+            while(n != nullptr) {
+                Node* tmp = n->next;
+                delete n;
+                n = tmp;
+            }
+        }
+
+        list(const list& t) = delete;
+        list(const list&& t) = delete;
+
+        T& back() { return m_Tail->obj; }
+
+        void push_back(const T& t)
+        {
+            Node* n = new Node();
+            n->obj = t;
+            n->next = nullptr;
+            n->prev = m_Tail;
+            if(m_Head == nullptr) {
+                m_Head = m_Tail = n;
+            } else {
+                m_Tail->next = n;
+                n->prev = m_Tail;
+                m_Tail = n;
+            }
+        }
+        void pop_back()
+        {
+            erase(--end());
+        }
+
+        void pop_front()
+        {
+            erase(begin());
+        }
+
+        void erase(const Iterator& it)
+        {
+            Node* n = it.m_Node;
+            
+            if(n->prev != nullptr) {
+                n->prev->next = n->next;
+            } else {
+                m_Head = n->next;
+            }
+            if(n->next != nullptr) {
+                n->next->prev = n->prev;
+            } else {
+                m_Tail = n->prev;
+            }
+            
+            delete n;
+        }
+        void erase(const T& obj)
+        {
+            for(auto a = begin(); a != end(); ++a)
+                if(*a == obj) {
+                    erase(a);
+                    return;
+                }
+        }
+
+        Iterator begin() { return Iterator(m_Head); }
+        Iterator end() { return Iterator(nullptr); }
+
+    private:
+        Node* m_Head;
+        Node* m_Tail;
+    };
+
+}
