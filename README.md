@@ -8,9 +8,11 @@ This is a very simple x86_64 OS I am creating for learning purposes.
 - Terminal that can print colored text (no input functionality yet)
 - Basic Interrupt handling
 - APIC Timer support
+- User mode processes
 - Multitasking & Basic process management
 - Basic System calls via interrupt 0x80
 - Process forking and exiting
+- Linux-like virtual file system (with basic mounting support)
 
 ## Planned features:
 - HDD support (SATA)
@@ -25,8 +27,8 @@ This OS should basically run on any x86_64 machine that supports UEFI. If you fi
 ## Building SimpleOS2
 ### Prerequisites
 - Some kind of Linux environment (or WSL)
-- Any C/C++ compiler that can build elf64 binaries
-- Any C/C++ compiler that can build pe64 binaries
+- Standard 64-Bit Elf GCC
+- Standard 64-Bit mingw GCC
 - NASM
 ### Build commands
 - make partition.img: build a raw partition image that contains the OS
@@ -34,7 +36,7 @@ This OS should basically run on any x86_64 machine that supports UEFI. If you fi
 
 ## Emulating SimpleOS2
 - make run: run the OS in qemu (requires qemu-system-i86_64)
-- make runvbox: run the OS in VirtualBox (Requires a VirtualBox machine with name 'SimpleOS2')
+- make runvbox: run the OS in VirtualBox (Requires a VirtualBox machine with name 'SimpleOS2' and partition.vdi as hard disk)
 - make clean: remove everything but the sources
 
 ## Running on real Hardware
