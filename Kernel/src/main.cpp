@@ -37,6 +37,11 @@ void SyscallInterrupt(IDT::Registers* regs)
     case Syscall::FunctionWait: Scheduler::ProcessWait(regs->rdi); Scheduler::Tick(regs); break;
     case Syscall::FunctionExit: Scheduler::ProcessExit(regs->rdi, regs); Scheduler::Tick(regs); break;
     case Syscall::FunctionFork: Scheduler::ProcessFork(regs); break;
+
+    case Syscall::FunctionOpen: regs->rax = VFS::OpenFile((const char*)regs->rdi); break;
+    case Syscall::FunctionClose: VFS::CloseFile(regs->rdi); break;
+    case Syscall::FunctionRead: regs->rax = VFS::ReadFile(regs->rdi, (void*)regs->rsi, regs->r10); break;
+    case Syscall::FunctionWrite: VFS::WriteFile(regs->rdi, (void*)regs->rsi, regs->r10); break;
     }
 }
 
