@@ -72,5 +72,6 @@ namespace VFS {
 
     Node* GetNode(uint64 id);
     Node* GetFreeNode();
+    void FreeNode(uint64 id);
 
 }

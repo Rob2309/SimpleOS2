@@ -20,7 +20,7 @@ namespace VFS {
     static uint64 g_FirstFreeNode;
 
     static ArrayList<FileDescriptor> g_FileDescriptors;
-    static uint64 g_FileDescCounter = 1;
+    static uint64 g_FirstFreeFileDesc;
 
     void Init()
     {
@@ -36,6 +36,7 @@ namespace VFS {
         g_Nodes.push_back(root);
 
         g_FirstFreeNode = 0;
+        g_FirstFreeFileDesc = 0;
     }
 
     static Node* FindNode(Node* folder, const char* name)
@@ -85,6 +86,31 @@ namespace VFS {
                 bufferPos++;
             }
         }
+    }
+
+    static FileDescriptor* GetFileDesc(uint64 id) {
+        return &g_FileDescriptors[id - 1];
+    }
+
+    static FileDescriptor* GetFreeFileDesc() {
+        if(g_FirstFreeFileDesc != 0) {
+            FileDescriptor* desc = GetFileDesc(g_FirstFreeFileDesc);
+            g_FirstFreeFileDesc = desc->pos;
+            return desc;
+        } else {
+            FileDescriptor desc;
+            desc.id = g_FileDescriptors.size() + 1;
+            desc.node = 0;
+            desc.pos = 0;
+            g_FileDescriptors.push_back(desc);
+            return &g_FileDescriptors[g_FileDescriptors.size() - 1];
+        }
+    }
+
+    static void FreeFileDesc(uint64 id) {
+        FileDescriptor* desc = GetFileDesc(id);
+        desc->pos = g_FirstFreeFileDesc;
+        g_FirstFreeFileDesc = id;
     }
 
     void Mount(const char* mountPoint, FileSystem* fs)
@@ -181,82 +207,58 @@ namespace VFS {
         if(n == nullptr || n->type == Node::TYPE_DIRECTORY)
             return 0;
 
-        FileDescriptor desc;
-        desc.id = g_FileDescCounter++;
-        desc.node = n->id;
-        desc.pos = 0;
+        FileDescriptor* desc = GetFreeFileDesc();
+        desc->node = n->id;
+        desc->pos = 0;
 
-        g_FileDescriptors.push_back(desc);
-
-        return desc.id;
+        return desc->id;
     }
     void CloseFile(uint64 file) 
     {
-        for(auto a = g_FileDescriptors.begin(); a != g_FileDescriptors.end(); ++a)
-        {
-            if(a->id == file) {
-                g_FileDescriptors.erase(a);
-                return;
-            }
-        }
+        FreeFileDesc(file);
     }
 
     uint64 GetFileSize(uint64 file)
     {
-        for(FileDescriptor& desc : g_FileDescriptors) {
-            if(desc.id == file) {
-                return GetNode(desc.node)->file.size;
-            }
-        }
+        return GetNode(GetFileDesc(file)->node)->file.size;
     }
 
     uint64 ReadFile(uint64 file, void* buffer, uint64 bufferSize)
     {
-        for(FileDescriptor& desc : g_FileDescriptors) {
-            if(desc.id == file) {
-                Node* n = GetNode(desc.node);
-                if(n->type == Node::TYPE_DEVICE) {
-                    Device* dev = Device::GetByID(n->device.devID);
-                    uint64 ret = dev->Read(desc.pos, buffer, bufferSize);
-                    desc.pos += ret;
-                    return ret;
-                } else {
-                    uint64 ret = n->fs->ReadFile(*n, desc.pos, buffer, bufferSize);
-                    desc.pos += ret;
-                    return ret;
-                }
-            }
+        FileDescriptor* desc = GetFileDesc(file);
+        Node* n = GetNode(desc->node);
+        if(n->type == Node::TYPE_DEVICE) {
+            Device* dev = Device::GetByID(n->device.devID);
+            uint64 ret = dev->Read(desc->pos, buffer, bufferSize);
+            desc->pos += ret;
+            return ret;
+        } else {
+            uint64 ret = n->fs->ReadFile(*n, desc->pos, buffer, bufferSize);
+            desc->pos += ret;
+            return ret;
         }
-
-        return 0;
     }
 
     void WriteFile(uint64 file, void* buffer, uint64 bufferSize)
     {
-        for(FileDescriptor& desc : g_FileDescriptors) {
-            if(desc.id == file) {
-                Node* n = GetNode(desc.node);
-                if(n->type == Node::TYPE_DEVICE) {
-                    Device* dev = Device::GetByID(n->device.devID);
-                    dev->Write(desc.pos, buffer, bufferSize);
-                    desc.pos += bufferSize;
-                    return;
-                } else {
-                    n->fs->WriteFile(*n, desc.pos, buffer, bufferSize);
-                    desc.pos += bufferSize;
-                    return;
-                }
-            }
+        FileDescriptor* desc = GetFileDesc(file);
+        Node* n = GetNode(desc->node);
+        if(n->type == Node::TYPE_DEVICE) {
+            Device* dev = Device::GetByID(n->device.devID);
+            dev->Write(desc->pos, buffer, bufferSize);
+            desc->pos += bufferSize;
+            return;
+        } else {
+            n->fs->WriteFile(*n, desc->pos, buffer, bufferSize);
+            desc->pos += bufferSize;
+            return;
         }
     }
 
     void SeekFile(uint64 file, uint64 pos)
     {
-        for(FileDescriptor& desc : g_FileDescriptors) {
-            if(desc.id == file) {
-                desc.pos = pos;
-            }
-        }
+        FileDescriptor* desc = GetFileDesc(file);
+        desc->pos = pos;
     }
 
     Node* GetNode(uint64 id) {
@@ -276,6 +278,14 @@ namespace VFS {
             g_Nodes.push_back(n);
             return n;
         }
+    }
+
+    void FreeNode(uint64 id) {
+        Node* n = GetNode(id);
+        memset(n, 0, sizeof(Node));
+        n->id = id;
+        n->numReaders = g_FirstFreeNode;
+        g_FirstFreeNode = id;
     }
 
 }
