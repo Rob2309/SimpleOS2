@@ -16,8 +16,8 @@ namespace std {
         public:
             explicit Iterator(Node* node) : m_Node(node) { }
 
-            Iterator& operator++() { m_Node = m_Node->next; }
-            Iterator& operator--() { m_Node = m_Node->prev; }
+            Iterator& operator++() { m_Node = m_Node->next; return *this; }
+            Iterator& operator--() { m_Node = m_Node->prev; return *this; }
 
             T& operator* () { return m_Node->obj; }
             T* operator-> () { return &m_Node->obj; }

@@ -103,8 +103,6 @@ namespace Scheduler {
 
     void Tick(IDT::Registers* regs, bool processBlocked)
     {
-        printf("Test\n");
-
         g_RunningProcess->status = processBlocked ? ProcessInfo::STATUS_BLOCKED : ProcessInfo::STATUS_READY;
         g_RunningProcess->registers = *regs; // save all registers in process info
         
@@ -143,6 +141,7 @@ namespace Scheduler {
         p->registers.rip = (uint64)&IdleProcess;
         p->registers.cs = 0x08;
         p->registers.ds = 0x10;
+        p->registers.ss = 0x10;
         p->registers.rflags = 0b000000000001000000000;
 
         g_IdleProcess = p;
