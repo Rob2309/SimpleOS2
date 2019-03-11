@@ -20,7 +20,7 @@ namespace VFS {
             } file;
             struct {
                 uint64 numFiles;
-                Node* files;
+                uint64* files;
             } directory;
             struct {
                 uint64 devID;
@@ -32,6 +32,7 @@ namespace VFS {
         FileSystem* fs;
         uint64 fsNode;
 
+        uint64 id;
         uint64 numReaders;
         uint64 numWriters;
     };
@@ -68,5 +69,8 @@ namespace VFS {
     uint64 ReadFile(uint64 file, void* buffer, uint64 bufferSize);
     void WriteFile(uint64 file, void* buffer, uint64 bufferSize);
     void SeekFile(uint64 file, uint64 pos);
+
+    Node* GetNode(uint64 id);
+    Node* GetFreeNode();
 
 }

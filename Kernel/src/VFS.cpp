@@ -12,24 +12,30 @@ namespace VFS {
     {
         uint64 id;
 
-        Node* node;
+        uint64 node;
         uint64 pos;
     };
 
-    static Node g_RootNode;
+    static ArrayList<Node*> g_Nodes;
+    static uint64 g_FirstFreeNode;
+
     static ArrayList<FileDescriptor> g_FileDescriptors;
     static uint64 g_FileDescCounter = 1;
 
     void Init()
     {
-        g_RootNode.type = Node::TYPE_DIRECTORY;
-        g_RootNode.directory.numFiles = 0;
-        g_RootNode.directory.files = nullptr;
-        g_RootNode.fs = new FloatingFileSystem();
-        g_RootNode.numReaders = 0;
-        g_RootNode.numWriters = 0;
+        Node* root = new Node();
+        root->id = 1;
+        root->type = Node::TYPE_DIRECTORY;
+        root->directory.numFiles = 0;
+        root->directory.files = nullptr;
+        root->fs = new FloatingFileSystem();
+        root->numReaders = 0;
+        root->numWriters = 0;
+        root->fs->Mount(*root);
+        g_Nodes.push_back(root);
 
-        g_RootNode.fs->Mount(g_RootNode);
+        g_FirstFreeNode = 0;
     }
 
     static Node* FindNode(Node* folder, const char* name)
@@ -38,8 +44,9 @@ namespace VFS {
             return nullptr;
 
         for(int i = 0; i < folder->directory.numFiles; i++) {
-            if(strcmp(name, folder->directory.files[i].name) == 0)
-                return &folder->directory.files[i];
+            Node* n = GetNode(folder->directory.files[i]);
+            if(strcmp(name, n->name) == 0)
+                return n;
         }
 
         return nullptr;
@@ -50,10 +57,10 @@ namespace VFS {
         static char nameBuffer[50] = { 0 };
 
         uint64 pathPos = 1;
-        Node* node = &g_RootNode;
+        Node* node = GetNode(1);
 
         if(path[pathPos] == '\0')
-            return &g_RootNode;
+            return node;
 
         uint64 bufferPos = 0;
 
@@ -64,7 +71,7 @@ namespace VFS {
                 nameBuffer[bufferPos] = '\0';
 
                 node = FindNode(node, nameBuffer);
-                if(node == nullptr)
+                if(&node == nullptr)
                     return nullptr;
                 if(node->type != Node::TYPE_DIRECTORY)
                     return nullptr;
@@ -98,18 +105,18 @@ namespace VFS {
         if(f == nullptr || f->type != Node::TYPE_DIRECTORY)
             return false;
 
-        Node newNode;
-        newNode.type = Node::TYPE_FILE;
-        newNode.file.size = 0;
-        memcpy(newNode.name, name, strlen(name) + 1);
-        newNode.fs = f->fs;
-        newNode.numReaders = 0;
-        newNode.numWriters = 0;
-        newNode.fs->CreateNode(*f, newNode);
+        Node* newNode = GetFreeNode();
+        newNode->type = Node::TYPE_FILE;
+        newNode->file.size = 0;
+        memcpy(newNode->name, name, strlen(name) + 1);
+        newNode->fs = f->fs;
+        newNode->numReaders = 0;
+        newNode->numWriters = 0;
+        newNode->fs->CreateNode(*f, *newNode);
 
-        Node* files = new Node[f->directory.numFiles + 1];
-        memcpy(files, f->directory.files, f->directory.numFiles * sizeof(Node));
-        files[f->directory.numFiles] = newNode;
+        uint64* files = new uint64[f->directory.numFiles + 1];
+        memcpy(files, f->directory.files, f->directory.numFiles * sizeof(uint64));
+        files[f->directory.numFiles] = newNode->id;
         delete[] f->directory.files;
         f->directory.files = files;
         f->directory.numFiles++;
@@ -123,19 +130,19 @@ namespace VFS {
         if(f == nullptr || f->type != Node::TYPE_DIRECTORY)
             return false;
 
-        Node newNode;
-        newNode.type = Node::TYPE_DIRECTORY;
-        newNode.directory.numFiles = 0;
-        newNode.directory.files = nullptr;
-        memcpy(newNode.name, name, strlen(name) + 1);
-        newNode.fs = f->fs;
-        newNode.numReaders = 0;
-        newNode.numWriters = 0;
-        newNode.fs->CreateNode(*f, newNode);
+        Node* newNode = GetFreeNode();
+        newNode->type = Node::TYPE_DIRECTORY;
+        newNode->directory.numFiles = 0;
+        newNode->directory.files = nullptr;
+        memcpy(newNode->name, name, strlen(name) + 1);
+        newNode->fs = f->fs;
+        newNode->numReaders = 0;
+        newNode->numWriters = 0;
+        newNode->fs->CreateNode(*f, *newNode);
 
-        Node* files = new Node[f->directory.numFiles + 1];
-        memcpy(files, f->directory.files, f->directory.numFiles * sizeof(Node));
-        files[f->directory.numFiles] = newNode;
+        uint64* files = new uint64[f->directory.numFiles + 1];
+        memcpy(files, f->directory.files, f->directory.numFiles * sizeof(uint64));
+        files[f->directory.numFiles] = newNode->id;
         delete[] f->directory.files;
         f->directory.files = files;
         f->directory.numFiles++;
@@ -149,22 +156,22 @@ namespace VFS {
         if(f == nullptr || f->type != Node::TYPE_DIRECTORY)
             return false;
 
-        Node newNode;
-        newNode.type = Node::TYPE_DEVICE;
-        newNode.device.devID = devID;
-        memcpy(newNode.name, name, strlen(name) + 1);
-        newNode.fs = f->fs;
-        newNode.numReaders = 0;
-        newNode.numWriters = 0;
-        newNode.fs->CreateNode(*f, newNode);
+        Node* newNode = GetFreeNode();
+        newNode->type = Node::TYPE_DEVICE;
+        newNode->device.devID = devID;
+        memcpy(newNode->name, name, strlen(name) + 1);
+        newNode->fs = f->fs;
+        newNode->numReaders = 0;
+        newNode->numWriters = 0;
+        newNode->fs->CreateNode(*f, *newNode);
 
-        Node* files = new Node[f->directory.numFiles + 1];
-        memcpy(files, f->directory.files, f->directory.numFiles * sizeof(Node));
-        files[f->directory.numFiles] = newNode;
+        uint64* files = new uint64[f->directory.numFiles + 1];
+        memcpy(files, f->directory.files, f->directory.numFiles * sizeof(uint64));
+        files[f->directory.numFiles] = newNode->id;
         delete[] f->directory.files;
         f->directory.files = files;
         f->directory.numFiles++;
-        
+
         return true;
     }
 
@@ -176,7 +183,7 @@ namespace VFS {
 
         FileDescriptor desc;
         desc.id = g_FileDescCounter++;
-        desc.node = n;
+        desc.node = n->id;
         desc.pos = 0;
 
         g_FileDescriptors.push_back(desc);
@@ -198,7 +205,7 @@ namespace VFS {
     {
         for(FileDescriptor& desc : g_FileDescriptors) {
             if(desc.id == file) {
-                return desc.node->file.size;
+                return GetNode(desc.node)->file.size;
             }
         }
     }
@@ -207,13 +214,14 @@ namespace VFS {
     {
         for(FileDescriptor& desc : g_FileDescriptors) {
             if(desc.id == file) {
-                if(desc.node->type == Node::TYPE_DEVICE) {
-                    Device* dev = Device::GetByID(desc.node->device.devID);
+                Node* n = GetNode(desc.node);
+                if(n->type == Node::TYPE_DEVICE) {
+                    Device* dev = Device::GetByID(n->device.devID);
                     uint64 ret = dev->Read(desc.pos, buffer, bufferSize);
                     desc.pos += ret;
                     return ret;
                 } else {
-                    uint64 ret = desc.node->fs->ReadFile(*desc.node, desc.pos, buffer, bufferSize);
+                    uint64 ret = n->fs->ReadFile(*n, desc.pos, buffer, bufferSize);
                     desc.pos += ret;
                     return ret;
                 }
@@ -227,13 +235,14 @@ namespace VFS {
     {
         for(FileDescriptor& desc : g_FileDescriptors) {
             if(desc.id == file) {
-                if(desc.node->type == Node::TYPE_DEVICE) {
-                    Device* dev = Device::GetByID(desc.node->device.devID);
+                Node* n = GetNode(desc.node);
+                if(n->type == Node::TYPE_DEVICE) {
+                    Device* dev = Device::GetByID(n->device.devID);
                     dev->Write(desc.pos, buffer, bufferSize);
                     desc.pos += bufferSize;
                     return;
                 } else {
-                    desc.node->fs->WriteFile(*desc.node, desc.pos, buffer, bufferSize);
+                    n->fs->WriteFile(*n, desc.pos, buffer, bufferSize);
                     desc.pos += bufferSize;
                     return;
                 }
@@ -247,6 +256,25 @@ namespace VFS {
             if(desc.id == file) {
                 desc.pos = pos;
             }
+        }
+    }
+
+    Node* GetNode(uint64 id) {
+        return g_Nodes[id - 1];
+    }
+
+    Node* GetFreeNode()
+    {
+        if(g_FirstFreeNode != 0) {
+            Node* ret = GetNode(g_FirstFreeNode);
+            g_FirstFreeNode = ret->numReaders;
+            return ret;
+        } else {
+            Node* n = new Node();
+            memset(n, 0, sizeof(Node));
+            n->id = g_Nodes.size() + 1;
+            g_Nodes.push_back(n);
+            return n;
         }
     }
 
