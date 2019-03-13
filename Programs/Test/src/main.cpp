@@ -6,8 +6,14 @@ extern "C" void main()
 {
     Syscall::Print("Parent starting\n");
 
-    /*if(Syscall::Fork() == 0) {
+    if(Syscall::Fork() == 0) {
         Syscall::Print("Child process\n");
+
+        for(int i = 0; i < 5; i++) {
+            Syscall::Wait(1000);
+            Syscall::Print("Child process alive\n");
+        }
+
         Syscall::Exit(0);
     } else {
         Syscall::Print("Parent process\n");
@@ -23,7 +29,7 @@ extern "C" void main()
             if(g_Buffer[i] != 0)
                 Syscall::Print("/dev/zero not working\n");
         Syscall::Close(f);
-    }*/
+    }
     
     while(true);
 }

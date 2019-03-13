@@ -46,7 +46,7 @@ struct ProcessInfo
 namespace Scheduler {
 
     static ProcessInfo* g_IdleProcess;
-    static char g_IdleProcessStack[256];
+    static char g_IdleProcessStack[2048];
 
     static ProcessInfo* g_RunningProcess;
     static std::list<ProcessInfo*> g_ProcessList;
@@ -79,7 +79,7 @@ namespace Scheduler {
     }
 
     static void UpdateEvents() {
-        for(auto& p : g_ProcessList) {
+        for(auto p : g_ProcessList) {
             if(p->status == ProcessInfo::STATUS_BLOCKED && p->blockEvent->Finished()) {
                 delete p->blockEvent;
                 p->blockEvent == nullptr;

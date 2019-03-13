@@ -110,7 +110,7 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     APIC::SetTimerEvent(TimerEvent);
 
     SetupTestProcess((uint8*)0x16000);
-    SetupTestProcess((uint8*)0x16000);
+    //SetupTestProcess((uint8*)0x16000);
     IDT::EnableInterrupts();
     APIC::StartTimer(10);
     Scheduler::Start();
