@@ -87,4 +87,4 @@ ISRCommon:
 
 %define ISRSTUB(vectno) ISR_NOERROR vectno
 %define ISRSTUBE(vectno) ISR_ERROR vectno
-%include "Kernel/src/ISR.inc"
+%include "src/Kernel/ISR.inc"
