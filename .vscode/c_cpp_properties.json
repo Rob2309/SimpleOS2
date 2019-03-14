@@ -6,7 +6,7 @@
             "includePath": [
                 "dep/gnu-efi/inc",
                 "dep/gnu-efi/inc/x86_64",
-                "common"
+                "src/common"
             ]
         }
     ],
