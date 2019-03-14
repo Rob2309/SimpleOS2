@@ -1,17 +1,8 @@
 
 .vscode/ipch/**
 
-*.EFI
-*.o
-*.img
-
-*.ELF
-*.elf
-*.BIN
-*.sys
-*.out
+bin
+int
+tools
 
 VM
-*.vdi
-
-initrd
