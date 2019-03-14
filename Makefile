@@ -3,40 +3,40 @@ export ELF_GCC := gcc
 export NASM := nasm
 
 root_partition_img_deps := 
-clean_files := *.img *.vdi initrd
+clean_files := bin int tools
 include_paths := 
 
 ramdisk_files := 
 ramdisk_command := 
 
-include RamdiskBuilder/module.mk
+include src/RamdiskBuilder/module.mk
 
-include Bootloader/module.mk
-include Kernel/module.mk
-include Programs/Test/module.mk
+include src/Bootloader/module.mk
+include src/Kernel/module.mk
+include src/Programs/Test/module.mk
 
-run: partition.img FORCE
+run: bin/partition.img FORCE
 	qemu-system-x86_64 -m 1024 -cpu qemu64 -net none -drive if=pflash,unit=0,format=raw,file=dep/ovmf/x64/OVMF_CODE.fd,readonly=on -drive if=pflash,unit=1,format=raw,file=dep/ovmf/x64/OVMF_VARS.fd,readonly=on -drive file=$<,if=ide
-runvbox: partition.vdi FORCE
+runvbox: bin/partition.vdi FORCE
 	VBoxManage startvm SimpleOS2
 
-debug: partition.img FORCE
+debug: bin/partition.img FORCE
 	qemu-system-x86_64 -gdb tcp::26000 -m 1024 -cpu qemu64 -net none -drive if=pflash,unit=0,format=raw,file=dep/ovmf/x64/OVMF_CODE.fd,readonly=on -drive if=pflash,unit=1,format=raw,file=dep/ovmf/x64/OVMF_VARS.fd,readonly=on -drive file=$<,if=ide &
-debugvbox: partition.vdi FORCE
+debugvbox: bin/partition.vdi FORCE
 	VBoxManage startvm SimpleOS2 debug
 
-partition.vdi: partition.img
+bin/partition.vdi: bin/partition.img
 	rm -rf $@
 	VBoxManage convertfromraw $< $@ --format VDI --uuid 430eee2a-0fdf-4d2a-88f0-5b99ea8cffca
 
-partition.img: $(root_partition_img_deps) initrd
+bin/partition.img: $(root_partition_img_deps) bin/initrd
 	dd if=/dev/zero of=$@ bs=512 count=102400
 	mkfs.fat $@
 	mmd -i $@ ::/EFI
 	mmd -i $@ ::/EFI/BOOT
 	mcopy -i $@ $^ ::/EFI/BOOT
 
-initrd: $(RDBUILDER) $(ramdisk_files)
+bin/initrd: $(RDBUILDER) $(ramdisk_files)
 	$(RDBUILDER) $@ $(ramdisk_command)
 
 clean: FORCE

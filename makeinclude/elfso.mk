@@ -1,36 +1,30 @@
+int_dir := $(subst src/,int/, $(src_dir))
 
+elf_include_flags := $(addprefix -I, src/common)
+elf_nasm_include_flags := $(addprefix -i, src/common)
 
-elf_include_flags := $(addprefix -I, common)
-elf_nasm_include_flags := $(addprefix -i, common)
+c_headers := $(wildcard $(src_dir)/*.h) $(wildcard src/common/*.h)
+cross_headers := $(wildcard $(src_dir)/*.inc) $(wildcard src/common/*.inc)
 
-c_headers := $(wildcard $(localdir)/src/*.h) $(wildcard common/*.h)
-cross_headers := $(wildcard $(localdir)/src/*.inc) $(wildcard common/*.inc)
+c_sources := $(wildcard $(src_dir)/*.c)
+cpp_sources := $(wildcard $(src_dir)/*.cpp)
+asm_sources := $(wildcard $(src_dir)/*.asm)
 
-c_sources := $(wildcard $(localdir)/src/*.c)
-cpp_sources := $(wildcard $(localdir)/src/*.cpp)
-asm_sources := $(wildcard $(localdir)/src/*.asm)
-
-c_objects := $(subst /src/,/obj/, $(subst .c,.o, $(c_sources)))
-cpp_objects := $(subst /src/,/obj/, $(subst .cpp,.o, $(cpp_sources)))
-asm_objects := $(subst /src/,/obj/, $(subst .asm,.o, $(asm_sources)))
-
-output_file := $(localdir)/bin/$(output_file_name)
-
-clean_files += $(localdir)/obj $(localdir)/bin
-
-
+c_objects := $(subst src/,int/, $(subst .c,.o, $(c_sources)))
+cpp_objects := $(subst src/,int/, $(subst .cpp,.o, $(cpp_sources)))
+asm_objects := $(subst src/,int/, $(subst .asm,.o, $(asm_sources)))
 
 $(output_file): $(c_objects) $(cpp_objects) $(asm_objects)
 	@ mkdir -p $(dir $@)
 	$(ELF_GCC) -g -fPIC -nostdlib -shared -o $@ $^ -e main -static -lgcc
 
 
-$(localdir)/obj/%.o: $(localdir)/src/%.c $(c_headers) $(cross_headers)
+$(int_dir)/%.o: $(src_dir)/%.c $(c_headers) $(cross_headers)
 	@ mkdir -p $(dir $@)
 	$(ELF_GCC) -g -fPIC -ffreestanding -fno-stack-protector -fno-exceptions $(elf_include_flags) -c $< -o $@
-$(localdir)/obj/%.o: $(localdir)/src/%.cpp $(c_headers) $(cross_headers)
+$(int_dir)/%.o: $(src_dir)/%.cpp $(c_headers) $(cross_headers)
 	@ mkdir -p $(dir $@)
 	$(ELF_GCC) -g -fPIC -ffreestanding -fno-stack-protector -fno-exceptions $(elf_include_flags) -c $< -o $@
-$(localdir)/obj/%.o: $(localdir)/src/%.asm $(c_headers) $(cross_headers)
+$(int_dir)/%.o: $(src_dir)/%.asm $(c_headers) $(cross_headers)
 	@ mkdir -p $(dir $@)
 	$(NASM) -g -f elf64 $(elf_nasm_include_flags) $< -o $@
