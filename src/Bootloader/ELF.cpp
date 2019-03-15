@@ -22,6 +22,46 @@ uint64 GetELFSize(const uint8* image)
     return size;
 }
 
+static bool strcmp(const char* a, const char* b) {
+    int index = 0;
+    while(a[index] == b[index]) {
+        if(a[index] == '\0')
+            return true;
+        index++;
+    }
+    return false;
+}
+
+static void PrintString(const char* a) {
+    wchar_t buffer[2] = { 0 };
+
+    int index = 0;
+    while(a[index] != '\0') {
+        buffer[0] = a[index];
+        Console::Print(buffer);
+        index++;
+    }
+}
+
+uint64 GetELFTextAddr(const uint8* image, const uint8* processImg)
+{
+    ELFHeader* header = (ELFHeader*)image;
+
+    ELFSectionHeader* shList = (ELFSectionHeader*)(image + header->shOffset);
+    char* sectionNameTable = (char*)((uint64)image + shList[header->sectionNameStringTableIndex].fileOffset);
+    for(int s = 0; s < header->shEntryCount; s++) {
+        ELFSectionHeader* section = &shList[s];
+        if(section->type == SHT_PROGBITS) {
+            char* name = &sectionNameTable[section->nameOffset];
+            if(strcmp(name, ".text")) {
+                return (uint64)processImg + section->virtualAddress;
+            }
+        }
+    }
+
+    return 0;
+}
+
 bool PrepareELF(const uint8* diskImg, uint8* processImg, Elf64Addr* entryPoint)
 {
     ELFHeader* header = (ELFHeader*)diskImg;
