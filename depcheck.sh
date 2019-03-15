@@ -24,7 +24,7 @@ check_cmd ${NASM} "SimpleOS2 requires nasm to be installed"
 check_cmd mmd "SimpleOS2 requires mtools to be installed"
 check_cmd mcopy "SimpleOS2 requires mtools to be installed"
 
-if test $code; then
+if [ $code = 1 ]; then
     echo -e "${red}Not all dependencies are fullfilled${reset}"
 else
     echo -e "${green}All dependencies required by SimpleOS2 are installed${reset}"
