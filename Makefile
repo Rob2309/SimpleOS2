@@ -15,6 +15,9 @@ include src/Bootloader/module.mk
 include src/Kernel/module.mk
 include src/Programs/Test/module.mk
 
+depcheck: FORCE
+	./depcheck.sh
+
 run: bin/partition.img FORCE
 	qemu-system-x86_64 -m 1024 -cpu qemu64 -net none -drive if=pflash,unit=0,format=raw,file=dep/ovmf/x64/OVMF_CODE.fd,readonly=on -drive if=pflash,unit=1,format=raw,file=dep/ovmf/x64/OVMF_VARS.fd,readonly=on -drive file=$<,if=ide
 runvbox: bin/partition.vdi FORCE
