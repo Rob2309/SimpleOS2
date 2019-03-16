@@ -13,6 +13,7 @@ typedef unsigned char Elf64Byte;
 typedef unsigned short Elf64Section;
 
 uint64 GetELFSize(const uint8* image);
+uint64 GetELFTextAddr(const uint8* image, const uint8* processImg);
 bool PrepareELF(const uint8* diskImg, uint8* processImg, Elf64Addr* entryPoint);
 
 struct ELFHeader {

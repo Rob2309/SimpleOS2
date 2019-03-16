@@ -31,13 +31,14 @@ This OS should basically run on any x86_64 machine that supports UEFI. If you fi
 - Standard 64-Bit mingw GCC
 - NASM
 ### Build commands
-- make partition.img: build a raw partition image that contains the OS
-- make partition.vdi: build a VirtualBox disk image that contains the OS (Requires VirtualBox installation)
+- make depcheck:      check if all dependencies are installed
+- make bin/partition.img: build a raw partition image that contains the OS
+- make bin/partition.vdi: build a VirtualBox disk image that contains the OS (Requires VirtualBox installation)
+- make clean: remove everything but the sources
 
 ## Emulating SimpleOS2
 - make run: run the OS in qemu (requires qemu-system-i86_64)
 - make runvbox: run the OS in VirtualBox (Requires a VirtualBox machine with name 'SimpleOS2' and partition.vdi as hard disk)
-- make clean: remove everything but the sources
 
 ## Running on real Hardware
 I have run SimpleOS2 several times on my own hardware and never encountered any damage. Nevertheless, I do not take any responsibility for any kind of damage to your system!
