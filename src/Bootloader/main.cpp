@@ -106,6 +106,13 @@ extern "C" EFI_STATUS efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
         return EFI_LOAD_ERROR;
     }
 
+    uint64* debugData = (uint64*)0x1000;
+    err = EFIUtil::SystemTable->BootServices->AllocatePages(AllocateAddress, (EFI_MEMORY_TYPE)0x80000001, 1, (EFI_PHYSICAL_ADDRESS*)&debugData);
+    if(err != EFI_SUCCESS) {
+        Console::Print(L"Failed to prepare debugging information\r\nHalting here for manual debugging\r\n");
+    }
+    debugData[0] = GetELFTextAddr(kernelData.data, processBuffer);
+
     // the old buffer is not needed anymore
     Free(kernelData.data, kernelData.size);
 
