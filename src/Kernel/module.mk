@@ -1,6 +1,6 @@
 src_dir := src/Kernel
 
-output_file := bin/Kernel.sys
+output_file := bin/$(config)/Kernel.sys
 
 root_partition_img_deps += $(output_file)
 
