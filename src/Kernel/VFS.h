@@ -61,7 +61,9 @@ namespace VFS {
     bool CreateDeviceFile(const char* folder, const char* name, uint64 devID);
     bool DeleteFile(const char* file);
 
-    uint64 OpenFile(const char* path);
+    constexpr uint64 OpenFileModeRead = 0x1;
+    constexpr uint64 OpenFileModeWrite = 0x2;
+    uint64 OpenFile(const char* path, uint64 mode);
     void CloseFile(uint64 file);
 
     uint64 GetFileSize(uint64 file);

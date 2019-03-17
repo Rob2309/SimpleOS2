@@ -11,6 +11,8 @@ namespace VFS {
     struct FileDescriptor
     {
         uint64 id;
+        
+        uint64 mode;
 
         uint64 node;
         uint64 pos;
@@ -100,8 +102,6 @@ namespace VFS {
         } else {
             FileDescriptor desc;
             desc.id = g_FileDescriptors.size() + 1;
-            desc.node = 0;
-            desc.pos = 0;
             g_FileDescriptors.push_back(desc);
             return &g_FileDescriptors[g_FileDescriptors.size() - 1];
         }
@@ -201,13 +201,19 @@ namespace VFS {
         return true;
     }
 
-    uint64 OpenFile(const char* path)
+    uint64 OpenFile(const char* path, uint64 mode)
     {
         Node* n = FindPath(path);
         if(n == nullptr || n->type == Node::TYPE_DIRECTORY)
             return 0;
 
+        if(mode & OpenFileModeRead)
+            n->numReaders++;
+        if(mode & OpenFileModeWrite)
+            n->numWriters++;
+
         FileDescriptor* desc = GetFreeFileDesc();
+        desc->mode = mode;
         desc->node = n->id;
         desc->pos = 0;
 
@@ -215,6 +221,14 @@ namespace VFS {
     }
     void CloseFile(uint64 file) 
     {
+        FileDescriptor* fd = GetFileDesc(file);
+        Node* n = GetNode(fd->node);
+
+        if(fd->mode & OpenFileModeRead)
+            n->numReaders--;
+        if(fd->mode & OpenFileModeWrite)
+            n->numWriters--;
+            
         FreeFileDesc(file);
     }
 
@@ -227,6 +241,10 @@ namespace VFS {
     {
         FileDescriptor* desc = GetFileDesc(file);
         Node* n = GetNode(desc->node);
+
+        if(!(desc->mode & OpenFileModeRead))
+            return 0;
+
         if(n->type == Node::TYPE_DEVICE) {
             Device* dev = Device::GetByID(n->device.devID);
             uint64 ret = dev->Read(desc->pos, buffer, bufferSize);
@@ -243,6 +261,10 @@ namespace VFS {
     {
         FileDescriptor* desc = GetFileDesc(file);
         Node* n = GetNode(desc->node);
+
+        if(!(desc->mode & OpenFileModeWrite))
+            return;
+
         if(n->type == Node::TYPE_DEVICE) {
             Device* dev = Device::GetByID(n->device.devID);
             dev->Write(desc->pos, buffer, bufferSize);

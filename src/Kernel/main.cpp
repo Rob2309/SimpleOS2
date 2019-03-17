@@ -38,7 +38,7 @@ void SyscallInterrupt(IDT::Registers* regs)
     case Syscall::FunctionExit: Scheduler::ProcessExit(regs->rdi, regs); Scheduler::Tick(regs, false); break;
     case Syscall::FunctionFork: Scheduler::ProcessFork(regs); break;
 
-    case Syscall::FunctionOpen: regs->rax = VFS::OpenFile((const char*)regs->rdi); break;
+    case Syscall::FunctionOpen: regs->rax = VFS::OpenFile((const char*)regs->rdi, regs->rsi); break;
     case Syscall::FunctionClose: VFS::CloseFile(regs->rdi); break;
     case Syscall::FunctionRead: regs->rax = VFS::ReadFile(regs->rdi, (void*)regs->rsi, regs->r10); break;
     case Syscall::FunctionWrite: VFS::WriteFile(regs->rdi, (void*)regs->rsi, regs->r10); break;
@@ -47,7 +47,7 @@ void SyscallInterrupt(IDT::Registers* regs)
 
 static void SetupTestProcess(uint8* loadBase)
 {
-    uint64 file = VFS::OpenFile("/initrd/test.elf");
+    uint64 file = VFS::OpenFile("/initrd/test.elf", VFS::OpenFileModeRead);
     if(file == 0)
         printf("Failed to open test.elf\n");
 

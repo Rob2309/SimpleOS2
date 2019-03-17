@@ -18,7 +18,7 @@ extern "C" void main()
     } else {
         Syscall::Print("Parent process\n");
 
-        uint64 f = Syscall::Open("/dev/zero");
+        uint64 f = Syscall::Open("/dev/zero", Syscall::OpenModeRead);
         if(f == 0)
             Syscall::Print("Failed to open /dev/zero\n");
         

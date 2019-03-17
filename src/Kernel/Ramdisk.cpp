@@ -7,7 +7,7 @@
 
 RamdiskFS::RamdiskFS(const char* dev)
 {
-    m_DevFile = VFS::OpenFile(dev);
+    m_DevFile = VFS::OpenFile(dev, VFS::OpenFileModeRead);
     if(m_DevFile == 0)
         printf("Ramdisk device file not found\n");
 

@@ -17,13 +17,15 @@ namespace Syscall
     constexpr uint64 FunctionRead = 12;
     constexpr uint64 FunctionWrite = 13;
 
-    inline uint64 Open(const char* path)
+    constexpr uint64 OpenModeRead = 0x1;
+    constexpr uint64 OpenModeWrite = 0x2;
+    inline uint64 Open(const char* path, uint64 mode)
     {
         uint64 file;
         __asm__ __volatile__ (
             "int $0x80"
             : "=a" (file)
-            : "a" (FunctionOpen), "D" (path)
+            : "a" (FunctionOpen), "D" (path), "S" (mode)
         );
         return file;
     }
