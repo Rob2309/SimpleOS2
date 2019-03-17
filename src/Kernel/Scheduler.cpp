@@ -43,10 +43,14 @@ struct ProcessInfo
     IDT::Registers registers;
 };
 
+namespace IDT {
+    extern uint8 g_InterruptStack[4096];
+}
+
 namespace Scheduler {
 
     static ProcessInfo* g_IdleProcess;
-    static char g_IdleProcessStack[2048];
+    extern "C" void IdleProcess();
 
     static ProcessInfo* g_RunningProcess;
     static std::list<ProcessInfo*> g_ProcessList;
@@ -118,15 +122,6 @@ namespace Scheduler {
         *regs = g_RunningProcess->registers;
     }
 
-    // This is the "process" that will run, when no other process is ready to run
-    // it will just hlt and wait for the next interrupt
-    static void IdleProcess()
-    {
-        while(true) {
-            __asm__ __volatile__ ("hlt");
-        }
-    }
-
     void Start()
     {
         // Init idle process
@@ -137,7 +132,7 @@ namespace Scheduler {
         p->status = ProcessInfo::STATUS_READY;
         p->pid = 0;
 
-        p->registers.userrsp = (uint64)&g_IdleProcessStack[sizeof(g_IdleProcessStack)];
+        p->registers.userrsp = (uint64)&IDT::g_InterruptStack[sizeof(IDT::g_InterruptStack)];
         p->registers.rip = (uint64)&IdleProcess;
         p->registers.cs = 0x08;
         p->registers.ds = 0x10;
