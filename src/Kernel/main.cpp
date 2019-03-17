@@ -26,7 +26,7 @@ uint64 g_TimeCounter = 0;
 void TimerEvent(IDT::Registers* regs)
 {
     g_TimeCounter += 10;
-    Scheduler::Tick(regs);
+    Scheduler::Tick(regs, false);
 }
 
 void SyscallInterrupt(IDT::Registers* regs)
@@ -34,8 +34,8 @@ void SyscallInterrupt(IDT::Registers* regs)
     switch(regs->rax) {
     case Syscall::FunctionGetPID: regs->rax = Scheduler::GetCurrentPID(); break;
     case Syscall::FunctionPrint: printf("%i: %s", Scheduler::GetCurrentPID(), (char*)(regs->rdi)); break;
-    case Syscall::FunctionWait: Scheduler::ProcessWait(regs->rdi); Scheduler::Tick(regs); break;
-    case Syscall::FunctionExit: Scheduler::ProcessExit(regs->rdi, regs); Scheduler::Tick(regs); break;
+    case Syscall::FunctionWait: Scheduler::ProcessWait(regs->rdi); Scheduler::Tick(regs, true); break;
+    case Syscall::FunctionExit: Scheduler::ProcessExit(regs->rdi, regs); Scheduler::Tick(regs, false); break;
     case Syscall::FunctionFork: Scheduler::ProcessFork(regs); break;
 
     case Syscall::FunctionOpen: regs->rax = VFS::OpenFile((const char*)regs->rdi); break;
@@ -110,7 +110,7 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     APIC::SetTimerEvent(TimerEvent);
 
     SetupTestProcess((uint8*)0x16000);
-
+    //SetupTestProcess((uint8*)0x16000);
     IDT::EnableInterrupts();
     APIC::StartTimer(10);
     Scheduler::Start();

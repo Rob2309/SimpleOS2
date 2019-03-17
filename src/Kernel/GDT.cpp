@@ -3,6 +3,10 @@
 #include "types.h"
 #include "conio.h"
 
+namespace IDT {
+    extern uint8 g_InterruptStack[4096];
+}
+
 namespace GDT
 {
     struct __attribute__((packed)) GDTEntry
@@ -55,8 +59,6 @@ namespace GDT
     static GDTEntry g_GDT[7];
     static TSS g_TSS;
 
-    static uint8 g_InterruptStack[4096];
-
     void Init()
     {
         printf("Initializing GDT\n");
@@ -100,7 +102,7 @@ namespace GDT
         g_TSS = { 0 };
         g_TSS.iopbOffset = sizeof(TSS);
         // this is the stack pointer that will be loaded when an interrupt CHANGES the priviledge level to 0
-        g_TSS.rsp0 = (uint64)g_InterruptStack + sizeof(g_InterruptStack);
+        g_TSS.rsp0 = (uint64)IDT::g_InterruptStack + sizeof(IDT::g_InterruptStack);
 
         TSSDesc* tssDesc = (TSSDesc*)&g_GDT[5];
         *tssDesc = { 0 };

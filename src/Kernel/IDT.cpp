@@ -10,6 +10,8 @@
 
 namespace IDT {
     
+    uint8 g_InterruptStack[4096];
+
     struct __attribute__((packed)) IDTDesc
     {
         uint16 limit;

@@ -3,16 +3,33 @@
 #include "MemoryManager.h"
 #include "memutil.h"
 #include "conio.h"
+#include "list.h"
 
 #include "terminal.h"
 
+extern uint64 g_TimeCounter;
+
+class ProcessEvent
+{
+public:
+    virtual bool Finished() const = 0;
+};
+
+class ProcessEventWait : public ProcessEvent
+{
+public:
+    ProcessEventWait(uint64 duration) : m_EndTime(g_TimeCounter + duration) { }
+    bool Finished() const override { return g_TimeCounter >= m_EndTime; }
+private:
+    uint64 m_EndTime;
+};
+
 struct ProcessInfo
 {
-    ProcessInfo* next;
-
     // Process info
     enum {
         STATUS_READY,
+        STATUS_BLOCKED,
         STATUS_RUNNING,
     } status;
 
@@ -20,26 +37,28 @@ struct ProcessInfo
 
     uint64 pid;
 
-    uint64 waitEnd;
+    ProcessEvent* blockEvent;
 
     // Process state
     IDT::Registers registers;
 };
 
-extern uint64 g_TimeCounter;
+namespace IDT {
+    extern uint8 g_InterruptStack[4096];
+}
 
 namespace Scheduler {
 
     static ProcessInfo* g_IdleProcess;
-    static uint64 g_IdleProcessStack[256];
+    extern "C" void IdleProcess();
 
     static ProcessInfo* g_RunningProcess;
-    static ProcessInfo* g_ProcessList = nullptr;
+    static std::list<ProcessInfo*> g_ProcessList;
 
     static uint64 g_PIDCounter = 1;
 
     ProcessInfo* RegisterProcessInternal(uint64 pml4Entry, uint64 rsp, uint64 rip, bool user) {
-        ProcessInfo* p = (ProcessInfo*)MemoryManager::PhysToKernelPtr(MemoryManager::AllocatePages());
+        ProcessInfo* p = new ProcessInfo();
         memset(p, 0, sizeof(ProcessInfo));
 
         p->pml4Entry = pml4Entry;
@@ -53,8 +72,7 @@ namespace Scheduler {
         p->registers.ss = user ? 0x23 : 0x10;
         p->registers.rflags = 0b000000000001000000000;
         
-        p->next = g_ProcessList;
-        g_ProcessList = p;
+        g_ProcessList.push_back(p);
 
         return p;
     }
@@ -63,33 +81,38 @@ namespace Scheduler {
     {
         return RegisterProcessInternal(pml4Entry, rsp, rip, user)->pid;
     }
-    
-    static ProcessInfo* FindNextProcess(ProcessInfo* searchStart) {
-        ProcessInfo* res = searchStart;
-        while(true) {
-            if(res->waitEnd < g_TimeCounter)
-                return res;
 
-            res = res->next;
-            if(res == nullptr)
-                res = g_ProcessList;
-            if(res == searchStart)
-                break;
+    static void UpdateEvents() {
+        for(auto p : g_ProcessList) {
+            if(p->status == ProcessInfo::STATUS_BLOCKED && p->blockEvent->Finished()) {
+                delete p->blockEvent;
+                p->blockEvent == nullptr;
+                p->status = ProcessInfo::STATUS_READY;
+            }
         }
+    }
+
+    static ProcessInfo* FindNextProcess() {
+        for(auto a = g_ProcessList.begin(); a != g_ProcessList.end(); ++a) {
+            ProcessInfo* p = *a;
+            if(p->status == ProcessInfo::STATUS_READY) {
+                g_ProcessList.erase(a);
+                g_ProcessList.push_back(p);
+                return p;
+            }
+        }
+
         return g_IdleProcess;
     }
 
-    void Tick(IDT::Registers* regs)
+    void Tick(IDT::Registers* regs, bool processBlocked)
     {
-        g_RunningProcess->status = ProcessInfo::STATUS_READY;
+        g_RunningProcess->status = processBlocked ? ProcessInfo::STATUS_BLOCKED : ProcessInfo::STATUS_READY;
         g_RunningProcess->registers = *regs; // save all registers in process info
         
         // Find next process to execute
-        ProcessInfo* nextProcess;
-        if(g_RunningProcess == g_IdleProcess || g_RunningProcess->next == nullptr)
-            nextProcess = FindNextProcess(g_ProcessList);
-        else
-            nextProcess = FindNextProcess(g_RunningProcess->next);
+        UpdateEvents();
+        ProcessInfo* nextProcess = FindNextProcess();
 
         g_RunningProcess = nextProcess;
         g_RunningProcess->status = ProcessInfo::STATUS_RUNNING;
@@ -99,32 +122,22 @@ namespace Scheduler {
         *regs = g_RunningProcess->registers;
     }
 
-    // This is the "process" that will run, when no other process is ready to run
-    // it will just hlt and wait for the next interrupt
-    static void IdleProcess()
-    {
-        while(true) {
-            __asm__ __volatile__ ("hlt");
-        }
-    }
-
     void Start()
     {
         // Init idle process
-        ProcessInfo* p = (ProcessInfo*)MemoryManager::PhysToKernelPtr(MemoryManager::AllocatePages());
+        ProcessInfo* p = new ProcessInfo();
         memset(p, 0, sizeof(ProcessInfo));
 
         p->pml4Entry = 0;
         p->status = ProcessInfo::STATUS_READY;
         p->pid = 0;
 
-        p->registers.userrsp = (uint64)&g_IdleProcessStack[256];
+        p->registers.userrsp = (uint64)&IDT::g_InterruptStack[sizeof(IDT::g_InterruptStack)];
         p->registers.rip = (uint64)&IdleProcess;
         p->registers.cs = 0x08;
         p->registers.ds = 0x10;
+        p->registers.ss = 0x10;
         p->registers.rflags = 0b000000000001000000000;
-        
-        p->next = nullptr;
 
         g_IdleProcess = p;
         g_RunningProcess = g_IdleProcess;
@@ -147,7 +160,7 @@ namespace Scheduler {
 
     void ProcessWait(uint64 ms)
     {
-        g_RunningProcess->waitEnd = g_TimeCounter + ms;
+        g_RunningProcess->blockEvent = new ProcessEventWait(ms);
     }
 
     void ProcessExit(uint64 code, IDT::Registers* regs)
@@ -155,19 +168,13 @@ namespace Scheduler {
         uint64 pid = g_RunningProcess->pid;
 
         // Remove process from list
-        if(g_RunningProcess == g_ProcessList) {
-            g_ProcessList = g_ProcessList->next;
-        } else {
-            ProcessInfo* temp = g_ProcessList;
-            while(temp->next != g_RunningProcess)
-                temp = temp->next;
-            temp->next = g_RunningProcess->next;
-        }
+        g_ProcessList.erase(g_RunningProcess);
 
         // Delete paging structures for this process
         MemoryManager::FreeProcessMap(g_RunningProcess->pml4Entry);
 
         // Switch to idle process
+        delete g_RunningProcess;
         g_RunningProcess = g_IdleProcess;
         *regs = g_IdleProcess->registers;
 

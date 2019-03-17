@@ -15,6 +15,15 @@ void operator delete(void* block)
 {
     KernelHeap::Free(block);
 }
+void operator delete(void* block, long unsigned int size)
+{
+    operator delete(block);
+}
+
+void operator delete[](void* block, long unsigned int size)
+{
+    operator delete(block);
+}
 void operator delete[](void* block)
 {
     operator delete(block);
