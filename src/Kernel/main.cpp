@@ -37,24 +37,25 @@ void SyscallInterrupt(IDT::Registers* regs)
     case Syscall::FunctionWait: Scheduler::ProcessWait(regs->rdi); Scheduler::Tick(regs, true); break;
     case Syscall::FunctionExit: Scheduler::ProcessExit(regs->rdi, regs); Scheduler::Tick(regs, false); break;
     case Syscall::FunctionFork: Scheduler::ProcessFork(regs); break;
-
-    case Syscall::FunctionOpen: regs->rax = VFS::OpenFile((const char*)regs->rdi, regs->rsi); break;
-    case Syscall::FunctionClose: VFS::CloseFile(regs->rdi); break;
-    case Syscall::FunctionRead: regs->rax = VFS::ReadFile(regs->rdi, (void*)regs->rsi, regs->r10); break;
-    case Syscall::FunctionWrite: VFS::WriteFile(regs->rdi, (void*)regs->rsi, regs->r10); break;
     }
 }
 
 static void SetupTestProcess(uint8* loadBase)
 {
-    uint64 file = VFS::OpenFile("/initrd/test.elf", VFS::OpenFileModeRead);
-    if(file == 0)
+    uint64 file = VFS::GetFileNode("/initrd/test.elf");
+    if(file == 0) {
+        printf("Failed to find test.elf\n");
+        return;
+    }
+    if(!VFS::AddFileUserRead(file)) {
         printf("Failed to open test.elf\n");
+        return;
+    }
 
     uint64 fileSize = VFS::GetFileSize(file);
     uint8* fileBuffer = new uint8[fileSize];
-    VFS::ReadFile(file, fileBuffer, fileSize);
-    VFS::CloseFile(file);
+    VFS::ReadFile(file, 0, fileBuffer, fileSize);
+    VFS::RemoveFileUserRead(file);
 
     uint64 pages = (GetELFSize(fileBuffer) + 4095) / 4096;
     uint64 pml4Entry = MemoryManager::CreateProcessMap();

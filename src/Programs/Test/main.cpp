@@ -18,7 +18,7 @@ extern "C" void main()
     } else {
         Syscall::Print("Parent process\n");
 
-        uint64 f = Syscall::Open("/dev/zero", Syscall::OpenModeRead);
+        /*uint64 f = Syscall::Open("/dev/zero", Syscall::OpenModeRead);
         if(f == 0)
             Syscall::Print("Failed to open /dev/zero\n");
         
@@ -28,7 +28,7 @@ extern "C" void main()
         for(int i = 0; i < sizeof(g_Buffer); i++)
             if(g_Buffer[i] != 0)
                 Syscall::Print("/dev/zero not working\n");
-        Syscall::Close(f);
+        Syscall::Close(f);*/
     }
     
     while(true);
