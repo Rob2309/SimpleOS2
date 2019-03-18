@@ -208,6 +208,7 @@ namespace Scheduler {
         desc.read = read;
         desc.write = write;
         g_RunningProcess->files.push_back(desc);
+        return desc.id;
     }
 
     void ProcessRemoveFileDesc(uint64 desc) {
