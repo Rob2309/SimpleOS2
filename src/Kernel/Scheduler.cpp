@@ -4,6 +4,7 @@
 #include "memutil.h"
 #include "conio.h"
 #include "list.h"
+#include "ArrayList.h"
 
 #include "terminal.h"
 
@@ -39,6 +40,9 @@ struct ProcessInfo
 
     ProcessEvent* blockEvent;
 
+    uint64 fileDescIDCounter;
+    ArrayList<FileDescriptor> files;
+
     // Process state
     IDT::Registers registers;
 };
@@ -60,6 +64,8 @@ namespace Scheduler {
     ProcessInfo* RegisterProcessInternal(uint64 pml4Entry, uint64 rsp, uint64 rip, bool user) {
         ProcessInfo* p = new ProcessInfo();
         memset(p, 0, sizeof(ProcessInfo));
+
+        p->fileDescIDCounter = 1;
 
         p->pml4Entry = pml4Entry;
         p->status = ProcessInfo::STATUS_READY;
@@ -193,6 +199,33 @@ namespace Scheduler {
         pInfo->registers = *regs;
         // return zero to child process
         pInfo->registers.rax = 0;
+    }
+
+    uint64 ProcessAddFileDesc(uint64 node, bool read, bool write) {
+        FileDescriptor desc;
+        desc.id = g_RunningProcess->fileDescIDCounter++;
+        desc.node = node;
+        desc.read = read;
+        desc.write = write;
+        g_RunningProcess->files.push_back(desc);
+    }
+
+    void ProcessRemoveFileDesc(uint64 desc) {
+        for(auto a = g_RunningProcess->files.begin(); a != g_RunningProcess->files.end(); ++a) {
+            if(a->id == desc) {
+                g_RunningProcess->files.erase(a);
+                return;
+            }
+        }
+    }
+
+    FileDescriptor* ProcessGetFileDesc(uint64 id) {
+        for(auto a = g_RunningProcess->files.begin(); a != g_RunningProcess->files.end(); ++a) {
+            if(a->id == id) {
+                return &(*a);
+            }
+        }
+        return nullptr;
     }
 
     uint64 GetCurrentPID()

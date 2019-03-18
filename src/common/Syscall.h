@@ -12,6 +12,48 @@ namespace Syscall
     constexpr uint64 FunctionExit = 3;
     constexpr uint64 FunctionFork = 4;
 
+    constexpr uint64 FunctionOpen = 10;
+    constexpr uint64 FunctionClose = 11;
+    constexpr uint64 FunctionRead = 12;
+    constexpr uint64 FunctionWrite = 13;
+
+    inline uint64 Open(const char* path)
+    {
+        uint64 fileDesc;
+        __asm__ __volatile__ (
+            "int $0x80"
+            : "=a"(fileDesc) : "a"(FunctionOpen), "D"(path)
+        );
+        return fileDesc;
+    }
+    inline void Close(uint64 desc)
+    {
+        __asm__ __volatile__ (
+            "int $0x80"
+            : : "a"(FunctionClose), "D"(desc)
+        );
+    }
+    inline uint64 Read(uint64 desc, uint64 pos, void* buffer, uint64 bufferSize) 
+    {
+        uint64 ret;
+        __asm__ __volatile__ (
+            "movq %4, %%r10;"
+            "movq %5, %%r11;"
+            "int $0x80"
+            : "=a"(ret) : "a"(FunctionRead), "D"(buffer), "S"(desc), "r"(bufferSize), "r"(pos)
+        );
+        return ret;
+    }
+    inline void Write(uint64 desc, uint64 pos, void* buffer, uint64 bufferSize)
+    {
+        __asm__ __volatile__ (
+            "movq %3, %%r10;"
+            "movq %4, %%r11;"
+            "int $0x80"
+            : : "a"(FunctionWrite), "D"(desc), "S"(buffer), "r"(bufferSize), "r"(pos)
+        );
+    }
+
     inline void Print(const char* msg)
     {
         __asm__ __volatile__ (

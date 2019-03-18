@@ -37,6 +37,47 @@ void SyscallInterrupt(IDT::Registers* regs)
     case Syscall::FunctionWait: Scheduler::ProcessWait(regs->rdi); Scheduler::Tick(regs, true); break;
     case Syscall::FunctionExit: Scheduler::ProcessExit(regs->rdi, regs); Scheduler::Tick(regs, false); break;
     case Syscall::FunctionFork: Scheduler::ProcessFork(regs); break;
+
+    case Syscall::FunctionOpen: {
+        uint64 node = VFS::GetFileNode((const char*)regs->rdi);
+        if(node == 0) {
+            regs->rax = 0;
+            break;
+        }
+        if(!VFS::AddFileUserRead(node)) {
+            regs->rax = 0;
+            break;
+        }
+        regs->rax = Scheduler::ProcessAddFileDesc(node, true, false);
+    } break;
+
+    case Syscall::FunctionClose: {
+        FileDescriptor* desc = Scheduler::ProcessGetFileDesc(regs->rdi);
+        if(desc == nullptr)
+            break;
+
+        VFS::RemoveFileUserRead(desc->node);
+        Scheduler::ProcessRemoveFileDesc(desc->id);
+    } break;
+
+    case Syscall::FunctionRead: {
+        FileDescriptor* desc = Scheduler::ProcessGetFileDesc(regs->rsi);
+        if(desc == nullptr) {
+            regs->rax = 0;
+            break;
+        }
+
+        regs->rax = VFS::ReadFile(desc->node, regs->r11, (void*)regs->rdi, regs->r10);
+    } break;
+
+    case Syscall::FunctionWrite: {
+        FileDescriptor* desc = Scheduler::ProcessGetFileDesc(regs->rdi);
+        if(desc == nullptr) {
+            break;
+        }
+
+        VFS::WriteFile(desc->node, regs->r11, (void*)regs->rsi, regs->r10);
+    } break;
     }
 }
 
