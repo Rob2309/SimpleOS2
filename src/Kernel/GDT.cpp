@@ -2,6 +2,7 @@
 
 #include "types.h"
 #include "conio.h"
+#include "memutil.h"
 
 namespace IDT {
     extern uint8 g_InterruptStack[4096];
@@ -56,15 +57,15 @@ namespace GDT
         uint64 offset;
     };
 
-    static GDTEntry g_GDT[7];
-    static TSS g_TSS;
+    static volatile GDTEntry g_GDT[7];
+    static volatile TSS g_TSS;
 
     void Init()
     {
         printf("Initializing GDT\n");
 
         // null descriptor
-        g_GDT[0] = { 0 };
+        memset((void*)&g_GDT[0], 0, sizeof(GDTEntry));
 
         // kernel code
         g_GDT[1].limit1 = 0xFFFF;
@@ -99,13 +100,13 @@ namespace GDT
         g_GDT[4].base3 = 0x00;
 
         // TSS, needed for inter priviledge level interrupts
-        g_TSS = { 0 };
+        memset((void*)&g_TSS, 0, sizeof(TSS));
         g_TSS.iopbOffset = sizeof(TSS);
         // this is the stack pointer that will be loaded when an interrupt CHANGES the priviledge level to 0
         g_TSS.rsp0 = (uint64)IDT::g_InterruptStack + sizeof(IDT::g_InterruptStack);
 
-        TSSDesc* tssDesc = (TSSDesc*)&g_GDT[5];
-        *tssDesc = { 0 };
+        volatile TSSDesc* tssDesc = (volatile TSSDesc*)&g_GDT[5];
+        memset((void*)tssDesc, 0, sizeof(TSSDesc));
         tssDesc->limit1 = (sizeof(TSS) - 1) & 0xFFFF;
         tssDesc->limit2flags = ((sizeof(TSS) - 1) >> 16) & 0xF;
         tssDesc->base1 = (uint64)&g_TSS & 0xFFFF;
@@ -114,9 +115,9 @@ namespace GDT
         tssDesc->base4 = ((uint64)&g_TSS >> 32) & 0xFFFFFFFF;
         tssDesc->access = 0b11101001;
 
-        GDTDesc desc = { sizeof(g_GDT) - 1, (uint64)(&g_GDT[0]) };
+        volatile GDTDesc desc = { sizeof(g_GDT) - 1, (uint64)(&g_GDT[0]) };
         __asm__ __volatile__ (
-            "lgdtq (%0);"                    // tell cpu to use new GDT
+            "lgdtq (%0);"                   // tell cpu to use new GDT
             "mov $16, %%rax;"               // kernel data selector
             "mov %%ax, %%ds;"
             "mov %%ax, %%es;"

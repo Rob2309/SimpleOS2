@@ -6,9 +6,9 @@
 namespace Terminal {
     constexpr int g_Margin = 25;
 
-    static uint32* g_VideoBuffer;
+    static volatile uint32* g_VideoBuffer;
 
-    static int g_CursorX, g_CursorY;
+    static volatile int g_CursorX, g_CursorY;
 
     static int g_ScreenCharsPerRow;
     static int g_ScreenCharsPerCol;
@@ -19,7 +19,7 @@ namespace Terminal {
 
     static bool g_InvertColors;
 
-    void Init(uint32* videoBuffer, int width, int height, int scanline, bool invertColors)
+    void Init(volatile uint32* videoBuffer, int width, int height, int scanline, bool invertColors)
     {
         g_CursorX = 0;
         g_CursorY = 0;
@@ -36,7 +36,7 @@ namespace Terminal {
         g_InvertColors = invertColors;
     }
 
-    static void Blt(uint32* dest, uint32* src, int srcX, int srcY, int dstX, int dstY, int width, int height, int srcScan, int dstScan)
+    static void Blt(volatile uint32* dest, volatile uint32* src, int srcX, int srcY, int dstX, int dstY, int width, int height, int srcScan, int dstScan)
     {
         for(int y = 0; y < height; y++)
             for(int x = 0; x < width; x++) {
@@ -44,7 +44,7 @@ namespace Terminal {
             }
     }
 
-    static void BltColor(uint32* dest, uint32* src, int srcX, int srcY, int dstX, int dstY, int width, int height, int srcScan, int dstScan, uint32 color)
+    static void BltColor(volatile uint32* dest, volatile uint32* src, int srcX, int srcY, int dstX, int dstY, int width, int height, int srcScan, int dstScan, uint32 color)
     {
         for(int y = 0; y < height; y++)
             for(int x = 0; x < width; x++) {
@@ -52,7 +52,7 @@ namespace Terminal {
             }
     }
 
-    static void Fill(uint32* dest, uint32 pxl, int x, int y, int w, int h, int dstScan)
+    static void Fill(volatile uint32* dest, uint32 pxl, int x, int y, int w, int h, int dstScan)
     {
         for(int yy = y; yy < y + w; yy++) {
             for(int xx = x; xx < x + w; xx++) {

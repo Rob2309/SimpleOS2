@@ -29,8 +29,8 @@ namespace IDT {
         uint32 reserved;
     };
 
-    static IDTEntry g_IDT[256] = { 0 };
-    static IDTDesc g_IDTDesc;
+    static volatile IDTEntry g_IDT[256] = { 0 };
+    static volatile IDTDesc g_IDTDesc;
 
     static ISR g_Handlers[256] = { 0 };
 

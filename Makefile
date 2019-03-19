@@ -35,7 +35,7 @@ debug: partition FORCE
 
 partition: FORCE
 	if [ "$(config)" = "dbg" ];     then export compile_defs="-DDEBUG"; fi; \
-	if [ "$(config)" = "release" ]; then export compile_defs="-DRELEASE -O1"; fi; \
+	if [ "$(config)" = "release" ]; then export compile_defs="-DRELEASE"; export compile_flags="-O2"; fi; \
 	make bin/$(config)/partition.img
 
 vboxpartition: FORCE
