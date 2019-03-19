@@ -23,7 +23,7 @@ namespace APIC
 
     static void SendEOI()
     {
-        *(uint32*)(g_APICBase + RegEOI) = 0;
+        *(volatile uint32*)(g_APICBase + RegEOI) = 0;
     }
 
     static void ISR_Timer(IDT::Registers* regs)
@@ -57,7 +57,7 @@ namespace APIC
             pitCurrentCount = (uint16)Port::InByte(0x40) | ((uint16)Port::InByte(0x40) << 8);
         }
 
-        uint32 apicTimerRemaining = *(uint32*)(g_APICBase + RegTimerCurrentCount);
+        uint32 apicTimerRemaining = *(volatile uint32*)(g_APICBase + RegTimerCurrentCount);
         uint32 elapsed = 0xFFFFFFFF - apicTimerRemaining;
         g_TimerTicksPerMS = elapsed / 33;
         printf("APIC Timer runs at %i kHz\n", g_TimerTicksPerMS);
@@ -86,8 +86,8 @@ namespace APIC
         IDT::SetISR(ISRNumbers::APICSpurious, ISR_Spurious);
         IDT::SetISR(ISRNumbers::APICTimer, ISR_Timer);
 
-        *(uint32*)(g_APICBase + RegSpurious) = 0x100 | ISRNumbers::APICSpurious;
-        *(uint32*)(g_APICBase + RegError) = 0x10000 | ISRNumbers::APICError;
+        *(volatile uint32*)(g_APICBase + RegSpurious) = 0x100 | ISRNumbers::APICSpurious;
+        *(volatile uint32*)(g_APICBase + RegError) = 0x10000 | ISRNumbers::APICError;
 
         CalibrateTimer();
     }
@@ -95,18 +95,18 @@ namespace APIC
     {
         switch(div)
         {
-        case 1: *(uint32*)(g_APICBase + RegTimerDiv) = 0b1011; break;
-        case 2: *(uint32*)(g_APICBase + RegTimerDiv) = 0b0000; break;
-        case 4: *(uint32*)(g_APICBase + RegTimerDiv) = 0b0001; break;
-        case 8: *(uint32*)(g_APICBase + RegTimerDiv) = 0b0010; break;
-        case 16: *(uint32*)(g_APICBase + RegTimerDiv) = 0b0101; break;
-        case 32: *(uint32*)(g_APICBase + RegTimerDiv) = 0b1000; break;
-        case 64: *(uint32*)(g_APICBase + RegTimerDiv) = 0b1001; break;
-        case 128: *(uint32*)(g_APICBase + RegTimerDiv) = 0b1010; break;
+        case 1: *(volatile uint32*)(g_APICBase + RegTimerDiv) = 0b1011; break;
+        case 2: *(volatile uint32*)(g_APICBase + RegTimerDiv) = 0b0000; break;
+        case 4: *(volatile uint32*)(g_APICBase + RegTimerDiv) = 0b0001; break;
+        case 8: *(volatile uint32*)(g_APICBase + RegTimerDiv) = 0b0010; break;
+        case 16: *(volatile uint32*)(g_APICBase + RegTimerDiv) = 0b0101; break;
+        case 32: *(volatile uint32*)(g_APICBase + RegTimerDiv) = 0b1000; break;
+        case 64: *(volatile uint32*)(g_APICBase + RegTimerDiv) = 0b1001; break;
+        case 128: *(volatile uint32*)(g_APICBase + RegTimerDiv) = 0b1010; break;
         }
 
-        *(uint32*)(g_APICBase + RegTimerMode) = (repeat ? 0x20000 : 0) | ISRNumbers::APICTimer;
-        *(uint32*)(g_APICBase + RegTimerInitCount) = count;
+        *(volatile uint32*)(g_APICBase + RegTimerMode) = (repeat ? 0x20000 : 0) | ISRNumbers::APICTimer;
+        *(volatile uint32*)(g_APICBase + RegTimerInitCount) = count;
     }
     void StartTimer(uint32 ms)
     {
