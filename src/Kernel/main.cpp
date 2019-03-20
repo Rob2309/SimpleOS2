@@ -75,7 +75,9 @@ static void SetupTestProcess(uint8* loadBase)
     for(int i = 0; i < 10; i++)
         MemoryManager::MapProcessPage(pml4Entry, stack + i * 4096, (void*)(0x1000 + i * 4096));
 
-    Scheduler::RegisterProcess(pml4Entry, 0x1000 + 10 * 4096, entryPoint, true);
+    uint8* kernelStack = (uint8*)MemoryManager::PhysToKernelPtr(MemoryManager::AllocatePages(3)) + Scheduler::KernelStackSize;
+
+    Scheduler::RegisterProcess(pml4Entry, 0x1000 + 10 * 4096, entryPoint, true, (uint64)kernelStack);
 
     delete[] fileBuffer;
 }

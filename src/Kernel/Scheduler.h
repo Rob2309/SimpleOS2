@@ -5,7 +5,9 @@
 
 namespace Scheduler {
 
-    uint64 RegisterProcess(uint64 pml4Entry, uint64 rsp, uint64 rip, bool user);
+    constexpr uint64 KernelStackSize = 3 * 4096;
+
+    uint64 RegisterProcess(uint64 pml4Entry, uint64 rsp, uint64 rip, bool user, uint64 kernelStack);
 
     void Start();
     void Tick(IDT::Registers* regs, bool processBlocked);

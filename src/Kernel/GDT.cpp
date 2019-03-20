@@ -139,4 +139,9 @@ namespace GDT
             : : "a" (5 * 8)
         );
     }
+
+    void SetKernelStack(uint64 rsp)
+    {
+        g_TSS.rsp0 = rsp;
+    }
 }
