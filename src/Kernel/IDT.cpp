@@ -20,7 +20,7 @@ namespace IDT {
     {
         uint16 offset1;
         uint16 csSelector;
-        uint8 zero;
+        uint8 ist;
         uint8 typeAttrib;
         uint16 offset2;
         uint32 offset3;
@@ -44,7 +44,7 @@ namespace IDT {
     {
         g_IDT[number].offset1 = (uint64)vector & 0xFFFF;
         g_IDT[number].csSelector = selector;
-        g_IDT[number].zero = 0;
+        g_IDT[number].ist = 0;
         g_IDT[number].typeAttrib = flags;
         g_IDT[number].offset2 = ((uint64)vector >> 16) & 0xFFFF;
         g_IDT[number].offset3 = ((uint64)vector >> 32) & 0xFFFFFFFF;
@@ -145,6 +145,11 @@ namespace IDT {
     void SetISR(uint8 index, ISR isr)
     {
         g_Handlers[index] = isr;
+    }
+
+    void SetIST(uint8 index, uint8 ist)
+    {
+        g_IDT[index].ist = ist;
     }
 
     void EnableInterrupts()
