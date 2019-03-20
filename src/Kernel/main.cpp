@@ -21,28 +21,14 @@
 #include "RamDevice.h"
 #include "ZeroDevice.h"
 
+#include "SyscallHandler.h"
+
 uint64 g_TimeCounter = 0;
 
 void TimerEvent(IDT::Registers* regs)
 {
     g_TimeCounter += 10;
     Scheduler::Tick(regs, false);
-}
-
-void SyscallInterrupt(IDT::Registers* regs)
-{
-    switch(regs->rax) {
-    case Syscall::FunctionGetPID: regs->rax = Scheduler::GetCurrentPID(); break;
-    case Syscall::FunctionPrint: printf("%i: %s", Scheduler::GetCurrentPID(), (char*)(regs->rdi)); break;
-    case Syscall::FunctionWait: Scheduler::ProcessWait(regs->rdi); Scheduler::Tick(regs, true); break;
-    case Syscall::FunctionExit: Scheduler::ProcessExit(regs->rdi, regs); Scheduler::Tick(regs, false); break;
-    case Syscall::FunctionFork: Scheduler::ProcessFork(regs); break;
-
-    case Syscall::FunctionOpen: regs->rax = VFS::OpenFile((const char*)regs->rdi); break;
-    case Syscall::FunctionClose: VFS::CloseFile(regs->rdi); break;
-    case Syscall::FunctionRead: regs->rax = VFS::ReadFile(regs->rdi, (void*)regs->rsi, regs->r10); break;
-    case Syscall::FunctionWrite: VFS::WriteFile(regs->rdi, (void*)regs->rsi, regs->r10); break;
-    }
 }
 
 static void SetupTestProcess(uint8* loadBase)
@@ -93,7 +79,7 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
 
     GDT::Init();
     IDT::Init();
-    IDT::SetISR(Syscall::InterruptNumber, SyscallInterrupt);
+    SyscallHandler::Init();
 
     VFS::Init();
 
