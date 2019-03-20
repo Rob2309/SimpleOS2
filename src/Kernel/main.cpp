@@ -77,7 +77,7 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     
     MemoryManager::Init(info);
 
-    GDT::Init();
+    GDT::Init(info);
     IDT::Init();
     SyscallHandler::Init();
 
@@ -99,7 +99,6 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
 
     SetupTestProcess((uint8*)0x16000);
     //SetupTestProcess((uint8*)0x16000);
-    IDT::EnableInterrupts();
     APIC::StartTimer(10);
     Scheduler::Start();
 

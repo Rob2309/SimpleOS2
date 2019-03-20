@@ -4,10 +4,6 @@
 #include "conio.h"
 #include "memutil.h"
 
-namespace IDT {
-    extern uint8 g_InterruptStack[4096];
-}
-
 namespace GDT
 {
     struct __attribute__((packed)) GDTEntry
@@ -60,7 +56,7 @@ namespace GDT
     static volatile GDTEntry g_GDT[7];
     static volatile TSS g_TSS;
 
-    void Init()
+    void Init(KernelHeader* header)
     {
         printf("Initializing GDT\n");
 
@@ -103,7 +99,8 @@ namespace GDT
         memset((void*)&g_TSS, 0, sizeof(TSS));
         g_TSS.iopbOffset = sizeof(TSS);
         // this is the stack pointer that will be loaded when an interrupt CHANGES the priviledge level to 0
-        g_TSS.rsp0 = (uint64)IDT::g_InterruptStack + sizeof(IDT::g_InterruptStack);
+        g_TSS.rsp0 = 0;
+        g_TSS.ist1 = (uint64)header->stack + header->stackPages * 4096;
 
         volatile TSSDesc* tssDesc = (volatile TSSDesc*)&g_GDT[5];
         memset((void*)tssDesc, 0, sizeof(TSSDesc));

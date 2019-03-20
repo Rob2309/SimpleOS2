@@ -47,10 +47,6 @@ struct ProcessInfo
     IDT::Registers registers;
 };
 
-namespace IDT {
-    extern uint8 g_InterruptStack[4096];
-}
-
 namespace Scheduler {
 
     static ProcessInfo* g_IdleProcess;
