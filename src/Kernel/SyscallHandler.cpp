@@ -35,10 +35,46 @@ namespace SyscallHandler {
             IDT::EnableInterrupts();
             break;
 
-        case Syscall::FunctionOpen: regs->rax = VFS::OpenFile((const char*)regs->rdi); break;
-        case Syscall::FunctionClose: VFS::CloseFile(regs->rdi); break;
-        case Syscall::FunctionRead: regs->rax = VFS::ReadFile(regs->rdi, (void*)regs->rsi, regs->r10); break;
-        case Syscall::FunctionWrite: VFS::WriteFile(regs->rdi, (void*)regs->rsi, regs->r10); break;
+        case Syscall::FunctionOpen: {
+            uint64 node = VFS::GetFileNode((const char*)regs->rdi);
+            if(node == 0) {
+                regs->rax = 0;
+                break;
+            }
+            if(!VFS::AddFileUserRead(node)) {
+                regs->rax = 0;
+                break;
+            }
+            regs->rax = Scheduler::ProcessAddFileDesc(node, true, false);
+        } break;
+
+        case Syscall::FunctionClose: {
+            FileDescriptor* desc = Scheduler::ProcessGetFileDesc(regs->rdi);
+            if(desc == nullptr)
+                break;
+
+            VFS::RemoveFileUserRead(desc->node);
+            Scheduler::ProcessRemoveFileDesc(desc->id);
+        } break;
+
+        case Syscall::FunctionRead: {
+            FileDescriptor* desc = Scheduler::ProcessGetFileDesc(regs->rsi);
+            if(desc == nullptr) {
+                regs->rax = 0;
+                break;
+            }
+
+            regs->rax = VFS::ReadFile(desc->node, regs->r11, (void*)regs->rdi, regs->r10);
+        } break;
+
+        case Syscall::FunctionWrite: {
+            FileDescriptor* desc = Scheduler::ProcessGetFileDesc(regs->rdi);
+            if(desc == nullptr) {
+                break;
+            }
+
+            VFS::WriteFile(desc->node, regs->r11, (void*)regs->rsi, regs->r10);
+        } break;
         }
     }
 

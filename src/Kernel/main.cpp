@@ -33,14 +33,20 @@ void TimerEvent(IDT::Registers* regs)
 
 static void SetupTestProcess(uint8* loadBase)
 {
-    uint64 file = VFS::OpenFile("/initrd/test.elf");
-    if(file == 0)
+    uint64 file = VFS::GetFileNode("/initrd/test.elf");
+    if(file == 0) {
+        printf("Failed to find test.elf\n");
+        return;
+    }
+    if(!VFS::AddFileUserRead(file)) {
         printf("Failed to open test.elf\n");
+        return;
+    }
 
     uint64 fileSize = VFS::GetFileSize(file);
     uint8* fileBuffer = new uint8[fileSize];
-    VFS::ReadFile(file, fileBuffer, fileSize);
-    VFS::CloseFile(file);
+    VFS::ReadFile(file, 0, fileBuffer, fileSize);
+    VFS::RemoveFileUserRead(file);
 
     uint64 pages = (GetELFSize(fileBuffer) + 4095) / 4096;
     uint64 pml4Entry = MemoryManager::CreateProcessMap();
