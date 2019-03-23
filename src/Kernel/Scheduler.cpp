@@ -5,8 +5,11 @@
 #include "conio.h"
 #include "list.h"
 #include "GDT.h"
+#include "ArrayList.h"
 
 #include "terminal.h"
+
+#include "GDT.h"
 
 extern uint64 g_TimeCounter;
 
@@ -40,13 +43,14 @@ struct ProcessInfo
 
     ProcessEvent* blockEvent;
 
+    uint64 kernelStack;
+
+    uint64 fileDescIDCounter;
+    ArrayList<FileDescriptor> files;
+
     // Process state
     IDT::Registers registers;
 };
-
-namespace IDT {
-    extern uint8 g_InterruptStack[4096];
-}
 
 namespace Scheduler {
 
@@ -58,13 +62,17 @@ namespace Scheduler {
 
     static uint64 g_PIDCounter = 1;
 
-    ProcessInfo* RegisterProcessInternal(uint64 pml4Entry, uint64 rsp, uint64 rip, bool user) {
+    ProcessInfo* RegisterProcessInternal(uint64 pml4Entry, uint64 rsp, uint64 rip, bool user, uint64 kernelStack) {
         ProcessInfo* p = new ProcessInfo();
         memset(p, 0, sizeof(ProcessInfo));
+
+        p->fileDescIDCounter = 1;
 
         p->pml4Entry = pml4Entry;
         p->status = ProcessInfo::STATUS_READY;
         p->pid = g_PIDCounter++;
+
+        p->kernelStack = kernelStack;
 
         p->registers.userrsp = rsp;
         p->registers.rip = rip;
@@ -78,9 +86,9 @@ namespace Scheduler {
         return p;
     }
 
-    uint64 RegisterProcess(uint64 pml4Entry, uint64 rsp, uint64 rip, bool user)
+    uint64 RegisterProcess(uint64 pml4Entry, uint64 rsp, uint64 rip, bool user, uint64 kernelStack)
     {
-        return RegisterProcessInternal(pml4Entry, rsp, rip, user)->pid;
+        return RegisterProcessInternal(pml4Entry, rsp, rip, user, kernelStack)->pid;
     }
 
     static void UpdateEvents() {
@@ -121,6 +129,8 @@ namespace Scheduler {
         MemoryManager::SwitchProcessMap(g_RunningProcess->pml4Entry);
         // Load registers from saved state
         *regs = g_RunningProcess->registers;
+
+        GDT::SetKernelStack(g_RunningProcess->kernelStack);
     }
 
     void Start()
@@ -133,7 +143,9 @@ namespace Scheduler {
         p->status = ProcessInfo::STATUS_READY;
         p->pid = 0;
 
-        p->registers.userrsp = (uint64)&IDT::g_InterruptStack[sizeof(IDT::g_InterruptStack)];
+        p->kernelStack = (uint64)MemoryManager::PhysToKernelPtr(MemoryManager::AllocatePages(3)) + KernelStackSize;
+
+        p->registers.userrsp = 0;
         p->registers.rip = (uint64)&IdleProcess;
         p->registers.cs = GDT::KernelCode;
         p->registers.ds = GDT::KernelData;
@@ -142,6 +154,8 @@ namespace Scheduler {
 
         g_IdleProcess = p;
         g_RunningProcess = g_IdleProcess;
+
+        GDT::SetKernelStack(p->kernelStack);
 
         __asm__ __volatile__ (
             "pushq $0x10;"      // kernel data selector
@@ -155,7 +169,7 @@ namespace Scheduler {
             "mov %%rax, %%fs;"
             "mov %%rax, %%gs;"
             "iretq"             // "return" to idle process
-            : : "r"(p->registers.userrsp), "r"(p->registers.rflags), "r"(p->registers.rip)
+            : : "r"(p->kernelStack), "r"(p->registers.rflags), "r"(p->registers.rip)
         );
     }
 
@@ -176,8 +190,10 @@ namespace Scheduler {
 
         // Switch to idle process
         delete g_RunningProcess;
+
         g_RunningProcess = g_IdleProcess;
         *regs = g_IdleProcess->registers;
+        GDT::SetKernelStack(g_RunningProcess->kernelStack);
 
         printf("Process %i exited with code %i\n", pid, code);
     }
@@ -186,14 +202,44 @@ namespace Scheduler {
     {
         // Copy process memory and paging structures
         uint64 pml4Entry = MemoryManager::ForkProcessMap();
+
+        uint64 kernelStack = (uint64)MemoryManager::PhysToKernelPtr(MemoryManager::AllocatePages(3)) + KernelStackSize;
         
         // Register an exact copy of the current process
-        ProcessInfo* pInfo = RegisterProcessInternal(pml4Entry, regs->userrsp, regs->rip, true);
+        ProcessInfo* pInfo = RegisterProcessInternal(pml4Entry, regs->userrsp, regs->rip, true, kernelStack);
         // return child process pid to parent process
         regs->rax = pInfo->pid;
         pInfo->registers = *regs;
         // return zero to child process
         pInfo->registers.rax = 0;
+    }
+
+    uint64 ProcessAddFileDesc(uint64 node, bool read, bool write) {
+        FileDescriptor desc;
+        desc.id = g_RunningProcess->fileDescIDCounter++;
+        desc.node = node;
+        desc.read = read;
+        desc.write = write;
+        g_RunningProcess->files.push_back(desc);
+        return desc.id;
+    }
+
+    void ProcessRemoveFileDesc(uint64 desc) {
+        for(auto a = g_RunningProcess->files.begin(); a != g_RunningProcess->files.end(); ++a) {
+            if(a->id == desc) {
+                g_RunningProcess->files.erase(a);
+                return;
+            }
+        }
+    }
+
+    FileDescriptor* ProcessGetFileDesc(uint64 id) {
+        for(auto a = g_RunningProcess->files.begin(); a != g_RunningProcess->files.end(); ++a) {
+            if(a->id == id) {
+                return &(*a);
+            }
+        }
+        return nullptr;
     }
 
     uint64 GetCurrentPID()

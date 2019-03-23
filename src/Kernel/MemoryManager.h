@@ -12,8 +12,8 @@ namespace MemoryManager {
     void* AllocatePages(uint64 numPages = 1);
     void FreePages(void* pages, uint64 numPages = 1);
 
-    void* PhysToKernelPtr(void* ptr);
-    void* KernelToPhysPtr(void* ptr);
+    void* PhysToKernelPtr(const void* ptr);
+    void* KernelToPhysPtr(const void* ptr);
 
     uint64 CreateProcessMap();
     uint64 ForkProcessMap();
