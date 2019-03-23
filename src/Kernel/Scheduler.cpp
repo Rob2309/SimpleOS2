@@ -11,7 +11,9 @@
 
 #include "MSR.h"
 
-extern uint64 g_TimeCounter;
+#include "APIC.h"
+
+static uint64 g_TimeCounter = 0;
 
 class ProcessEvent
 {
@@ -61,6 +63,12 @@ namespace Scheduler {
     static std::list<ProcessInfo*> g_ProcessList;
 
     static uint64 g_PIDCounter = 1;
+
+    static void TimerEvent(IDT::Registers* regs)
+    {
+        g_TimeCounter += 10;
+        Scheduler::Tick(regs);
+    }
 
     ProcessInfo* RegisterProcessInternal(uint64 pml4Entry, uint64 rsp, uint64 rip, bool user, uint64 kernelStack) {
         ProcessInfo* p = new ProcessInfo();
@@ -134,6 +142,8 @@ namespace Scheduler {
 
     void Start()
     {
+        APIC::SetTimerEvent(TimerEvent);
+
         // Init idle process
         ProcessInfo* p = new ProcessInfo();
         memset(p, 0, sizeof(ProcessInfo));

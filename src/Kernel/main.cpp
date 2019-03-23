@@ -23,14 +23,6 @@
 
 #include "SyscallHandler.h"
 
-uint64 g_TimeCounter = 0;
-
-void TimerEvent(IDT::Registers* regs)
-{
-    g_TimeCounter += 10;
-    Scheduler::Tick(regs);
-}
-
 static void SetupTestProcess(uint8* loadBase)
 {
     uint64 file = VFS::GetFileNode("/initrd/test.elf");
@@ -101,7 +93,6 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     new ZeroDevice("zero");
 
     APIC::Init();
-    APIC::SetTimerEvent(TimerEvent);
 
     SetupTestProcess((uint8*)0x16000);
     //SetupTestProcess((uint8*)0x16000);
