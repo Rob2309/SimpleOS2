@@ -2,7 +2,7 @@
 
 #include "types.h"
 #include "conio.h"
-
+#include "GDT.h"
 
 #define ISRSTUB(vectno) extern "C" void ISRSTUB_##vectno();
 #define ISRSTUBE(vectno) extern "C" void ISRSTUB_##vectno();
@@ -96,8 +96,8 @@ namespace IDT {
 
         #undef ISRSTUB
         #undef ISRSTUBE
-        #define ISRSTUB(vectno) SetIDTEntry(vectno, ISRSTUB_##vectno, 0x08, 0xEE);
-        #define ISRSTUBE(vectno) SetIDTEntry(vectno, ISRSTUB_##vectno, 0x08, 0xEE);
+        #define ISRSTUB(vectno) SetIDTEntry(vectno, ISRSTUB_##vectno, GDT::KernelCode, 0xEE);
+        #define ISRSTUBE(vectno) SetIDTEntry(vectno, ISRSTUB_##vectno, GDT::KernelCode, 0xEE);
         #include "ISR.inc"
 
         SetISR(0, ISR_Exceptions);

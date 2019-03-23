@@ -4,6 +4,7 @@
 #include "memutil.h"
 #include "conio.h"
 #include "list.h"
+#include "GDT.h"
 
 #include "terminal.h"
 
@@ -67,9 +68,9 @@ namespace Scheduler {
 
         p->registers.userrsp = rsp;
         p->registers.rip = rip;
-        p->registers.cs = user ? 0x1B : 0x08;
-        p->registers.ds = user ? 0x23 : 0x10;
-        p->registers.ss = user ? 0x23 : 0x10;
+        p->registers.cs = user ? GDT::UserCode : GDT::KernelCode;
+        p->registers.ds = user ? GDT::UserData : GDT::KernelData;
+        p->registers.ss = user ? GDT::UserData : GDT::KernelData;
         p->registers.rflags = 0b000000000001000000000;
         
         g_ProcessList.push_back(p);
@@ -134,19 +135,19 @@ namespace Scheduler {
 
         p->registers.userrsp = (uint64)&IDT::g_InterruptStack[sizeof(IDT::g_InterruptStack)];
         p->registers.rip = (uint64)&IdleProcess;
-        p->registers.cs = 0x08;
-        p->registers.ds = 0x10;
-        p->registers.ss = 0x10;
+        p->registers.cs = GDT::KernelCode;
+        p->registers.ds = GDT::KernelData;
+        p->registers.ss = GDT::KernelData;
         p->registers.rflags = 0b000000000001000000000;
 
         g_IdleProcess = p;
         g_RunningProcess = g_IdleProcess;
 
         __asm__ __volatile__ (
-            "pushq $0x10;"      // kernel data selector
+            "pushq $0x08;"      // kernel data selector
             "pushq %0;"         // rsp
             "pushq %1;"         // rflags
-            "pushq $0x08;"      // kernel code selector
+            "pushq $0x10;"      // kernel code selector
             "pushq %2;"         // rip
             "movq $0x10, %%rax;"// load kernel data selectors
             "mov %%rax, %%ds;"
