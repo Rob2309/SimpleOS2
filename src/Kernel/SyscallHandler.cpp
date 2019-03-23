@@ -5,6 +5,8 @@
 #include "conio.h"
 
 #include "Syscall.h"
+#include "IDT.h"
+#include "Scheduler.h"
 
 namespace SyscallHandler {
 
@@ -29,19 +31,21 @@ namespace SyscallHandler {
         MSR::Write(MSR::RegSFMASK, sfmaskVal);
     }
 
-    struct Regs {
-        uint64 rax, rbx, rdx, rdi, rsi, rbp;
-        uint64 r8, r9, r12, r13, r14, r15;
-
-        uint64 returnrsp;
-        uint64 returnflags;
-        uint64 returnrip;
+    struct __attribute__((packed)) Regs {
+        uint64 rax, rbx, rdx, rdi, rsi, rbp, r8, r9, r12, r13, r14, r15;
+        uint64 returnrsp, returnrflags, returnrip;
     };
 
     extern "C" void SyscallDispatcher(Regs* regs)
     {
         switch(regs->rax) {
         case Syscall::FunctionPrint: printf((const char*)regs->rsi); break;
+        case Syscall::FunctionWait:
+            IDT::DisableInterrupts();
+            Scheduler::ProcessWait(regs->rsi);
+            Scheduler::ProcessYield();
+            IDT::EnableInterrupts();
+            break;
         }
     }
 

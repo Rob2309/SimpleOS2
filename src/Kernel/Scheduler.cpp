@@ -114,9 +114,9 @@ namespace Scheduler {
         return g_IdleProcess;
     }
 
-    void Tick(IDT::Registers* regs, bool processBlocked)
+    void Tick(IDT::Registers* regs)
     {
-        g_RunningProcess->status = processBlocked ? ProcessInfo::STATUS_BLOCKED : ProcessInfo::STATUS_READY;
+        g_RunningProcess->status = g_RunningProcess->blockEvent != nullptr ? ProcessInfo::STATUS_BLOCKED : ProcessInfo::STATUS_READY;
         g_RunningProcess->registers = *regs; // save all registers in process info
         
         // Find next process to execute
@@ -174,6 +174,11 @@ namespace Scheduler {
     void ProcessWait(uint64 ms)
     {
         g_RunningProcess->blockEvent = new ProcessEventWait(ms);
+    }
+
+    void ProcessYield()
+    {
+        __asm__ __volatile__ ("int $100");
     }
 
     void ProcessExit(uint64 code, IDT::Registers* regs)

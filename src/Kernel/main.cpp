@@ -28,7 +28,7 @@ uint64 g_TimeCounter = 0;
 void TimerEvent(IDT::Registers* regs)
 {
     g_TimeCounter += 10;
-    Scheduler::Tick(regs, false);
+    Scheduler::Tick(regs);
 }
 
 static void SetupTestProcess(uint8* loadBase)

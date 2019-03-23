@@ -6,6 +6,11 @@ extern "C" void main()
 {
     Syscall::Print("Parent starting\n");
 
+    while(true) {
+        Syscall::Wait(1000);
+        Syscall::Print("Still alive\n");
+    }
+
     /*if(Syscall::Fork() == 0) {
         Syscall::Print("Child process\n");
 
