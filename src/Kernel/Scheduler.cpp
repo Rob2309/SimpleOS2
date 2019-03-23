@@ -37,6 +37,7 @@ struct ProcessInfo
         STATUS_READY,
         STATUS_BLOCKED,
         STATUS_RUNNING,
+        STATUS_EXITED,
     } status;
 
     uint64 pml4Entry;
@@ -124,8 +125,18 @@ namespace Scheduler {
 
     void Tick(IDT::Registers* regs)
     {
-        g_RunningProcess->status = g_RunningProcess->blockEvent != nullptr ? ProcessInfo::STATUS_BLOCKED : ProcessInfo::STATUS_READY;
-        g_RunningProcess->registers = *regs; // save all registers in process info
+        if(g_RunningProcess->status == ProcessInfo::STATUS_EXITED) {
+            // Remove process from list
+            g_ProcessList.erase(g_RunningProcess);
+
+            // Delete paging structures for this process
+            MemoryManager::FreeProcessMap(g_RunningProcess->pml4Entry);
+
+            delete g_RunningProcess;
+        } else {
+            g_RunningProcess->status = g_RunningProcess->blockEvent != nullptr ? ProcessInfo::STATUS_BLOCKED : ProcessInfo::STATUS_READY;
+            g_RunningProcess->registers = *regs; // save all registers in process info
+        }
         
         // Find next process to execute
         UpdateEvents();
@@ -183,7 +194,10 @@ namespace Scheduler {
 
     void ProcessWait(uint64 ms)
     {
+        IDT::DisableInterrupts();
         g_RunningProcess->blockEvent = new ProcessEventWait(ms);
+        ProcessYield();
+        IDT::EnableInterrupts();
     }
 
     void ProcessYield()
@@ -191,23 +205,15 @@ namespace Scheduler {
         __asm__ __volatile__ ("int $100");
     }
 
-    void ProcessExit(uint64 code, IDT::Registers* regs)
+    void ProcessExit(uint64 code)
     {
-        uint64 pid = g_RunningProcess->pid;
+        IDT::DisableInterrupts();
 
-        // Remove process from list
-        g_ProcessList.erase(g_RunningProcess);
+        g_RunningProcess->status = ProcessInfo::STATUS_EXITED;
 
-        // Delete paging structures for this process
-        MemoryManager::FreeProcessMap(g_RunningProcess->pml4Entry);
+        printf("Process %i exited with code %i\n", g_RunningProcess->pid, code);
 
-        // Switch to idle process
-        delete g_RunningProcess;
-
-        g_RunningProcess = g_IdleProcess;
-        *regs = g_IdleProcess->registers;
-
-        printf("Process %i exited with code %i\n", pid, code);
+        ProcessYield();
     }
 
     void ProcessFork(IDT::Registers* regs)

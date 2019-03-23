@@ -40,12 +40,9 @@ namespace SyscallHandler {
     {
         switch(regs->rax) {
         case Syscall::FunctionPrint: printf((const char*)regs->rsi); break;
-        case Syscall::FunctionWait:
-            IDT::DisableInterrupts();
-            Scheduler::ProcessWait(regs->rsi);
-            Scheduler::ProcessYield();
-            IDT::EnableInterrupts();
-            break;
+        case Syscall::FunctionWait: Scheduler::ProcessWait(regs->rsi); break;
+        case Syscall::FunctionGetPID: regs->rax = Scheduler::GetCurrentPID(); break;
+        case Syscall::FunctionExit: Scheduler::ProcessExit(regs->rsi); break;
         }
     }
 

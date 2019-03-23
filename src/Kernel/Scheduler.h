@@ -24,7 +24,7 @@ namespace Scheduler {
     void Tick(IDT::Registers* regs);
 
     void ProcessWait(uint64 ms);
-    void ProcessExit(uint64 code, IDT::Registers* regs);
+    void ProcessExit(uint64 code);
     void ProcessFork(IDT::Registers* regs);
 
     void ProcessYield();
