@@ -79,19 +79,19 @@ namespace GDT
         g_GDT[2].limit2flags = 0b10101111;
         g_GDT[2].base3 = 0x00;
 
-        // user code
+        // user data
         g_GDT[3].limit1 = 0xFFFF;
         g_GDT[3].base1 = 0x0000;
         g_GDT[3].base2 = 0x00;
-        g_GDT[3].access = 0b11111010;
+        g_GDT[3].access = 0b11110010;
         g_GDT[3].limit2flags = 0b10101111;
         g_GDT[3].base3 = 0x00;
 
-        // user data
+        // user code
         g_GDT[4].limit1 = 0xFFFF;
         g_GDT[4].base1 = 0x0000;
         g_GDT[4].base2 = 0x00;
-        g_GDT[4].access = 0b11110010;
+        g_GDT[4].access = 0b11111010;
         g_GDT[4].limit2flags = 0b10101111;
         g_GDT[4].base3 = 0x00;
 
@@ -114,14 +114,12 @@ namespace GDT
 
         volatile GDTDesc desc = { sizeof(g_GDT) - 1, (uint64)(&g_GDT[0]) };
         __asm__ __volatile__ (
-            "lgdtq (%0);"                   // tell cpu to use new GDT
-            "mov $16, %%rax;"               // kernel data selector
+            "lgdtq (%0);"                    // tell cpu to use new GDT
+            "mov $0x10, %%rax;"               // kernel data selector
             "mov %%ax, %%ds;"
             "mov %%ax, %%es;"
-            "mov %%ax, %%fs;"
-            "mov %%ax, %%gs;"
             "mov %%ax, %%ss;"
-            "pushq $8;"                     // kernel code selector
+            "pushq $0x08;"                     // kernel code selector
             "leaq 1f(%%rip), %%rax;"        // rax = address of "1" label below
             "pushq %%rax;"
             "retfq;"                        // pops return address and cs
@@ -135,10 +133,5 @@ namespace GDT
             "ltr %%ax"              // tell cpu to use new TSS
             : : "a" (5 * 8)
         );
-    }
-
-    void SetKernelStack(uint64 rsp)
-    {
-        g_TSS.rsp0 = rsp;
     }
 }

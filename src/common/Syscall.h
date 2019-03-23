@@ -21,16 +21,19 @@ namespace Syscall
     {
         uint64 fileDesc;
         __asm__ __volatile__ (
-            "int $0x80"
-            : "=a"(fileDesc) : "a"(FunctionOpen), "D"(path)
+            "syscall"
+            : "=a"(fileDesc) 
+            : "a"(FunctionOpen), "S"(path)
+            : "r10", "r11", "rcx"
         );
         return fileDesc;
     }
     inline void Close(uint64 desc)
     {
         __asm__ __volatile__ (
-            "int $0x80"
-            : : "a"(FunctionClose), "D"(desc)
+            "syscall"
+            : : "a"(FunctionClose), "S"(desc)
+            : "r10", "r11", "rcx"
         );
     }
     inline uint64 Read(uint64 desc, uint64 pos, void* buffer, uint64 bufferSize) 
@@ -57,16 +60,18 @@ namespace Syscall
     inline void Print(const char* msg)
     {
         __asm__ __volatile__ (
-            "int $0x80"
-            : : "a"(FunctionPrint), "D"(msg)
+            "syscall"
+            : : "a"(FunctionPrint), "S"(msg)
+            : "r10", "r11", "rcx"
         );
     }
 
     inline void Wait(uint64 ms) 
     {
         __asm__ __volatile__ (
-            "int $0x80"
-            : : "a"(FunctionWait), "D"(ms)
+            "syscall"
+            : : "a"(FunctionWait), "S"(ms)
+            : "r10", "r11", "rcx"
         );
     }
 
@@ -74,9 +79,10 @@ namespace Syscall
     {
         uint64 pid;
         __asm__ __volatile__ (
-            "int $0x80"
+            "syscall"
             : "=a"(pid) 
             : "a"(FunctionGetPID)
+            : "r10", "r11", "rcx"
         );
         return pid;
     }
@@ -84,8 +90,9 @@ namespace Syscall
     inline void Exit(uint64 code)
     {
         __asm__ __volatile__ (
-            "int $0x80"
-            : : "a"(FunctionExit), "D"(code)
+            "syscall"
+            : : "a"(FunctionExit), "S"(code)
+            : "r10", "r11", "rcx"
         );
     }
 
@@ -93,8 +100,10 @@ namespace Syscall
     {
         uint64 ret;
         __asm__ __volatile__ (
-            "int $0x80"
-            : "=a"(ret) : "a"(FunctionFork)
+            "syscall"
+            : "=a"(ret) 
+            : "a"(FunctionFork)
+            : "r10", "r11", "rcx"
         );
         return ret;
     }

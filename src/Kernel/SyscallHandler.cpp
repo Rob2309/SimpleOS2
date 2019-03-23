@@ -1,85 +1,50 @@
 #include "SyscallHandler.h"
 
+#include "MSR.h"
+#include "GDT.h"
+#include "conio.h"
+
 #include "Syscall.h"
-#include "ISRNumbers.h"
 #include "IDT.h"
 #include "Scheduler.h"
-#include "conio.h"
-#include "VFS.h"
 
 namespace SyscallHandler {
-    
-    static void SyscallInterruptHandler(IDT::Registers* regs)
+
+    extern "C" void SyscallEntry();
+
+    void Init()
     {
-        IDT::EnableInterrupts();
+        uint64 eferVal = MSR::Read(MSR::RegEFER);
+        eferVal |= 1;
+        MSR::Write(MSR::RegEFER, eferVal);
 
-        switch(regs->rax) {
-        case Syscall::FunctionGetPID: regs->rax = Scheduler::GetCurrentPID(); break;
-        case Syscall::FunctionPrint: printf("%i: %s", Scheduler::GetCurrentPID(), (char*)(regs->rdi)); break;
+        uint64 starVal = ((uint64)(GDT::UserCode - 16) << 48) | ((uint64)GDT::KernelCode << 32);
+        MSR::Write(MSR::RegSTAR, starVal);
 
-        case Syscall::FunctionWait: 
-            IDT::DisableInterrupts();
-            Scheduler::ProcessWait(regs->rdi); 
-            Scheduler::Tick(regs, true);
-            IDT::EnableInterrupts();
-            break;
-        case Syscall::FunctionExit: 
-            IDT::DisableInterrupts();
-            Scheduler::ProcessExit(regs->rdi, regs); 
-            Scheduler::Tick(regs, false);
-            IDT::EnableInterrupts();
-            break;
-        case Syscall::FunctionFork: 
-            IDT::DisableInterrupts();
-            Scheduler::ProcessFork(regs);
-            IDT::EnableInterrupts();
-            break;
+        uint64 lstarVal = (uint64)&SyscallEntry;
+        MSR::Write(MSR::RegLSTAR, lstarVal);
 
-        case Syscall::FunctionOpen: {
-            uint64 node = VFS::GetFileNode((const char*)regs->rdi);
-            if(node == 0) {
-                regs->rax = 0;
-                break;
-            }
-            if(!VFS::AddFileUserRead(node)) {
-                regs->rax = 0;
-                break;
-            }
-            regs->rax = Scheduler::ProcessAddFileDesc(node, true, false);
-        } break;
+        uint64 cstarVal = 0;
+        MSR::Write(MSR::RegCSTAR, cstarVal);
 
-        case Syscall::FunctionClose: {
-            FileDescriptor* desc = Scheduler::ProcessGetFileDesc(regs->rdi);
-            if(desc == nullptr)
-                break;
-
-            VFS::RemoveFileUserRead(desc->node);
-            Scheduler::ProcessRemoveFileDesc(desc->id);
-        } break;
-
-        case Syscall::FunctionRead: {
-            FileDescriptor* desc = Scheduler::ProcessGetFileDesc(regs->rsi);
-            if(desc == nullptr) {
-                regs->rax = 0;
-                break;
-            }
-
-            regs->rax = VFS::ReadFile(desc->node, regs->r11, (void*)regs->rdi, regs->r10);
-        } break;
-
-        case Syscall::FunctionWrite: {
-            FileDescriptor* desc = Scheduler::ProcessGetFileDesc(regs->rdi);
-            if(desc == nullptr) {
-                break;
-            }
-
-            VFS::WriteFile(desc->node, regs->r11, (void*)regs->rsi, regs->r10);
-        } break;
-        }
+        uint64 sfmaskVal = 0;//0b000000000001000000000;
+        MSR::Write(MSR::RegSFMASK, sfmaskVal);
     }
 
-    void Init() {
-        IDT::SetISR(ISRNumbers::Syscall, SyscallInterruptHandler);
+    struct __attribute__((packed)) Regs {
+        uint64 rax, rbx, rdx, rdi, rsi, rbp, r8, r9, r12, r13, r14, r15;
+        uint64 returnrsp, returnrflags, returnrip;
+    };
+
+    extern "C" void SyscallDispatcher(Regs* regs)
+    {
+        switch(regs->rax) {
+        case Syscall::FunctionPrint: printf((const char*)regs->rsi); break;
+        case Syscall::FunctionWait: Scheduler::ProcessWait(regs->rsi); break;
+        case Syscall::FunctionGetPID: regs->rax = Scheduler::GetCurrentPID(); break;
+        case Syscall::FunctionExit: Scheduler::ProcessExit(regs->rsi); break;
+        case Syscall::FunctionFork: regs->rax = Scheduler::ProcessFork(); break;
+        }
     }
 
 }

@@ -2,7 +2,7 @@
 
 #include "types.h"
 #include "conio.h"
-
+#include "GDT.h"
 
 #define ISRSTUB(vectno) extern "C" void ISRSTUB_##vectno();
 #define ISRSTUBE(vectno) extern "C" void ISRSTUB_##vectno();
@@ -44,7 +44,7 @@ namespace IDT {
     {
         g_IDT[number].offset1 = (uint64)vector & 0xFFFF;
         g_IDT[number].csSelector = selector;
-        g_IDT[number].ist = 0;
+        g_IDT[number].ist = 1;
         g_IDT[number].typeAttrib = flags;
         g_IDT[number].offset2 = ((uint64)vector >> 16) & 0xFFFF;
         g_IDT[number].offset3 = ((uint64)vector >> 32) & 0xFFFFFFFF;
@@ -94,8 +94,8 @@ namespace IDT {
 
         #undef ISRSTUB
         #undef ISRSTUBE
-        #define ISRSTUB(vectno) SetIDTEntry(vectno, ISRSTUB_##vectno, 0x08, 0xEE);
-        #define ISRSTUBE(vectno) SetIDTEntry(vectno, ISRSTUB_##vectno, 0x08, 0xEE);
+        #define ISRSTUB(vectno) SetIDTEntry(vectno, ISRSTUB_##vectno, GDT::KernelCode, 0x8E);
+        #define ISRSTUBE(vectno) SetIDTEntry(vectno, ISRSTUB_##vectno, GDT::KernelCode, 0x8E);
         #include "ISR.inc"
 
         SetISR(0, ISR_Exceptions);
@@ -145,11 +145,6 @@ namespace IDT {
     void SetISR(uint8 index, ISR isr)
     {
         g_Handlers[index] = isr;
-    }
-
-    void SetIST(uint8 index, uint8 ist)
-    {
-        g_IDT[index].ist = ist;
     }
 
     void EnableInterrupts()

@@ -18,7 +18,13 @@ extern "C" void main()
     } else {
         Syscall::Print("Parent process\n");
 
-        uint64 f = Syscall::Open("/dev/zero");
+        for(int i = 0; i < 5; i++) {
+            Syscall::Wait(1000);
+            Syscall::Print("Parent process alive\n");
+        }
+
+        Syscall::Exit(0);
+        /*uint64 f = Syscall::Open("/dev/zero");
         if(f == 0) {
             Syscall::Print("Failed to open /dev/zero\n");
             Syscall::Exit(1);
@@ -32,7 +38,7 @@ extern "C" void main()
                 Syscall::Print("/dev/zero not working\n");
                 Syscall::Exit(1);
             }
-        Syscall::Close(f);
+        Syscall::Close(f);*/
     }
     
     while(true);
