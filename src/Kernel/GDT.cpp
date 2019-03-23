@@ -66,19 +66,19 @@ namespace GDT
         // null descriptor
         g_GDT[0] = { 0 };
 
-        // kernel data
+        // kernel code
         g_GDT[1].limit1 = 0xFFFF;
         g_GDT[1].base1 = 0x0000;
         g_GDT[1].base2 = 0x00;
-        g_GDT[1].access = 0b10010010;
+        g_GDT[1].access = 0b10011010;
         g_GDT[1].limit2flags = 0b10101111;
         g_GDT[1].base3 = 0x00;
 
-        // kernel code
+        // kernel data
         g_GDT[2].limit1 = 0xFFFF;
         g_GDT[2].base1 = 0x0000;
         g_GDT[2].base2 = 0x00;
-        g_GDT[2].access = 0b10011010;
+        g_GDT[2].access = 0b10010010;
         g_GDT[2].limit2flags = 0b10101111;
         g_GDT[2].base3 = 0x00;
 
@@ -117,13 +117,13 @@ namespace GDT
         GDTDesc desc = { sizeof(g_GDT) - 1, (uint64)(&g_GDT[0]) };
         __asm__ __volatile__ (
             "lgdtq (%0);"                    // tell cpu to use new GDT
-            "mov $0x08, %%rax;"               // kernel data selector
+            "mov $0x10, %%rax;"               // kernel data selector
             "mov %%ax, %%ds;"
             "mov %%ax, %%es;"
             "mov %%ax, %%fs;"
             "mov %%ax, %%gs;"
             "mov %%ax, %%ss;"
-            "pushq $0x10;"                     // kernel code selector
+            "pushq $0x08;"                     // kernel code selector
             "leaq 1f(%%rip), %%rax;"        // rax = address of "1" label below
             "pushq %%rax;"
             "retfq;"                        // pops return address and cs

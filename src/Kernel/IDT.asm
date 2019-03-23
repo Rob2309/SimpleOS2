@@ -41,13 +41,13 @@
 ISRCommon:
     pushAll
 
-    mov ax, 0x08    ; kernel data selector
+    mov ax, 0x10    ; kernel data selector
     mov ss, ax
 
     mov ax, ds      ; save old ds
     push rax
 
-    mov rax, 0x08   ; load kernel data selectors
+    mov rax, 0x10   ; load kernel data selectors
     mov ds, ax
     mov es, ax
     mov fs, ax

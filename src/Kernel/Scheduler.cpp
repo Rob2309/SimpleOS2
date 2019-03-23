@@ -144,10 +144,10 @@ namespace Scheduler {
         g_RunningProcess = g_IdleProcess;
 
         __asm__ __volatile__ (
-            "pushq $0x08;"      // kernel data selector
+            "pushq $0x10;"      // kernel data selector
             "pushq %0;"         // rsp
             "pushq %1;"         // rflags
-            "pushq $0x10;"      // kernel code selector
+            "pushq $0x08;"      // kernel code selector
             "pushq %2;"         // rip
             "movq $0x10, %%rax;"// load kernel data selectors
             "mov %%rax, %%ds;"
