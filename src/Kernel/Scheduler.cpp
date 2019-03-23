@@ -37,7 +37,6 @@ struct ProcessInfo
         STATUS_READY,
         STATUS_BLOCKED,
         STATUS_RUNNING,
-        STATUS_EXITED,
     } status;
 
     uint64 pml4Entry;
@@ -55,6 +54,10 @@ struct ProcessInfo
     IDT::Registers registers;
 };
 
+constexpr uint64 ControlFuncWait = 1;
+constexpr uint64 ControlFuncExit = 2;
+constexpr uint64 ControlFuncFork = 3;
+
 namespace Scheduler {
 
     static ProcessInfo* g_IdleProcess;
@@ -64,6 +67,60 @@ namespace Scheduler {
     static std::list<ProcessInfo*> g_ProcessList;
 
     static uint64 g_PIDCounter = 1;
+
+    static ProcessInfo* FindNextProcess();
+    ProcessInfo* RegisterProcessInternal(uint64 pml4Entry, uint64 rsp, uint64 rip, bool user, uint64 kernelStack);
+
+    static void ForkCurrentProcess(IDT::Registers* regs)
+    {
+        // Copy process memory and paging structures
+        uint64 pml4Entry = MemoryManager::ForkProcessMap();
+
+        // Clone Kernel Stack
+        uint64 kernelStack = (uint64)MemoryManager::PhysToKernelPtr(MemoryManager::AllocatePages(3)) + KernelStackSize;
+        memcpy((void*)(kernelStack - KernelStackSize), (void*)(g_RunningProcess->kernelStack - KernelStackSize), KernelStackSize);
+        
+        // Register an exact copy of the current process
+        ProcessInfo* pInfo = RegisterProcessInternal(pml4Entry, regs->userrsp, regs->rip, true, kernelStack);
+        // return child process pid to parent process
+        regs->rax = pInfo->pid;
+        pInfo->registers = *regs;
+        // return zero to child process
+        pInfo->registers.rax = 0;
+        // use cloned kernel stack in child process
+        pInfo->registers.userrsp = kernelStack - (g_RunningProcess->kernelStack - regs->userrsp);
+    }
+
+    static void ExitCurrentProcess(IDT::Registers* regs)
+    {
+        uint64 pid = g_RunningProcess->pid;
+        uint64 exitCode = regs->rdi;
+
+        MemoryManager::FreeProcessMap(g_RunningProcess->pml4Entry);
+        g_ProcessList.erase(g_RunningProcess);
+        delete g_RunningProcess;
+
+        g_RunningProcess = g_IdleProcess;
+        *regs = g_IdleProcess->registers;
+        Tick(regs);
+
+        printf("Process %i exited with code %i\n", pid, exitCode);
+    }
+
+    static void WaitCurrentProcess(IDT::Registers* regs)
+    {
+        g_RunningProcess->blockEvent = new ProcessEventWait(regs->rsi);
+        Tick(regs);
+    }
+
+    static void SchedulerControlInterrupt(IDT::Registers* regs)
+    {
+        switch(regs->rax) {
+        case ControlFuncExit: ExitCurrentProcess(regs); break;
+        case ControlFuncWait: WaitCurrentProcess(regs); break;
+        case ControlFuncFork: ForkCurrentProcess(regs); break;
+        }
+    }
 
     static void TimerEvent(IDT::Registers* regs)
     {
@@ -125,18 +182,8 @@ namespace Scheduler {
 
     void Tick(IDT::Registers* regs)
     {
-        if(g_RunningProcess->status == ProcessInfo::STATUS_EXITED) {
-            // Remove process from list
-            g_ProcessList.erase(g_RunningProcess);
-
-            // Delete paging structures for this process
-            MemoryManager::FreeProcessMap(g_RunningProcess->pml4Entry);
-
-            delete g_RunningProcess;
-        } else {
-            g_RunningProcess->status = g_RunningProcess->blockEvent != nullptr ? ProcessInfo::STATUS_BLOCKED : ProcessInfo::STATUS_READY;
-            g_RunningProcess->registers = *regs; // save all registers in process info
-        }
+        g_RunningProcess->status = g_RunningProcess->blockEvent != nullptr ? ProcessInfo::STATUS_BLOCKED : ProcessInfo::STATUS_READY;
+        g_RunningProcess->registers = *regs; // save all registers in process info
         
         // Find next process to execute
         UpdateEvents();
@@ -154,6 +201,7 @@ namespace Scheduler {
     void Start()
     {
         APIC::SetTimerEvent(TimerEvent);
+        IDT::SetISR(ISRNumbers::SchedulerControl, SchedulerControlInterrupt);
 
         // Init idle process
         ProcessInfo* p = new ProcessInfo();
@@ -194,10 +242,10 @@ namespace Scheduler {
 
     void ProcessWait(uint64 ms)
     {
-        IDT::DisableInterrupts();
-        g_RunningProcess->blockEvent = new ProcessEventWait(ms);
-        ProcessYield();
-        IDT::EnableInterrupts();
+        __asm__ __volatile__ (
+            "int $127"
+            : : "a"(ControlFuncWait), "S"(ms)
+        );
     }
 
     void ProcessYield()
@@ -207,29 +255,21 @@ namespace Scheduler {
 
     void ProcessExit(uint64 code)
     {
-        IDT::DisableInterrupts();
-
-        g_RunningProcess->status = ProcessInfo::STATUS_EXITED;
-
-        printf("Process %i exited with code %i\n", g_RunningProcess->pid, code);
-
-        ProcessYield();
+        __asm__ __volatile__ (
+            "int $127"
+            : : "a"(ControlFuncExit), "S"(code)
+        );
     }
 
-    void ProcessFork(IDT::Registers* regs)
+    uint64 ProcessFork()
     {
-        // Copy process memory and paging structures
-        uint64 pml4Entry = MemoryManager::ForkProcessMap();
-
-        uint64 kernelStack = (uint64)MemoryManager::PhysToKernelPtr(MemoryManager::AllocatePages(3)) + KernelStackSize;
-        
-        // Register an exact copy of the current process
-        ProcessInfo* pInfo = RegisterProcessInternal(pml4Entry, regs->userrsp, regs->rip, true, kernelStack);
-        // return child process pid to parent process
-        regs->rax = pInfo->pid;
-        pInfo->registers = *regs;
-        // return zero to child process
-        pInfo->registers.rax = 0;
+        uint64 ret;
+        __asm__ __volatile__ (
+            "int $127"
+            : "=a"(ret)
+            : "a"(ControlFuncFork)
+        );
+        return ret;
     }
 
     uint64 ProcessAddFileDesc(uint64 node, bool read, bool write) {

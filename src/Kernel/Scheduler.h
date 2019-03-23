@@ -25,8 +25,7 @@ namespace Scheduler {
 
     void ProcessWait(uint64 ms);
     void ProcessExit(uint64 code);
-    void ProcessFork(IDT::Registers* regs);
-
+    uint64 ProcessFork();
     void ProcessYield();
 
     uint64 ProcessAddFileDesc(uint64 node, bool read, bool write);

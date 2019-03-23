@@ -43,6 +43,7 @@ namespace SyscallHandler {
         case Syscall::FunctionWait: Scheduler::ProcessWait(regs->rsi); break;
         case Syscall::FunctionGetPID: regs->rax = Scheduler::GetCurrentPID(); break;
         case Syscall::FunctionExit: Scheduler::ProcessExit(regs->rsi); break;
+        case Syscall::FunctionFork: regs->rax = Scheduler::ProcessFork(); break;
         }
     }
 
