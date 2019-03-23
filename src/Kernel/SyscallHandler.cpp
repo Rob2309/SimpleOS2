@@ -2,42 +2,47 @@
 
 #include "MSR.h"
 #include "GDT.h"
+#include "conio.h"
+
+#include "Syscall.h"
 
 namespace SyscallHandler {
-
-    constexpr uint32 RegSTAR = 0x81;
-    constexpr uint32 RegLSTAR = 0x82;
-    constexpr uint32 RegCSTAR = 0x83;
-    constexpr uint32 RegSFMASK = 0x84;
 
     extern "C" void SyscallEntry();
 
     void Init()
     {
-        uint64 starVal = ((GDT::UserCode - 16) << 48) | (GDT::KernelCode << 32);
-        WriteMSR(RegSTAR, starVal);
+        uint64 eferVal = MSR::Read(MSR::RegEFER);
+        eferVal |= 1;
+        MSR::Write(MSR::RegEFER, eferVal);
+
+        uint64 starVal = ((uint64)(GDT::UserCode - 16) << 48) | ((uint64)GDT::KernelCode << 32);
+        MSR::Write(MSR::RegSTAR, starVal);
 
         uint64 lstarVal = (uint64)&SyscallEntry;
-        WriteMSR(RegLSTAR, lstarVal);
+        MSR::Write(MSR::RegLSTAR, lstarVal);
 
         uint64 cstarVal = 0;
-        WriteMSR(RegCSTAR, cstarVal);
+        MSR::Write(MSR::RegCSTAR, cstarVal);
 
-        uint64 sfmaskVal = 0b000000000001000000000;
-        WriteMSR(RegSFMASK, sfmaskVal);
+        uint64 sfmaskVal = 0;//0b000000000001000000000;
+        MSR::Write(MSR::RegSFMASK, sfmaskVal);
     }
 
     struct Regs {
         uint64 rax, rbx, rdx, rdi, rsi, rbp;
-        uint64 r8, r9, r10, r12, r13, r14, r15;
+        uint64 r8, r9, r12, r13, r14, r15;
 
+        uint64 returnrsp;
         uint64 returnflags;
         uint64 returnrip;
     };
 
-    extern "C" void SyscallDispatcher()
+    extern "C" void SyscallDispatcher(Regs* regs)
     {
-
+        switch(regs->rax) {
+        case Syscall::FunctionPrint: printf((const char*)regs->rsi); break;
+        }
     }
 
 }

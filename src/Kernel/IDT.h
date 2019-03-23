@@ -19,7 +19,6 @@ namespace IDT {
     void Init();
 
     void SetISR(uint8 index, ISR isr);
-    void SetIST(uint8 index, uint8 ist);
 
     void EnableInterrupts();
     void DisableInterrupts();

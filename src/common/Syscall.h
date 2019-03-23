@@ -57,8 +57,9 @@ namespace Syscall
     inline void Print(const char* msg)
     {
         __asm__ __volatile__ (
-            "int $0x80"
-            : : "a"(FunctionPrint), "D"(msg)
+            "syscall"
+            : : "a"(FunctionPrint), "S"(msg)
+            : "r10", "r11", "rcx"
         );
     }
 

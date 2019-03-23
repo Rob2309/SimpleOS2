@@ -83,13 +83,10 @@ namespace APIC
         printf("APIC Base: 0x%x\n", g_APICBase);
 
         IDT::SetISR(ISRNumbers::APICError, ISR_Error);
-        IDT::SetIST(ISRNumbers::APICError, 1);
 
         IDT::SetISR(ISRNumbers::APICSpurious, ISR_Spurious);
-        IDT::SetIST(ISRNumbers::APICSpurious, 1);
 
         IDT::SetISR(ISRNumbers::APICTimer, ISR_Timer);
-        IDT::SetIST(ISRNumbers::APICTimer, 1);
 
         *(volatile uint32*)(g_APICBase + RegSpurious) = 0x100 | ISRNumbers::APICSpurious;
         *(volatile uint32*)(g_APICBase + RegError) = 0x10000 | ISRNumbers::APICError;

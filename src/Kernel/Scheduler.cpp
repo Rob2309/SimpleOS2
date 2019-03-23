@@ -9,7 +9,7 @@
 
 #include "terminal.h"
 
-#include "GDT.h"
+#include "MSR.h"
 
 extern uint64 g_TimeCounter;
 
@@ -129,8 +129,7 @@ namespace Scheduler {
         MemoryManager::SwitchProcessMap(g_RunningProcess->pml4Entry);
         // Load registers from saved state
         *regs = g_RunningProcess->registers;
-
-        GDT::SetKernelStack(g_RunningProcess->kernelStack);
+        MSR::Write(MSR::RegGSBase, (uint64)&g_RunningProcess->kernelStack);
     }
 
     void Start()
@@ -155,8 +154,6 @@ namespace Scheduler {
         g_IdleProcess = p;
         g_RunningProcess = g_IdleProcess;
 
-        GDT::SetKernelStack(p->kernelStack);
-
         __asm__ __volatile__ (
             "pushq $0x10;"      // kernel data selector
             "pushq %0;"         // rsp
@@ -166,6 +163,7 @@ namespace Scheduler {
             "movq $0x10, %%rax;"// load kernel data selectors
             "mov %%rax, %%ds;"
             "mov %%rax, %%es;"
+            "mov $0, %%rax;"    // This should not be required, but if left out, qemu always treats gs.base as zero, even when msr GS_BASE is set to non-zero values
             "mov %%rax, %%fs;"
             "mov %%rax, %%gs;"
             "iretq"             // "return" to idle process
@@ -193,7 +191,6 @@ namespace Scheduler {
 
         g_RunningProcess = g_IdleProcess;
         *regs = g_IdleProcess->registers;
-        GDT::SetKernelStack(g_RunningProcess->kernelStack);
 
         printf("Process %i exited with code %i\n", pid, code);
     }

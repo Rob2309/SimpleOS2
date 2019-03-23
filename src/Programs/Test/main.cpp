@@ -6,7 +6,7 @@ extern "C" void main()
 {
     Syscall::Print("Parent starting\n");
 
-    if(Syscall::Fork() == 0) {
+    /*if(Syscall::Fork() == 0) {
         Syscall::Print("Child process\n");
 
         for(int i = 0; i < 5; i++) {
@@ -33,7 +33,7 @@ extern "C" void main()
                 Syscall::Exit(1);
             }
         Syscall::Close(f);
-    }
+    }*/
     
     while(true);
 }

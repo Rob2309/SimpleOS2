@@ -41,7 +41,7 @@
 ISRCommon:
     pushAll
 
-    mov ax, 0x10    ; kernel data selector
+    mov rax, 0x10    ; kernel data selector
     mov ss, ax
 
     mov ax, ds      ; save old ds
@@ -50,8 +50,6 @@ ISRCommon:
     mov rax, 0x10   ; load kernel data selectors
     mov ds, ax
     mov es, ax
-    mov fs, ax
-    mov gs, ax
 
     mov rdi, rsp                    ; rdi is the first function argument, thus has to hold the address of the IDT::Registers struct (see IDT.h)
     call ISRCommonHandler wrt ..plt ; call the C interrupt handler
@@ -59,8 +57,6 @@ ISRCommon:
     pop rax         ; restore old data selectors
     mov ds, ax
     mov es, ax
-    mov fs, ax
-    mov gs, ax
 
     popAll
 

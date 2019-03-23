@@ -118,8 +118,6 @@ namespace GDT
             "mov $0x10, %%rax;"               // kernel data selector
             "mov %%ax, %%ds;"
             "mov %%ax, %%es;"
-            "mov %%ax, %%fs;"
-            "mov %%ax, %%gs;"
             "mov %%ax, %%ss;"
             "pushq $0x08;"                     // kernel code selector
             "leaq 1f(%%rip), %%rax;"        // rax = address of "1" label below
@@ -135,10 +133,5 @@ namespace GDT
             "ltr %%ax"              // tell cpu to use new TSS
             : : "a" (5 * 8)
         );
-    }
-
-    void SetKernelStack(uint64 rsp)
-    {
-        g_TSS.rsp0 = rsp;
     }
 }
