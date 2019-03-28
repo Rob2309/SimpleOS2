@@ -27,7 +27,7 @@ namespace KernelHeap {
 
     void* Allocate(uint64 size)
     {
-        size = (size + sizeof(uint64) + 63) / 64 * 64;
+        size = (size + sizeof(uint64) * 2 + 63) / 64 * 64;
 
         void* g = g_FreeList.FindFree(size);
         if(g == nullptr)
@@ -35,14 +35,14 @@ namespace KernelHeap {
         g_FreeList.MarkUsed(g, size);
 
         *(uint64*)g = size;
-        return (uint64*)g + 1;
+        return (uint64*)g + 2;
     }
     void Free(void* block)
     {
         if(block == nullptr)
             return;
 
-        uint64* b = (uint64*)block - 1;
+        uint64* b = (uint64*)block - 2;
         uint64 size = *b;
 
         g_FreeList.MarkFree(b, size);

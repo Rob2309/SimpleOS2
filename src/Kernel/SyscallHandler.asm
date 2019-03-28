@@ -29,7 +29,11 @@ SyscallEntry:
 
     mov rdi, rsp
 
+    sub rsp, 8  ; align stack on 16-Byte boundary (assuming Kernel stack is 16-Byte aligned)
+
     call SyscallDispatcher wrt ..plt
+
+    add rsp, 8
 
     pop rax
     pop rbx

@@ -11,7 +11,7 @@ void Mutex::SpinLock()
 void Mutex::Unlock()
 {
     __asm__ __volatile__ (
-        "lock xchg %%rax, (%0)"
+        "lock xchgq %%rax, (%0)"
         : : "r"(&m_Value), "a"(1)
     );
 }
