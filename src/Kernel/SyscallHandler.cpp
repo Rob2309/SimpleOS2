@@ -31,6 +31,7 @@ namespace SyscallHandler {
         MSR::Write(MSR::RegSFMASK, sfmaskVal);
     }
 
+    // has to always emit a stack frame to ensure that fork can fix up the rbp register after kernel stack clone
     extern "C" uint64 __attribute__((optimize("-fno-omit-frame-pointer"))) SyscallDispatcher(uint64 func, uint64 arg1, uint64 arg2, uint64 arg3, uint64 arg4)
     {
         switch(func) {
