@@ -4,8 +4,6 @@
 
 namespace Syscall
 {
-    constexpr uint8 InterruptNumber = 0x80;
-
     constexpr uint64 FunctionGetPID = 0;
     constexpr uint64 FunctionPrint = 1;
     constexpr uint64 FunctionWait = 2;
@@ -61,8 +59,8 @@ namespace Syscall
     {
         __asm__ __volatile__ (
             "syscall"
-            : : "a"(FunctionPrint), "S"(msg)
-            : "r10", "r11", "rcx"
+            : : "D"(FunctionPrint), "S"(msg)
+            : "rax", "rcx", "rdx", "r8", "r9", "r10", "r11"
         );
     }
 
@@ -70,8 +68,8 @@ namespace Syscall
     {
         __asm__ __volatile__ (
             "syscall"
-            : : "a"(FunctionWait), "S"(ms)
-            : "r10", "r11", "rcx"
+            : : "D"(FunctionWait), "S"(ms)
+            : "rax", "rcx", "rdx", "r8", "r9", "r10", "r11"
         );
     }
 
@@ -81,8 +79,8 @@ namespace Syscall
         __asm__ __volatile__ (
             "syscall"
             : "=a"(pid) 
-            : "a"(FunctionGetPID)
-            : "r10", "r11", "rcx"
+            : "D"(FunctionGetPID)
+            : "rcx", "rdx", "rsi", "r8", "r9", "r10", "r11"
         );
         return pid;
     }
@@ -91,8 +89,8 @@ namespace Syscall
     {
         __asm__ __volatile__ (
             "syscall"
-            : : "a"(FunctionExit), "S"(code)
-            : "r10", "r11", "rcx"
+            : : "D"(FunctionExit), "S"(code)
+            : "rax", "rcx", "rdx", "r8", "r9", "r10", "r11"
         );
     }
 
@@ -102,8 +100,8 @@ namespace Syscall
         __asm__ __volatile__ (
             "syscall"
             : "=a"(ret) 
-            : "a"(FunctionFork)
-            : "r10", "r11", "rcx"
+            : "D"(FunctionFork)
+            : "rcx", "rdx", "rsi", "r8", "r9", "r10", "r11"
         );
         return ret;
     }

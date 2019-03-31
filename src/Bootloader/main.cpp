@@ -141,7 +141,7 @@ extern "C" EFI_STATUS efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
     header->stackPages = 16;
 
     Console::Print(L"Exiting Boot services and starting kernel...\r\nPress any key to continue...\r\n");
-    EFIUtil::WaitForKey();
+    //EFIUtil::WaitForKey();
 
     // We have to get the most recent memory map before calling ExitBootServices
     EfiMemoryMap memMap = EFIUtil::GetMemoryMap();
