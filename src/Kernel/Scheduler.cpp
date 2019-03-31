@@ -54,10 +54,6 @@ struct ProcessInfo
     IDT::Registers registers;
 };
 
-constexpr uint64 ControlFuncWait = 1;
-constexpr uint64 ControlFuncExit = 2;
-constexpr uint64 ControlFuncFork = 3;
-
 namespace Scheduler {
 
     static ProcessInfo* g_IdleProcess;
@@ -89,6 +85,7 @@ namespace Scheduler {
         pInfo->registers.rax = 0;
         // use cloned kernel stack in child process
         pInfo->registers.userrsp = kernelStack - (g_RunningProcess->kernelStack - regs->userrsp);
+        pInfo->registers.rbp = kernelStack - (g_RunningProcess->kernelStack - regs->rbp);
     }
 
     static void ExitCurrentProcess(IDT::Registers* regs)
@@ -259,17 +256,6 @@ namespace Scheduler {
             "int $127"
             : : "a"(ControlFuncExit), "S"(code)
         );
-    }
-
-    uint64 ProcessFork()
-    {
-        uint64 ret;
-        __asm__ __volatile__ (
-            "int $127"
-            : "=a"(ret)
-            : "a"(ControlFuncFork)
-        );
-        return ret;
     }
 
     uint64 ProcessAddFileDesc(uint64 node, bool read, bool write) {

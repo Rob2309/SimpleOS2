@@ -31,12 +31,7 @@ namespace SyscallHandler {
         MSR::Write(MSR::RegSFMASK, sfmaskVal);
     }
 
-    struct __attribute__((packed)) Regs {
-        uint64 rax, rbx, rdx, rdi, rsi, rbp, r8, r9, r12, r13, r14, r15;
-        uint64 returnrsp, returnrflags, returnrip;
-    };
-
-    extern "C" uint64 SyscallDispatcher(uint64 func, uint64 arg1, uint64 arg2, uint64 arg3, uint64 arg4)
+    extern "C" uint64 __attribute__((optimize("-fno-omit-frame-pointer"))) SyscallDispatcher(uint64 func, uint64 arg1, uint64 arg2, uint64 arg3, uint64 arg4)
     {
         switch(func) {
         case Syscall::FunctionPrint: printf((const char*)arg1); break;

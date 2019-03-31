@@ -15,6 +15,10 @@ struct FileDescriptor
 
 namespace Scheduler {
 
+    constexpr uint64 ControlFuncWait = 1;
+    constexpr uint64 ControlFuncExit = 2;
+    constexpr uint64 ControlFuncFork = 3;
+
     constexpr uint64 KernelStackSize = 3 * 4096;
 
     uint64 RegisterProcess(uint64 pml4Entry, uint64 rsp, uint64 rip, bool user, uint64 kernelStack);
@@ -25,7 +29,16 @@ namespace Scheduler {
 
     void ProcessWait(uint64 ms);
     void ProcessExit(uint64 code);
-    uint64 ProcessFork();
+    inline uint64 __attribute__((always_inline)) ProcessFork()
+    {
+        uint64 ret;
+        __asm__ __volatile__ (
+            "int $127"
+            : "=a"(ret)
+            : "a"(ControlFuncFork)
+        );
+        return ret;
+    }
     void ProcessYield();
 
     uint64 ProcessAddFileDesc(uint64 node, bool read, bool write);
