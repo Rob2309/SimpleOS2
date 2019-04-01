@@ -69,23 +69,20 @@ namespace Scheduler {
 
     static void ForkCurrentProcess(IDT::Registers* regs)
     {
+        IDT::Registers* returnregs = (IDT::Registers*)(regs->rdi);
+        uint64 childKernelStack = regs->rsi;
+
         // Copy process memory and paging structures
         uint64 pml4Entry = MemoryManager::ForkProcessMap();
-
-        // Clone Kernel Stack
-        uint64 kernelStack = (uint64)MemoryManager::PhysToKernelPtr(MemoryManager::AllocatePages(3)) + KernelStackSize;
-        memcpy((void*)(kernelStack - KernelStackSize), (void*)(g_RunningProcess->kernelStack - KernelStackSize), KernelStackSize);
         
         // Register an exact copy of the current process
-        ProcessInfo* pInfo = RegisterProcessInternal(pml4Entry, regs->userrsp, regs->rip, true, kernelStack);
+        ProcessInfo* pInfo = RegisterProcessInternal(pml4Entry, returnregs->userrsp, returnregs->rip, true, childKernelStack);
         // return child process pid to parent process
         regs->rax = pInfo->pid;
-        pInfo->registers = *regs;
+
+        pInfo->registers = *returnregs;
         // return zero to child process
         pInfo->registers.rax = 0;
-        // use cloned kernel stack in child process
-        pInfo->registers.userrsp = kernelStack - (g_RunningProcess->kernelStack - regs->userrsp);
-        pInfo->registers.rbp = kernelStack - (g_RunningProcess->kernelStack - regs->rbp);
     }
 
     static void ExitCurrentProcess(IDT::Registers* regs)
@@ -248,6 +245,17 @@ namespace Scheduler {
     void ProcessYield()
     {
         __asm__ __volatile__ ("int $100");
+    }
+
+    uint64 ProcessFork(IDT::Registers* regs, uint64 kernelStack)
+    {
+        uint64 ret;
+        __asm__ __volatile__ (
+            "int $127"
+            : "=a"(ret)
+            : "a"(ControlFuncFork), "D"(regs), "S"(kernelStack)
+        );
+        return ret;
     }
 
     void ProcessExit(uint64 code)

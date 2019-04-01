@@ -29,16 +29,7 @@ namespace Scheduler {
 
     void ProcessWait(uint64 ms);
     void ProcessExit(uint64 code);
-    inline uint64 __attribute__((always_inline)) ProcessFork() // has to be inlined to work with syscalls (ensures exactly one stack frame is saved)
-    {
-        uint64 ret;
-        __asm__ __volatile__ (
-            "int $127"
-            : "=a"(ret)
-            : "a"(ControlFuncFork)
-        );
-        return ret;
-    }
+    uint64 ProcessFork(IDT::Registers* regs, uint64 kernelStack);
     void ProcessYield();
 
     uint64 ProcessAddFileDesc(uint64 node, bool read, bool write);
