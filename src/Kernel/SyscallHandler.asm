@@ -11,9 +11,10 @@ SyscallEntry:
     ; r8 = arg3
     ; r9 = arg4
     ; R11 = userflags
-
+    
+    swapgs
     mov r10, rsp            ; Save user stack
-    mov rsp, QWORD [gs:0]   ; Load Kernel rsp
+    mov rsp, [gs:0]         ; Load Kernel rsp
 
     push r10
 
@@ -45,5 +46,6 @@ SyscallEntry:
 
     pop r10
     mov rsp, r10
+    swapgs
 
     o64 sysret

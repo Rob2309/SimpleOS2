@@ -45,6 +45,8 @@ struct ProcessInfo
 
     ProcessEvent* blockEvent;
 
+    uint64 kernelgs;
+    uint64 usergs;
     uint64 kernelStack;
 
     uint64 fileDescIDCounter;
@@ -67,7 +69,11 @@ namespace Scheduler {
     static ProcessInfo* FindNextProcess();
     ProcessInfo* RegisterProcessInternal(uint64 pml4Entry, uint64 rsp, uint64 rip, bool user, uint64 kernelStack);
 
-    static void ForkCurrentProcess(IDT::Registers* regs)
+    static struct {
+        uint64 kernelStack;
+    } g_CPUData;
+
+    static void ForkCurrentProcess(IDT::Registers* regs, uint64 usergs)
     {
         IDT::Registers* returnregs = (IDT::Registers*)(regs->rdi);
         uint64 childKernelStack = regs->rsi;
@@ -83,6 +89,7 @@ namespace Scheduler {
         pInfo->registers = *returnregs;
         // return zero to child process
         pInfo->registers.rax = 0;
+        pInfo->usergs = usergs;
     }
 
     static void ExitCurrentProcess(IDT::Registers* regs)
@@ -112,7 +119,7 @@ namespace Scheduler {
         switch(regs->rax) {
         case ControlFuncExit: ExitCurrentProcess(regs); break;
         case ControlFuncWait: WaitCurrentProcess(regs); break;
-        case ControlFuncFork: ForkCurrentProcess(regs); break;
+        case ControlFuncFork: ForkCurrentProcess(regs, MSR::Read(MSR::RegKernelGSBase)); break;
         }
     }
 
@@ -133,6 +140,8 @@ namespace Scheduler {
         p->pid = g_PIDCounter++;
 
         p->kernelStack = kernelStack;
+        p->kernelgs = (uint64)&g_CPUData;
+        p->usergs = 0;
 
         p->registers.userrsp = rsp;
         p->registers.rip = rip;
@@ -178,6 +187,8 @@ namespace Scheduler {
     {
         g_RunningProcess->status = g_RunningProcess->blockEvent != nullptr ? ProcessInfo::STATUS_BLOCKED : ProcessInfo::STATUS_READY;
         g_RunningProcess->registers = *regs; // save all registers in process info
+        g_RunningProcess->kernelgs = MSR::Read(MSR::RegKernelGSBase);
+        g_RunningProcess->usergs = MSR::Read(MSR::RegGSBase);
         
         // Find next process to execute
         UpdateEvents();
@@ -189,7 +200,9 @@ namespace Scheduler {
         MemoryManager::SwitchProcessMap(g_RunningProcess->pml4Entry);
         // Load registers from saved state
         *regs = g_RunningProcess->registers;
-        MSR::Write(MSR::RegGSBase, (uint64)&g_RunningProcess->kernelStack);
+        g_CPUData.kernelStack = g_RunningProcess->kernelStack;
+        MSR::Write(MSR::RegKernelGSBase, g_RunningProcess->kernelgs);
+        MSR::Write(MSR::RegGSBase, g_RunningProcess->usergs);
     }
 
     void Start()
@@ -205,7 +218,7 @@ namespace Scheduler {
         p->status = ProcessInfo::STATUS_READY;
         p->pid = 0;
 
-        p->kernelStack = (uint64)MemoryManager::PhysToKernelPtr(MemoryManager::AllocatePages(3)) + KernelStackSize;
+        p->usergs = (uint64)MemoryManager::PhysToKernelPtr(MemoryManager::AllocatePages(3)) + KernelStackSize;
 
         p->registers.userrsp = 0;
         p->registers.rip = (uint64)&IdleProcess;
@@ -230,7 +243,7 @@ namespace Scheduler {
             "mov %%rax, %%fs;"
             "mov %%rax, %%gs;"
             "iretq"             // "return" to idle process
-            : : "r"(p->kernelStack), "r"(p->registers.rflags), "r"(p->registers.rip)
+            : : "r"(p->kernelgs), "r"(p->registers.rflags), "r"(p->registers.rip)
         );
     }
 
