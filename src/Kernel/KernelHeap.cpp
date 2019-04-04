@@ -5,11 +5,13 @@
 #include "conio.h"
 
 #include "FreeList.h"
+#include "Mutex.h"
 
 namespace KernelHeap {
 
     constexpr uint64 HeapBase = ((uint64)510 << 39) | 0xFFFF000000000000;
 
+    static Mutex g_Lock;
     static FreeList g_FreeList;
     static uint64 g_HeapPos = HeapBase;
 
@@ -29,10 +31,12 @@ namespace KernelHeap {
     {
         size = (size + sizeof(uint64) * 2 + 63) / 64 * 64;
 
+        g_Lock.SpinLock();
         void* g = g_FreeList.FindFree(size);
         if(g == nullptr)
             g = ReserveNew(size);
         g_FreeList.MarkUsed(g, size);
+        g_Lock.Unlock();
 
         *(uint64*)g = size;
         return (uint64*)g + 2;
@@ -45,7 +49,9 @@ namespace KernelHeap {
         uint64* b = (uint64*)block - 2;
         uint64 size = *b;
 
+        g_Lock.SpinLock();
         g_FreeList.MarkFree(b, size);
+        g_Lock.Unlock();
     }
 
 }
