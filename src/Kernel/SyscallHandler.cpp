@@ -10,6 +10,8 @@
 #include "MemoryManager.h"
 #include "memutil.h"
 
+#include "Process.h"
+
 namespace SyscallHandler {
 
     extern "C" void SyscallEntry();
@@ -41,7 +43,8 @@ namespace SyscallHandler {
 
     static uint64 DoFork(State* state)
     {
-        uint64 kernelStack = (uint64)MemoryManager::PhysToKernelPtr(MemoryManager::AllocatePages(3)) + Scheduler::KernelStackSize;
+        uint64 kernelStack = (uint64)MemoryManager::PhysToKernelPtr(MemoryManager::AllocatePages(KernelStackPages)) + KernelStackSize;
+        
         IDT::Registers childRegs;
         memset(&childRegs, 0, sizeof(IDT::Registers));
         childRegs.rip = state->userrip;
@@ -56,16 +59,38 @@ namespace SyscallHandler {
         childRegs.ss = GDT::UserData;
         childRegs.cs = GDT::UserCode;
         childRegs.ds = GDT::UserData;
+        childRegs.rax = 0;
 
-        return Scheduler::ProcessFork(&childRegs, kernelStack);
+        uint64 pml4Entry = MemoryManager::ForkProcessMap();
+
+        return Scheduler::RegisterProcess(pml4Entry, kernelStack, &childRegs);
     }
 
-    // has to always emit a stack frame to ensure that fork can fix up the rbp register after kernel stack clone
+    static void DoWait(State* state, uint64 ms)
+    {
+        IDT::Registers returnregs;
+        memset(&returnregs, 0, sizeof(IDT::Registers));
+        returnregs.rip = state->userrip;
+        returnregs.userrsp = state->userrsp;
+        returnregs.rbp = state->userrbp;
+        returnregs.rflags = state->userflags;
+        returnregs.rbx = state->userrbx;
+        returnregs.r12 = state->userr12;
+        returnregs.r13 = state->userr13;
+        returnregs.r14 = state->userr14;
+        returnregs.r15 = state->userr15;
+        returnregs.ss = GDT::UserData;
+        returnregs.cs = GDT::UserCode;
+        returnregs.ds = GDT::UserData;
+
+        Scheduler::ProcessWait(ms, &returnregs);
+    }
+
     extern "C" uint64 SyscallDispatcher(uint64 func, uint64 arg1, uint64 arg2, uint64 arg3, uint64 arg4, State* state)
     {
         switch(func) {
         case Syscall::FunctionPrint: printf((const char*)arg1); break;
-        case Syscall::FunctionWait: Scheduler::ProcessWait(arg1); break;
+        case Syscall::FunctionWait: DoWait(state, arg1); break;
         case Syscall::FunctionGetPID: return Scheduler::GetCurrentPID(); break;
         case Syscall::FunctionExit: Scheduler::ProcessExit(arg1); break;
         case Syscall::FunctionFork: return DoFork(state); break;

@@ -2,25 +2,10 @@
 
 #include "types.h"
 #include "IDT.h"
-#include "SyscallHandler.h"
-
-struct FileDescriptor
-{
-    uint64 id;
-    uint64 node;
-
-    bool read;
-    bool write;
-};
 
 namespace Scheduler {
 
-    constexpr uint64 ControlFuncWait = 1;
-    constexpr uint64 ControlFuncExit = 2;
-    constexpr uint64 ControlFuncFork = 3;
-
-    constexpr uint64 KernelStackSize = 3 * 4096;
-
+    uint64 RegisterProcess(uint64 pml4Entry, uint64 kernelStack, IDT::Registers* regs);
     uint64 RegisterProcess(uint64 pml4Entry, uint64 rsp, uint64 rip, bool user, uint64 kernelStack);
     
     uint64 CreateKernelThread(uint64 rip);
@@ -29,14 +14,8 @@ namespace Scheduler {
 
     void Tick(IDT::Registers* regs);
 
-    void ProcessWait(uint64 ms);
+    void ProcessWait(uint64 ms, IDT::Registers* returnregs);
     void ProcessExit(uint64 code);
-    uint64 ProcessFork(IDT::Registers* regs, uint64 kernelStack);
-    void ProcessYield();
-
-    uint64 ProcessAddFileDesc(uint64 node, bool read, bool write);
-    void ProcessRemoveFileDesc(uint64 desc);
-    FileDescriptor* ProcessGetFileDesc(uint64 id);
 
     uint64 GetCurrentPID();
 

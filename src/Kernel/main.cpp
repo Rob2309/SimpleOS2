@@ -25,6 +25,8 @@
 
 #include "memutil.h"
 
+#include "Process.h"
+
 static void SetupTestProcess(uint8* loadBase)
 {
     uint64 file = VFS::GetFileNode("/initrd/test.elf");
@@ -61,14 +63,14 @@ static void SetupTestProcess(uint8* loadBase)
     for(int i = 0; i < 10; i++)
         MemoryManager::MapProcessPage(pml4Entry, stack + i * 4096, (void*)(0x1000 + i * 4096));
 
-    uint8* kernelStack = (uint8*)MemoryManager::PhysToKernelPtr(MemoryManager::AllocatePages(3)) + Scheduler::KernelStackSize;
+    uint8* kernelStack = (uint8*)MemoryManager::PhysToKernelPtr(MemoryManager::AllocatePages(KernelStackPages)) + KernelStackSize;
 
     Scheduler::RegisterProcess(pml4Entry, 0x1000 + 10 * 4096, entryPoint, true, (uint64)kernelStack);
 
     delete[] fileBuffer;
 }
 
-static void KernelThread1() {
+/*static void KernelThread1() {
     printf("KernelThread1 starting...\n");
 
     while(true) {
@@ -77,7 +79,7 @@ static void KernelThread1() {
     }
 
     Scheduler::ProcessExit(0);
-}
+}*/
 
 extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     Terminal::Init(info->screenBuffer, info->screenWidth, info->screenHeight, info->screenScanlineWidth, info->screenColorsInverted);
@@ -108,7 +110,7 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     APIC::Init();
 
     SetupTestProcess((uint8*)0x16000);
-    Scheduler::CreateKernelThread((uint64)&KernelThread1);
+    //Scheduler::CreateKernelThread((uint64)&KernelThread1);
     //SetupTestProcess((uint8*)0x16000);
     APIC::StartTimer(10);
     Scheduler::Start();
