@@ -99,10 +99,10 @@ namespace Scheduler {
         return g_CPUData.idleThread;
     }
 
-    static void PrepareNextThread(IDT::Registers* regs) {
+    static void PrepareNextThread(IDT::Registers* regs, uint64 kernelgs, uint64 usergs) {
         g_CPUData.currentThread->registers = *regs; // save all registers in process info
-        g_CPUData.currentThread->kernelGS = MSR::Read(MSR::RegKernelGSBase);
-        g_CPUData.currentThread->userGS = MSR::Read(MSR::RegGSBase);
+        g_CPUData.currentThread->kernelGS = kernelgs;
+        g_CPUData.currentThread->userGS = usergs;
         
         // Find next process to execute
         ThreadInfo* nextProcess = FindNextThread();
@@ -120,7 +120,7 @@ namespace Scheduler {
     void Tick(IDT::Registers* regs)
     {
         UpdateEvents();
-        PrepareNextThread(regs);
+        PrepareNextThread(regs, MSR::Read(MSR::RegKernelGSBase), MSR::Read(MSR::RegGSBase));
     }
 
     void Start()
@@ -165,13 +165,13 @@ namespace Scheduler {
         );
     }
 
-    void ProcessWait(uint64 ms, IDT::Registers* returnregs)
+    void ProcessWait(uint64 ms, IDT::Registers* returnregs, uint64 kernelgs, uint64 usergs)
     {
         IDT::DisableInterrupts();
         g_CPUData.currentThread->blockEvent.type = ThreadBlockEvent::TYPE_WAIT;
         g_CPUData.currentThread->blockEvent.wait.remainingMillis = ms;
         
-        PrepareNextThread(returnregs);
+        PrepareNextThread(returnregs, kernelgs, usergs);
         ReturnToThread(returnregs);
     }
 
@@ -188,7 +188,7 @@ namespace Scheduler {
         g_ThreadList.erase(me);
         
         IDT::Registers regs;
-        PrepareNextThread(&regs);
+        PrepareNextThread(&regs, 0, 0);
         delete me;
         ReturnToThread(&regs);
     }

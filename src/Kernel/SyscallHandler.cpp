@@ -83,7 +83,7 @@ namespace SyscallHandler {
         returnregs.cs = GDT::UserCode;
         returnregs.ds = GDT::UserData;
 
-        Scheduler::ProcessWait(ms, &returnregs);
+        Scheduler::ProcessWait(ms, &returnregs, MSR::Read(MSR::RegGSBase), MSR::Read(MSR::RegKernelGSBase));
     }
 
     extern "C" uint64 SyscallDispatcher(uint64 func, uint64 arg1, uint64 arg2, uint64 arg3, uint64 arg4, State* state)

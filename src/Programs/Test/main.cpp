@@ -13,7 +13,7 @@ extern "C" void main()
             Syscall::Wait(1000);
             Syscall::Print("Child process alive\n");
         }
-
+        
         Syscall::Exit(0);
     //} else {
         /*Syscall::Print("Parent process\n");
