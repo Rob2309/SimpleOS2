@@ -8,6 +8,8 @@
 #define ISRSTUBE(vectno) extern "C" void ISRSTUB_##vectno();
 #include "ISR.inc"
 
+#include "Scheduler.h"
+
 namespace IDT {
 
     struct __attribute__((packed)) IDTDesc
@@ -84,6 +86,8 @@ namespace IDT {
         );
         printf("CR2: 0x%x\n", cr2);
         printf("Error: 0x%X\n", regs->errorCode);
+        printf("RIP: 0x%x\n", regs->rip);
+        printf("PID: %i\n", Scheduler::GetCurrentPID());
         while(true);
     }
 

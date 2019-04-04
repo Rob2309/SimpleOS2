@@ -23,6 +23,8 @@
 
 #include "SyscallHandler.h"
 
+#include "memutil.h"
+
 static void SetupTestProcess(uint8* loadBase)
 {
     uint64 file = VFS::GetFileNode("/initrd/test.elf");
@@ -66,6 +68,17 @@ static void SetupTestProcess(uint8* loadBase)
     delete[] fileBuffer;
 }
 
+static void KernelThread1() {
+    printf("KernelThread1 starting...\n");
+
+    while(true) {
+        Scheduler::ProcessWait(2000);
+        printf("KernelThread1 alive...\n");
+    }
+
+    Scheduler::ProcessExit(0);
+}
+
 extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     Terminal::Init(info->screenBuffer, info->screenWidth, info->screenHeight, info->screenScanlineWidth, info->screenColorsInverted);
     Terminal::Clear();
@@ -95,6 +108,7 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     APIC::Init();
 
     SetupTestProcess((uint8*)0x16000);
+    Scheduler::CreateKernelThread((uint64)&KernelThread1);
     //SetupTestProcess((uint8*)0x16000);
     APIC::StartTimer(10);
     Scheduler::Start();
