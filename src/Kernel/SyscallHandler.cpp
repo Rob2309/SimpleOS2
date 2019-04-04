@@ -44,7 +44,7 @@ namespace SyscallHandler {
     static uint64 DoFork(State* state)
     {
         uint64 kernelStack = (uint64)MemoryManager::PhysToKernelPtr(MemoryManager::AllocatePages(KernelStackPages)) + KernelStackSize;
-        
+
         IDT::Registers childRegs;
         memset(&childRegs, 0, sizeof(IDT::Registers));
         childRegs.rip = state->userrip;

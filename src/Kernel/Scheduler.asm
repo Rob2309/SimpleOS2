@@ -8,7 +8,7 @@ IdleThread:
 
 GLOBAL ReturnToThread
 ReturnToThread:
-        mov rsi, rdi
+        mov rsp, rdi
 
         pop rax
         mov ds, ax

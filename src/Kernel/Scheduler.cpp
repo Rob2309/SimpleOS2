@@ -9,8 +9,6 @@
 #include "MSR.h"
 #include "APIC.h"
 
-static uint64 g_TimeCounter = 0;
-
 namespace Scheduler {
 
     extern "C" void IdleThread();
@@ -31,7 +29,6 @@ namespace Scheduler {
 
     static void TimerEvent(IDT::Registers* regs)
     {
-        g_TimeCounter += 10;
         Scheduler::Tick(regs);
     }
 
@@ -84,6 +81,7 @@ namespace Scheduler {
                 } else {
                     p->blockEvent.wait.remainingMillis -= 10;
                 }
+                break;
             }
         }
     }
