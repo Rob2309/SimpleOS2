@@ -63,7 +63,6 @@ ISRCommon:
     popAll
 
     add rsp, 16     ; pop error code and interrupt number from stack
-    sti
     o64 a64 iret
 
 %macro ISR_NOERROR 1

@@ -22,6 +22,8 @@ namespace Scheduler {
     constexpr uint64 KernelStackSize = 3 * 4096;
 
     uint64 RegisterProcess(uint64 pml4Entry, uint64 rsp, uint64 rip, bool user, uint64 kernelStack);
+    
+    uint64 CreateKernelThread(uint64 rip);
 
     void Start();
 

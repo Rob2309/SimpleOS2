@@ -97,7 +97,9 @@ namespace Scheduler {
         uint64 pid = g_RunningProcess->pid;
         uint64 exitCode = regs->rdi;
 
-        MemoryManager::FreeProcessMap(g_RunningProcess->pml4Entry);
+        if(g_RunningProcess->pml4Entry != 0)
+            MemoryManager::FreeProcessMap(g_RunningProcess->pml4Entry);
+
         g_ProcessList.erase(g_RunningProcess);
         delete g_RunningProcess;
 
@@ -160,11 +162,17 @@ namespace Scheduler {
         return RegisterProcessInternal(pml4Entry, rsp, rip, user, kernelStack)->pid;
     }
 
+    uint64 CreateKernelThread(uint64 rip)
+    {
+        uint64 kernelStack = (uint64)MemoryManager::PhysToKernelPtr(MemoryManager::AllocatePages(3)) + Scheduler::KernelStackSize;
+        return RegisterProcess(0, kernelStack, rip, false, 0);
+    }
+
     static void UpdateEvents() {
         for(auto p : g_ProcessList) {
             if(p->status == ProcessInfo::STATUS_BLOCKED && p->blockEvent->Finished()) {
                 delete p->blockEvent;
-                p->blockEvent == nullptr;
+                p->blockEvent = nullptr;
                 p->status = ProcessInfo::STATUS_READY;
             }
         }
@@ -218,7 +226,9 @@ namespace Scheduler {
         p->status = ProcessInfo::STATUS_READY;
         p->pid = 0;
 
-        p->usergs = (uint64)MemoryManager::PhysToKernelPtr(MemoryManager::AllocatePages(3)) + KernelStackSize;
+        p->usergs = 0;
+        p->kernelgs = 0;
+        p->kernelStack = 0;
 
         p->registers.userrsp = 0;
         p->registers.rip = (uint64)&IdleProcess;
