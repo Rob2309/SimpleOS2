@@ -175,6 +175,21 @@ namespace Scheduler {
         ReturnToThread(returnregs);
     }
 
+    void KernelWait(uint64 ms)
+    {
+        IDT::DisableInterrupts();
+        g_CPUData.currentThread->blockEvent.type = ThreadBlockEvent::TYPE_WAIT;
+        g_CPUData.currentThread->blockEvent.wait.remainingMillis = ms;
+
+        ThreadInfo* nextProcess = FindNextThread();
+        
+        IDT::Registers* myRegs = &g_CPUData.currentThread->registers;
+        g_CPUData.currentThread = nextProcess;
+        g_CPUData.currentThreadKernelStack = g_CPUData.currentThread->kernelStack;
+        myRegs->rflags = 0b000000000001000000000;
+        ContextSwitch(myRegs, &nextProcess->registers);
+    }
+
     void ProcessExit(uint64 code)
     {
         ThreadInfo* me = g_CPUData.currentThread;
