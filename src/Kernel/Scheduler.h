@@ -14,10 +14,9 @@ namespace Scheduler {
 
     void Tick(IDT::Registers* regs);
 
-    void ProcessWait(uint64 ms, IDT::Registers* returnregs, uint64 kernelgs, uint64 usergs);
+    void ProcessWait(uint64 ms, IDT::Registers* returnregs);
     void ProcessExit(uint64 code);
 
-    extern "C" void ContextSwitch(IDT::Registers* from, IDT::Registers* to);
     void KernelWait(uint64 ms);
 
     uint64 GetCurrentPID();

@@ -27,8 +27,7 @@ struct ThreadInfo {
     uint64 pml4Entry;
     uint64 kernelStack;
 
-    uint64 kernelGS;
-    uint64 userGS;
+    uint64 userGSBase;
 
     IDT::Registers registers;
 };

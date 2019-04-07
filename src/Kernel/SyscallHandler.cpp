@@ -31,7 +31,7 @@ namespace SyscallHandler {
         uint64 cstarVal = 0;
         MSR::Write(MSR::RegCSTAR, cstarVal);
 
-        uint64 sfmaskVal = 0;
+        uint64 sfmaskVal = 0b000000000001000000000;     // disable interrupts on syscall
         MSR::Write(MSR::RegSFMASK, sfmaskVal);
     }
 
@@ -83,7 +83,7 @@ namespace SyscallHandler {
         returnregs.cs = GDT::UserCode;
         returnregs.ds = GDT::UserData;
 
-        Scheduler::ProcessWait(ms, &returnregs, MSR::Read(MSR::RegGSBase), MSR::Read(MSR::RegKernelGSBase));
+        Scheduler::ProcessWait(ms, &returnregs);
     }
 
     extern "C" uint64 SyscallDispatcher(uint64 func, uint64 arg1, uint64 arg2, uint64 arg3, uint64 arg4, State* state)

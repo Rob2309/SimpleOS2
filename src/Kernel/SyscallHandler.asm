@@ -13,6 +13,8 @@ SyscallEntry:
     ; R11 = userflags
     
     swapgs
+    sti
+
     mov r10, rsp            ; Save user stack
     mov rsp, [gs:0]         ; Load Kernel rsp
 
@@ -46,6 +48,8 @@ SyscallEntry:
 
     pop r10
     mov rsp, r10
+
+    cli
     swapgs
 
     o64 sysret

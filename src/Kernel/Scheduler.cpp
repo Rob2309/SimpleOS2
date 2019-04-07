@@ -18,7 +18,9 @@ namespace Scheduler {
     static uint64 g_PIDCounter = 1;
 
     static ThreadInfo* FindNextThread();
+
     extern "C" void ReturnToThread(IDT::Registers* regs);
+    extern "C" void SyscallContextSwitch(IDT::Registers* from, IDT::Registers* to);
 
     static struct {
         uint64 currentThreadKernelStack;
@@ -41,8 +43,7 @@ namespace Scheduler {
         p->blockEvent.type = ThreadBlockEvent::TYPE_NONE;
         p->pml4Entry = pml4Entry;
         p->kernelStack = kernelStack;
-        p->kernelGS = (uint64)&g_CPUData;
-        p->userGS = 0;
+        p->userGSBase = 0;
         p->registers = *regs;
         
         IDT::DisableInterrupts();
@@ -99,28 +100,33 @@ namespace Scheduler {
         return g_CPUData.idleThread;
     }
 
-    static void PrepareNextThread(IDT::Registers* regs, uint64 kernelgs, uint64 usergs) {
-        g_CPUData.currentThread->registers = *regs; // save all registers in process info
-        g_CPUData.currentThread->kernelGS = kernelgs;
-        g_CPUData.currentThread->userGS = usergs;
-        
-        // Find next process to execute
-        ThreadInfo* nextProcess = FindNextThread();
+    static void SaveThreadInfo(IDT::Registers* regs)
+    {
+        g_CPUData.currentThread->registers = *regs;     // save all registers in process info
+    }
 
-        g_CPUData.currentThread = nextProcess;
+    static void SetContext(ThreadInfo* thread, IDT::Registers* regs)
+    {
+        g_CPUData.currentThread = thread;
         // Load paging structures for the process
         MemoryManager::SwitchProcessMap(g_CPUData.currentThread->pml4Entry);
         // Load registers from saved state
         *regs = g_CPUData.currentThread->registers;
         g_CPUData.currentThreadKernelStack = g_CPUData.currentThread->kernelStack;
-        MSR::Write(MSR::RegKernelGSBase, g_CPUData.currentThread->kernelGS);
-        MSR::Write(MSR::RegGSBase, g_CPUData.currentThread->userGS);
+        bool inKernelMode = ((g_CPUData.currentThread->registers.cs & 0b11) == 0);
+        MSR::Write(MSR::RegKernelGSBase, inKernelMode ? g_CPUData.currentThread->userGSBase : (uint64)&g_CPUData);
+        MSR::Write(MSR::RegGSBase, inKernelMode ? (uint64)&g_CPUData : g_CPUData.currentThread->userGSBase);
     }
 
     void Tick(IDT::Registers* regs)
     {
+        SaveThreadInfo(regs);
+
+        // Find next process to execute
         UpdateEvents();
-        PrepareNextThread(regs, MSR::Read(MSR::RegKernelGSBase), MSR::Read(MSR::RegGSBase));
+        ThreadInfo* nextProcess = FindNextThread();
+
+        SetContext(nextProcess, regs);
     }
 
     void Start()
@@ -135,8 +141,7 @@ namespace Scheduler {
         p->blockEvent.type = ThreadBlockEvent::TYPE_NONE;
         p->pml4Entry = 0;
         p->kernelStack = 0;
-        p->kernelGS = (uint64)&g_CPUData;
-        p->userGS = 0;
+        p->userGSBase = 0;
 
         p->registers.userrsp = 0;
         p->registers.rip = (uint64)&IdleThread;
@@ -165,13 +170,16 @@ namespace Scheduler {
         );
     }
 
-    void ProcessWait(uint64 ms, IDT::Registers* returnregs, uint64 kernelgs, uint64 usergs)
+    void ProcessWait(uint64 ms, IDT::Registers* returnregs)
     {
         IDT::DisableInterrupts();
         g_CPUData.currentThread->blockEvent.type = ThreadBlockEvent::TYPE_WAIT;
         g_CPUData.currentThread->blockEvent.wait.remainingMillis = ms;
         
-        PrepareNextThread(returnregs, kernelgs, usergs);
+        SaveThreadInfo(returnregs);
+
+        ThreadInfo* next = FindNextThread();
+        SetContext(next, returnregs);
         ReturnToThread(returnregs);
     }
 
@@ -182,12 +190,14 @@ namespace Scheduler {
         g_CPUData.currentThread->blockEvent.wait.remainingMillis = ms;
 
         ThreadInfo* nextProcess = FindNextThread();
+
+        IDT::Registers nextRegs;
+        SetContext(nextProcess, &nextRegs);
         
         IDT::Registers* myRegs = &g_CPUData.currentThread->registers;
-        g_CPUData.currentThread = nextProcess;
-        g_CPUData.currentThreadKernelStack = g_CPUData.currentThread->kernelStack;
-        myRegs->rflags = 0b000000000001000000000;
-        ContextSwitch(myRegs, &nextProcess->registers);
+        SyscallContextSwitch(myRegs, &nextRegs);
+
+        IDT::EnableInterrupts();
     }
 
     void ProcessExit(uint64 code)
@@ -203,8 +213,11 @@ namespace Scheduler {
         g_ThreadList.erase(me);
         
         IDT::Registers regs;
-        PrepareNextThread(&regs, 0, 0);
+        ThreadInfo* next = FindNextThread();
+        SetContext(next, &regs);
+
         delete me;
+        
         ReturnToThread(&regs);
     }
 
