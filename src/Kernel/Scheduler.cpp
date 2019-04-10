@@ -221,6 +221,19 @@ namespace Scheduler {
         ReturnToThread(&regs);
     }
 
+    void ProcessKill()
+    {
+        ThreadInfo* me = g_CPUData.currentThread;
+        MemoryManager::FreeProcessMap(me->pml4Entry);
+        g_ThreadList.erase(me);
+        delete me;
+
+        IDT::Registers regs;
+        ThreadInfo* next = FindNextThread();
+        SetContext(next, &regs);
+        ReturnToThread(&regs);
+    }
+
     uint64 GetCurrentPID()
     {
         return g_CPUData.currentThread->pid;

@@ -19,6 +19,8 @@ namespace Scheduler {
 
     void KernelWait(uint64 ms);
 
+    void ProcessKill();
+
     uint64 GetCurrentPID();
 
 }
