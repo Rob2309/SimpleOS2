@@ -188,13 +188,13 @@ namespace Scheduler {
         IDT::DisableInterrupts();
         g_CPUData.currentThread->blockEvent.type = ThreadBlockEvent::TYPE_WAIT;
         g_CPUData.currentThread->blockEvent.wait.remainingMillis = ms;
+        IDT::Registers* myRegs = &g_CPUData.currentThread->registers;
 
         ThreadInfo* nextProcess = FindNextThread();
 
         IDT::Registers nextRegs;
         SetContext(nextProcess, &nextRegs);
         
-        IDT::Registers* myRegs = &g_CPUData.currentThread->registers;
         SyscallContextSwitch(myRegs, &nextRegs);
 
         IDT::EnableInterrupts();
