@@ -100,6 +100,8 @@ namespace std {
         Iterator begin() { return Iterator(m_Head); }
         Iterator end() { return Iterator(nullptr); }
 
+        bool empty() const { return m_Head == nullptr; }
+
     private:
         Node* m_Head;
         Node* m_Tail;

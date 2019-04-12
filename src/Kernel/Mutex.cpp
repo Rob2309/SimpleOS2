@@ -1,7 +1,7 @@
 #include "Mutex.h"
 
 Mutex::Mutex()
-    : m_Value(1)
+    : m_Value(0)
 { }
 
 void Mutex::SpinLock()
@@ -12,7 +12,7 @@ void Mutex::Unlock()
 {
     __asm__ __volatile__ (
         "lock xchgq %%rax, (%0)"
-        : : "r"(&m_Value), "a"(1)
+        : : "r"(&m_Value), "a"(0)
     );
 }
 
@@ -22,7 +22,7 @@ bool Mutex::TryLock()
     __asm__ __volatile__ (
         "lock xchgq %%rax, (%1)"
         : "=a"(res)
-        : "r"(&m_Value), "a"(0)
+        : "r"(&m_Value), "a"(1)
     );
-    return res == 1;
+    return res == 0;
 }

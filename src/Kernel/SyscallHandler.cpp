@@ -43,8 +43,6 @@ namespace SyscallHandler {
 
     static uint64 DoFork(State* state)
     {
-        uint64 kernelStack = (uint64)MemoryManager::PhysToKernelPtr(MemoryManager::AllocatePages(KernelStackPages)) + KernelStackSize;
-
         IDT::Registers childRegs;
         memset(&childRegs, 0, sizeof(IDT::Registers));
         childRegs.rip = state->userrip;
@@ -63,7 +61,7 @@ namespace SyscallHandler {
 
         uint64 pml4Entry = MemoryManager::ForkProcessMap();
 
-        return Scheduler::RegisterProcess(pml4Entry, kernelStack, &childRegs);
+        return Scheduler::CreateProcess(pml4Entry, &childRegs);
     }
 
     static void DoWait(State* state, uint64 ms)
@@ -83,7 +81,7 @@ namespace SyscallHandler {
         returnregs.cs = GDT::UserCode;
         returnregs.ds = GDT::UserData;
 
-        Scheduler::ProcessWait(ms, &returnregs);
+        Scheduler::ThreadWait(ms, &returnregs);
     }
 
     extern "C" uint64 SyscallDispatcher(uint64 func, uint64 arg1, uint64 arg2, uint64 arg3, uint64 arg4, State* state)
@@ -91,8 +89,8 @@ namespace SyscallHandler {
         switch(func) {
         case Syscall::FunctionPrint: printf((const char*)arg1); break;
         case Syscall::FunctionWait: DoWait(state, arg1); break;
-        case Syscall::FunctionGetPID: return Scheduler::GetCurrentPID(); break;
-        case Syscall::FunctionExit: Scheduler::ProcessExit(arg1); break;
+        case Syscall::FunctionGetPID: return Scheduler::ThreadGetPID(); break;
+        case Syscall::FunctionExit: Scheduler::ThreadExit(arg1); break;
         case Syscall::FunctionFork: return DoFork(state); break;
         }
 

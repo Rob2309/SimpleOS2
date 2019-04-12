@@ -63,9 +63,15 @@ static void SetupTestProcess(uint8* loadBase)
     for(int i = 0; i < 10; i++)
         MemoryManager::MapProcessPage(pml4Entry, stack + i * 4096, (void*)(0x1000 + i * 4096));
 
-    uint8* kernelStack = (uint8*)MemoryManager::PhysToKernelPtr(MemoryManager::AllocatePages(KernelStackPages)) + KernelStackSize;
-
-    Scheduler::RegisterProcess(pml4Entry, 0x1000 + 10 * 4096, entryPoint, true, (uint64)kernelStack);
+    IDT::Registers regs;
+    memset(&regs, 0, sizeof(IDT::Registers));
+    regs.cs = GDT::UserCode;
+    regs.ds = GDT::UserData;
+    regs.ss = GDT::UserData;
+    regs.rflags = 0b000000000001000000000;
+    regs.rip = entryPoint;
+    regs.userrsp = 0x1000 + 10 * 4096;
+    Scheduler::CreateProcess(pml4Entry, &regs);
 
     delete[] fileBuffer;
 }
@@ -74,11 +80,11 @@ static void KernelThread1() {
     printf("KernelThread1 starting...\n");
 
     while(true) {
-        Scheduler::KernelWait(2000);
+        Scheduler::KernelThreadWait(2000);
         printf("KernelThread1 alive...\n");
     }
 
-    Scheduler::ProcessExit(0);
+    Scheduler::ThreadExit(0);
 }
 
 extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {

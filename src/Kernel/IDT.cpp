@@ -56,21 +56,21 @@ namespace IDT {
     {
         switch (regs->intNumber)
         {
-        case ISRNumbers::ExceptionDiv0: printf("%i: Divide by zero error\n", Scheduler::GetCurrentPID()); Scheduler::ProcessKill(); break;
+        case ISRNumbers::ExceptionDiv0: printf("%i.%i: Divide by zero error\n", Scheduler::ThreadGetPID(), Scheduler::ThreadGetTID()); break;
         case ISRNumbers::ExceptionDebug: printf("Debug trap\n"); break;
         case ISRNumbers::ExceptionNMI: printf("Non maskable interrupt\n"); break;
         case ISRNumbers::ExceptionBreakpoint: printf("Breakpoint\n"); break;
         case ISRNumbers::ExceptionOverflow: printf("Overflow\n"); break;
         case ISRNumbers::ExceptionBoundRangeExceeded: printf("Bound Range exceeded\n"); break;
-        case ISRNumbers::ExceptionInvalidOpcode: printf("%i: Invalid opcode\n", Scheduler::GetCurrentPID()); Scheduler::ProcessKill(); break;
+        case ISRNumbers::ExceptionInvalidOpcode: printf("%i.%i: Invalid opcode\n", Scheduler::ThreadGetPID(), Scheduler::ThreadGetTID()); break;
         case ISRNumbers::ExceptionDeviceUnavailable: printf("Device unavailable\n"); break;
         case ISRNumbers::ExceptionDoubleFault: printf("Double fault\n"); break;
         case ISRNumbers::ExceptionCoprocesssorSegmentOverrun: printf("Coprocessor error\n"); break;
         case ISRNumbers::ExceptionInvalidTSS: printf("Invalid TSS\n"); break;
         case ISRNumbers::ExceptionSegmentNotPresent: printf("Segment not present\n"); break;
         case ISRNumbers::ExceptionStackSegmentNotPresent: printf("Stack segment not present\n"); break;
-        case ISRNumbers::ExceptionGPFault: printf("%i: General protection fault\n", Scheduler::GetCurrentPID());  Scheduler::ProcessKill(); break;
-        case ISRNumbers::ExceptionPageFault: printf("%i: Page fault\n", Scheduler::GetCurrentPID());  Scheduler::ProcessKill(); break;
+        case ISRNumbers::ExceptionGPFault: printf("%i.%i: General protection fault\n", Scheduler::ThreadGetPID(), Scheduler::ThreadGetTID()); break;
+        case ISRNumbers::ExceptionPageFault: printf("%i.%i: Page fault\n", Scheduler::ThreadGetPID(), Scheduler::ThreadGetTID()); break;
         case ISRNumbers::ExceptionFPException: printf("Floating point exception\n"); break;
         case ISRNumbers::ExceptionAlignmentCheck: printf("Alignment check\n"); break;
         case ISRNumbers::ExceptionMachineCheck: printf("Machine check\n"); break;
@@ -87,7 +87,7 @@ namespace IDT {
         printf("CR2: 0x%x\n", cr2);
         printf("Error: 0x%X\n", regs->errorCode);
         printf("RIP: 0x%x\n", regs->rip);
-        printf("PID: %i\n", Scheduler::GetCurrentPID());
+        printf("PID: %i.%i\n", Scheduler::ThreadGetPID(), Scheduler::ThreadGetTID());
         while(true);
     }
 
