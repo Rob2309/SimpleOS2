@@ -10,15 +10,15 @@ This is a very simple x86_64 OS I am creating for learning purposes.
 - APIC Timer support
 - User mode processes
 - Multitasking & Basic process management
-- Basic System calls via interrupt 0x80
-- Process forking and exiting
+- Multithreading
+- Fork
+- Basic System calls via syscall instruction
 - Linux-like virtual file system (with basic mounting support)
 
 ## Planned features:
 - HDD support (SATA)
 - full APIC support
 - Multi Core support
-- Thread management
 - USB support (maybe)
 
 ## Specs
