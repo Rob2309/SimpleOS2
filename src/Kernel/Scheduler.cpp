@@ -8,12 +8,13 @@
 #include "MemoryManager.h"
 #include "MSR.h"
 #include "APIC.h"
+#include "conio.h"
 
 namespace Scheduler {
 
     extern "C" void IdleThread();
 
-    static std::list<ThreadInfo*> g_ThreadList;
+    static std::nlist<ThreadInfo> g_ThreadList;
 
     static uint64 g_PIDCounter = 1;
     static uint64 g_TIDCounter = 1;
@@ -94,13 +95,13 @@ namespace Scheduler {
     }
 
     static void UpdateEvents() {
-        for(auto p : g_ThreadList) {
-            switch(p->blockEvent.type) {
+        for(auto& p : g_ThreadList) {
+            switch(p.blockEvent.type) {
             case ThreadBlockEvent::TYPE_WAIT:
-                if(p->blockEvent.wait.remainingMillis <= 10) {
-                    p->blockEvent.type = ThreadBlockEvent::TYPE_NONE;
+                if(p.blockEvent.wait.remainingMillis <= 10) {
+                    p.blockEvent.type = ThreadBlockEvent::TYPE_NONE;
                 } else {
-                    p->blockEvent.wait.remainingMillis -= 10;
+                    p.blockEvent.wait.remainingMillis -= 10;
                 }
                 break;
             }
@@ -109,11 +110,11 @@ namespace Scheduler {
 
     static ThreadInfo* FindNextThread() {
         for(auto a = g_ThreadList.begin(); a != g_ThreadList.end(); ++a) {
-            ThreadInfo* p = *a;
-            if(p->blockEvent.type == ThreadBlockEvent::TYPE_NONE) {
+            ThreadInfo& p = *a;
+            if(p.blockEvent.type == ThreadBlockEvent::TYPE_NONE) {
                 g_ThreadList.erase(a);
-                g_ThreadList.push_back(p);
-                return p;
+                g_ThreadList.push_back(&p);
+                return &p;
             }
         }
 
@@ -218,6 +219,8 @@ namespace Scheduler {
 
     void ThreadExit(uint64 code)
     {
+        IDT::DisableInterrupts();
+
         ThreadInfo* me = g_CPUData.currentThread;
 
         if(me->process != nullptr) {
@@ -234,7 +237,6 @@ namespace Scheduler {
         //void* kStack = (void*)(me->kernelStack - KernelStackSize);
         //MemoryManager::FreePages(kStack, KernelStackPages);
 
-        IDT::DisableInterrupts();
         g_ThreadList.erase(me);
         
         IDT::Registers regs;
@@ -258,7 +260,7 @@ namespace Scheduler {
             return 0;    
     }
 
-    uint64 ThreadCreateThread(IDT::Registers* regs)
+    uint64 ThreadCreateThread(uint64 entry, uint64 stack)
     {
         ThreadInfo* tInfo = new ThreadInfo();
         memset(tInfo, 0, sizeof(ThreadInfo));
@@ -266,7 +268,12 @@ namespace Scheduler {
         tInfo->process = g_CPUData.currentThread->process;
         tInfo->kernelStack = (uint64)MemoryManager::PhysToKernelPtr(MemoryManager::AllocatePages(KernelStackPages)) + KernelStackSize;
         tInfo->userGSBase = 0;
-        tInfo->registers = *regs;
+        tInfo->registers.cs = GDT::UserCode;
+        tInfo->registers.ds = GDT::UserData;
+        tInfo->registers.ss = GDT::UserData;
+        tInfo->registers.rflags = 0b000000000001000000000;
+        tInfo->registers.rip = entry;
+        tInfo->registers.userrsp = stack;
 
         if(tInfo->process != nullptr) {
             tInfo->process->lock.SpinLock();
@@ -276,7 +283,10 @@ namespace Scheduler {
 
         IDT::DisableInterrupts();
         g_ThreadList.push_back(tInfo);
+        uint64 res = tInfo->tid;
         IDT::EnableInterrupts();
+
+        return res;
     }
 
 }

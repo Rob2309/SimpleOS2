@@ -24,6 +24,9 @@ struct ThreadBlockEvent {
 struct ProcessInfo;
 
 struct ThreadInfo {
+    ThreadInfo* next;
+    ThreadInfo* prev;
+
     uint64 tid;
     ProcessInfo* process;
 
@@ -36,11 +39,14 @@ struct ThreadInfo {
 };
 
 struct ProcessInfo {
+    ProcessInfo* next;
+    ProcessInfo* prev;
+
     uint64 pid;
 
     Mutex lock;
 
     uint64 pml4Entry;
 
-    std::list<ThreadInfo*> threads;
+    std::nlist<ThreadInfo> threads;
 };

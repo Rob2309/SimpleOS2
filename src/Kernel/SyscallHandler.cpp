@@ -92,6 +92,7 @@ namespace SyscallHandler {
         case Syscall::FunctionGetPID: return Scheduler::ThreadGetPID(); break;
         case Syscall::FunctionExit: Scheduler::ThreadExit(arg1); break;
         case Syscall::FunctionFork: return DoFork(state); break;
+        case Syscall::FunctionCreateThread: Scheduler::ThreadCreateThread(arg1, arg2); break;
         }
 
         return 0;

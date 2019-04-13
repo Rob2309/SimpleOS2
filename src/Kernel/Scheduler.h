@@ -14,7 +14,7 @@ namespace Scheduler {
 
     void ThreadWait(uint64 ms, IDT::Registers* returnregs);
     void ThreadExit(uint64 code);
-    uint64 ThreadCreateThread(IDT::Registers* regs);
+    uint64 ThreadCreateThread(uint64 entry, uint64 stack);
     uint64 ThreadGetTID();
     uint64 ThreadGetPID();
 
