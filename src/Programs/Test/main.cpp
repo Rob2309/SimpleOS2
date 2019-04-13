@@ -1,31 +1,27 @@
 #include "Syscall.h"
+#include "Mutex.h"
 
 static char g_Thread1Stack[4096];
 
-unsigned int g_Test = 17;
+Mutex g_Lock;
 
 void Thread1()
 {
-    Syscall::Wait(500);
-    g_Test = 23;
+    Syscall::WaitForLock(&g_Lock);
+    Syscall::Print("Sub Thread has lock\n");
+    g_Lock.Unlock();
+
     Syscall::Exit(0);
 }
 
 extern "C" void main()
 {
-    Syscall::Print("Creating thread...\n");
     Syscall::CreateThread((uint64)&Thread1, (uint64)&g_Thread1Stack + 4096);
-    Syscall::Print("Thread created...\n");
 
-    while(true)
-    {
-        if(g_Test != 17) {
-            Syscall::Print("g_Test changed!\n");
-        } else {
-            Syscall::Print("g_Test still old\n");
-        }
-        Syscall::Wait(250);
-    }
+    g_Lock.SpinLock();
+    Syscall::Print("Main Thread has lock\n");
+    Syscall::Wait(500);
+    g_Lock.Unlock();
     
     Syscall::Exit(0);
 }

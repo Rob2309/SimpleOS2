@@ -24,4 +24,6 @@ namespace MemoryManager {
     void MapProcessPage(uint64 pml4Entry, void* phys, void* virt, bool invalidate = true);
     void UnmapProcessPage(uint64 pml4Entry, void* virt, bool invalidate = true);
 
+    void* UserToKernelPtr(const void* ptr);
+
 }

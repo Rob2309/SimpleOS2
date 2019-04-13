@@ -12,12 +12,16 @@ struct ThreadBlockEvent {
     enum {
         TYPE_NONE,
         TYPE_WAIT,
+        TYPE_MUTEX,
     } type;
 
     union {
         struct {
             uint64 remainingMillis;
         } wait;
+        struct {
+            Mutex* lock;
+        } mutex;
     };
 };
 

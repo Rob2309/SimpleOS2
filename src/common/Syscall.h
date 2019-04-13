@@ -10,6 +10,7 @@ namespace Syscall
     constexpr uint64 FunctionExit = 3;
     constexpr uint64 FunctionFork = 4;
     constexpr uint64 FunctionCreateThread = 5;
+    constexpr uint64 FunctionWaitForLock = 6;
 
     constexpr uint64 FunctionOpen = 10;
     constexpr uint64 FunctionClose = 11;
@@ -70,6 +71,15 @@ namespace Syscall
         __asm__ __volatile__ (
             "syscall"
             : : "D"(FunctionWait), "S"(ms)
+            : "rax", "rcx", "rdx", "r8", "r9", "r10", "r11"
+        );
+    }
+
+    inline void WaitForLock(void* lock)
+    {
+        __asm__ __volatile__ (
+            "syscall"
+            : : "D"(FunctionWaitForLock), "S"(lock)
             : "rax", "rcx", "rdx", "r8", "r9", "r10", "r11"
         );
     }

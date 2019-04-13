@@ -104,6 +104,10 @@ namespace Scheduler {
                     p.blockEvent.wait.remainingMillis -= 10;
                 }
                 break;
+            case ThreadBlockEvent::TYPE_MUTEX:
+                if(p.blockEvent.mutex.lock->TryLock()) {
+                    p.blockEvent.type = ThreadBlockEvent::TYPE_NONE;
+                }
             }
         }
     }
@@ -193,6 +197,18 @@ namespace Scheduler {
         g_CPUData.currentThread->blockEvent.type = ThreadBlockEvent::TYPE_WAIT;
         g_CPUData.currentThread->blockEvent.wait.remainingMillis = ms;
         
+        SaveThreadInfo(returnregs);
+
+        ThreadInfo* next = FindNextThread();
+        SetContext(next, returnregs);
+        ReturnToThread(returnregs);
+    }
+    void ThreadWaitForLock(void* lock, IDT::Registers* returnregs)
+    {
+        IDT::DisableInterrupts();
+        g_CPUData.currentThread->blockEvent.type = ThreadBlockEvent::TYPE_MUTEX;
+        g_CPUData.currentThread->blockEvent.mutex.lock = (Mutex*)MemoryManager::UserToKernelPtr(lock);
+
         SaveThreadInfo(returnregs);
 
         ThreadInfo* next = FindNextThread();

@@ -331,4 +331,37 @@ namespace MemoryManager {
         }
     }
 
+    void* UserToKernelPtr(const void* virt)
+    {
+        uint64 pml4Entry = g_PML4[0];
+
+        uint64 pml3Index = GET_PML3_INDEX((uint64)virt);
+        uint64 pml2Index = GET_PML2_INDEX((uint64)virt);
+        uint64 pml1Index = GET_PML1_INDEX((uint64)virt);
+        uint64 offs = (uint64)virt & 0xFFF;
+
+        volatile uint64* pml3 = (uint64*)PhysToKernelPtr((void*)PML_GET_ADDR(pml4Entry));
+
+        uint64 pml3Entry = pml3[pml3Index];
+        volatile uint64* pml2;
+        if(!PML_GET_P(pml3Entry)) {
+            return nullptr;
+        } else {
+            pml2 = (uint64*)PhysToKernelPtr((void*)PML_GET_ADDR(pml3Entry));
+        }
+
+        uint64 pml2Entry = pml2[pml2Index];
+        volatile uint64* pml1;
+        if(!PML_GET_P(pml2Entry)) {
+            return nullptr;
+        } else {
+            pml1 = (uint64*)PhysToKernelPtr((void*)PML_GET_ADDR(pml2Entry));
+        }
+
+        uint64 pml1Entry = pml1[pml1Index];
+        
+        uint64 phys = PML_GET_ADDR(pml1Entry) | offs;
+        return PhysToKernelPtr((void*)phys);
+    }
+
 }
