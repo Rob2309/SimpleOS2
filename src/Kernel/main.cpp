@@ -80,7 +80,7 @@ static void KernelThread1() {
     printf("Example KernelThread starting...\n");
 
     while(true) {
-        Scheduler::KernelThreadWait(2000);
+        Scheduler::ThreadWait(2000);
         printf("Example KernelThread alive...\n");
     }
 

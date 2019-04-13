@@ -22,7 +22,7 @@ namespace Scheduler {
     static ThreadInfo* FindNextThread();
 
     extern "C" void ReturnToThread(IDT::Registers* regs);
-    extern "C" void SyscallContextSwitch(IDT::Registers* from, IDT::Registers* to);
+    extern "C" void ContextSwitchAndReturn(IDT::Registers* from, IDT::Registers* to);
 
     static struct {
         uint64 currentThreadKernelStack;
@@ -191,45 +191,34 @@ namespace Scheduler {
         );
     }
 
-    void ThreadWait(uint64 ms, IDT::Registers* returnregs)
+    static void Yield()
     {
-        IDT::DisableInterrupts();
-        g_CPUData.currentThread->blockEvent.type = ThreadBlockEvent::TYPE_WAIT;
-        g_CPUData.currentThread->blockEvent.wait.remainingMillis = ms;
-        
-        SaveThreadInfo(returnregs);
-
-        ThreadInfo* next = FindNextThread();
-        SetContext(next, returnregs);
-        ReturnToThread(returnregs);
-    }
-    void ThreadWaitForLock(void* lock, IDT::Registers* returnregs)
-    {
-        IDT::DisableInterrupts();
-        g_CPUData.currentThread->blockEvent.type = ThreadBlockEvent::TYPE_MUTEX;
-        g_CPUData.currentThread->blockEvent.mutex.lock = (Mutex*)MemoryManager::UserToKernelPtr(lock);
-
-        SaveThreadInfo(returnregs);
-
-        ThreadInfo* next = FindNextThread();
-        SetContext(next, returnregs);
-        ReturnToThread(returnregs);
-    }
-
-    void KernelThreadWait(uint64 ms)
-    {
-        IDT::DisableInterrupts();
-        g_CPUData.currentThread->blockEvent.type = ThreadBlockEvent::TYPE_WAIT;
-        g_CPUData.currentThread->blockEvent.wait.remainingMillis = ms;
         IDT::Registers* myRegs = &g_CPUData.currentThread->registers;
 
         ThreadInfo* nextThread = FindNextThread();
 
         IDT::Registers nextRegs;
         SetContext(nextThread, &nextRegs);
-        
-        SyscallContextSwitch(myRegs, &nextRegs);
+        ContextSwitchAndReturn(myRegs, &nextRegs);
+    }
 
+    void ThreadWait(uint64 ms)
+    {
+        IDT::DisableInterrupts();
+
+        g_CPUData.currentThread->blockEvent.type = ThreadBlockEvent::TYPE_WAIT;
+        g_CPUData.currentThread->blockEvent.wait.remainingMillis = ms;
+
+        Yield();
+        IDT::EnableInterrupts();
+    }
+    void ThreadWaitForLock(void* lock)
+    {
+        IDT::DisableInterrupts();
+        g_CPUData.currentThread->blockEvent.type = ThreadBlockEvent::TYPE_MUTEX;
+        g_CPUData.currentThread->blockEvent.mutex.lock = (Mutex*)MemoryManager::UserToKernelPtr(lock);
+        
+        Yield();
         IDT::EnableInterrupts();
     }
 
