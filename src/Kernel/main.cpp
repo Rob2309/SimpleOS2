@@ -77,11 +77,11 @@ static void SetupTestProcess(uint8* loadBase)
 }
 
 static void KernelThread1() {
-    printf("KernelThread1 starting...\n");
+    printf("Example KernelThread starting...\n");
 
     while(true) {
         Scheduler::KernelThreadWait(2000);
-        printf("KernelThread1 alive...\n");
+        printf("Example KernelThread alive...\n");
     }
 
     Scheduler::ThreadExit(0);
