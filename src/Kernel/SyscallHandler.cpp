@@ -3,6 +3,7 @@
 #include "MSR.h"
 #include "GDT.h"
 #include "conio.h"
+#include "terminal.h"
 
 #include "Syscall.h"
 #include "IDT.h"
@@ -107,10 +108,21 @@ namespace SyscallHandler {
     extern "C" uint64 SyscallDispatcher(uint64 func, uint64 arg1, uint64 arg2, uint64 arg3, uint64 arg4, State* state)
     {
         switch(func) {
-        case Syscall::FunctionPrint: printf((const char*)arg1); break;
+        case Syscall::FunctionPrint:
+            SetTerminalColor(200, 50, 50);
+            printf("[%i.%i] ", Scheduler::ThreadGetPID(), Scheduler::ThreadGetTID());
+            SetTerminalColor(255, 255, 255);
+            printf((const char*)arg1); 
+            break;
         case Syscall::FunctionWait: DoWait(state, arg1); break;
         case Syscall::FunctionGetPID: return Scheduler::ThreadGetPID(); break;
-        case Syscall::FunctionExit: Scheduler::ThreadExit(arg1); break;
+        case Syscall::FunctionExit: 
+            SetTerminalColor(200, 50, 50);
+            printf("[%i.%i] ", Scheduler::ThreadGetPID(), Scheduler::ThreadGetTID());
+            SetTerminalColor(255, 255, 255);
+            printf("Exiting with code %i\n", arg1);
+            Scheduler::ThreadExit(arg1); 
+            break;
         case Syscall::FunctionFork: return DoFork(state); break;
         case Syscall::FunctionCreateThread: Scheduler::ThreadCreateThread(arg1, arg2); break;
         case Syscall::FunctionWaitForLock: DoWaitForLock(state, (void*)arg1); break;

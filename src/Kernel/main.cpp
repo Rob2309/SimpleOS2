@@ -91,7 +91,6 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     Terminal::Init(info->screenBuffer, info->screenWidth, info->screenHeight, info->screenScanlineWidth, info->screenColorsInverted);
     Terminal::Clear();
 
-    SetTerminalColor(180, 180, 180);
     printf("Kernel at 0x%x\n", info->kernelImage.buffer);
     
     MemoryManager::Init(info);
