@@ -7,21 +7,27 @@
 
 RamdiskFS::RamdiskFS(const char* dev)
 {
-    m_DevFile = VFS::OpenFile(dev);
-    if(m_DevFile == 0)
-        printf("Ramdisk device file not found\n");
+    m_DevFile = VFS::GetFileNode(dev);
+    if(m_DevFile == 0) {
+        printf("Ramdisk device file not found (%s)\n", dev);
+        return;
+    }
+    if(!VFS::AddFileUserRead(m_DevFile)) {
+        printf("Failed to open ramdisk device file (%s)\n", dev);
+        return;
+    }
 
-    VFS::ReadFile(m_DevFile, &m_Header, sizeof(RamdiskHeader));
+    VFS::ReadFile(m_DevFile, 0, &m_Header, sizeof(RamdiskHeader));
 }
 RamdiskFS::~RamdiskFS()
 {
-    VFS::CloseFile(m_DevFile);
+    VFS::RemoveFileUserRead(m_DevFile);
 }
 
 void RamdiskFS::Mount(VFS::Node& mountPoint)
 {
     RamdiskFile* files = new RamdiskFile[m_Header.numFiles];
-    VFS::ReadFile(m_DevFile, files, m_Header.numFiles * sizeof(RamdiskFile));
+    VFS::ReadFile(m_DevFile, sizeof(RamdiskHeader), files, m_Header.numFiles * sizeof(RamdiskFile));
 
     mountPoint.directory.numFiles = m_Header.numFiles;
     mountPoint.directory.files = new uint64[m_Header.numFiles];
@@ -50,8 +56,7 @@ uint64 RamdiskFS::ReadFile(const VFS::Node& node, uint64 pos, void* buffer, uint
     if(bufferSize < rem)
         rem = bufferSize;
 
-    VFS::SeekFile(m_DevFile, node.fsNode + pos);
-    VFS::ReadFile(m_DevFile, buffer, rem);
+    VFS::ReadFile(m_DevFile, node.fsNode + pos, buffer, rem);
     return rem;
 }
 void RamdiskFS::WriteFile(VFS::Node& node, uint64 pos, void* buffer, uint64 bufferSize)

@@ -21,40 +21,28 @@
 #include "RamDevice.h"
 #include "ZeroDevice.h"
 
-uint64 g_TimeCounter = 0;
+#include "SyscallHandler.h"
 
-void TimerEvent(IDT::Registers* regs)
-{
-    g_TimeCounter += 10;
-    Scheduler::Tick(regs, false);
-}
+#include "memutil.h"
 
-void SyscallInterrupt(IDT::Registers* regs)
-{
-    switch(regs->rax) {
-    case Syscall::FunctionGetPID: regs->rax = Scheduler::GetCurrentPID(); break;
-    case Syscall::FunctionPrint: printf("%i: %s", Scheduler::GetCurrentPID(), (char*)(regs->rdi)); break;
-    case Syscall::FunctionWait: Scheduler::ProcessWait(regs->rdi); Scheduler::Tick(regs, true); break;
-    case Syscall::FunctionExit: Scheduler::ProcessExit(regs->rdi, regs); Scheduler::Tick(regs, false); break;
-    case Syscall::FunctionFork: Scheduler::ProcessFork(regs); break;
-
-    case Syscall::FunctionOpen: regs->rax = VFS::OpenFile((const char*)regs->rdi); break;
-    case Syscall::FunctionClose: VFS::CloseFile(regs->rdi); break;
-    case Syscall::FunctionRead: regs->rax = VFS::ReadFile(regs->rdi, (void*)regs->rsi, regs->r10); break;
-    case Syscall::FunctionWrite: VFS::WriteFile(regs->rdi, (void*)regs->rsi, regs->r10); break;
-    }
-}
+#include "Process.h"
 
 static void SetupTestProcess(uint8* loadBase)
 {
-    uint64 file = VFS::OpenFile("/initrd/test.elf");
-    if(file == 0)
+    uint64 file = VFS::GetFileNode("/initrd/test.elf");
+    if(file == 0) {
+        printf("Failed to find test.elf\n");
+        return;
+    }
+    if(!VFS::AddFileUserRead(file)) {
         printf("Failed to open test.elf\n");
+        return;
+    }
 
     uint64 fileSize = VFS::GetFileSize(file);
     uint8* fileBuffer = new uint8[fileSize];
-    VFS::ReadFile(file, fileBuffer, fileSize);
-    VFS::CloseFile(file);
+    VFS::ReadFile(file, 0, fileBuffer, fileSize);
+    VFS::RemoveFileUserRead(file);
 
     uint64 pages = (GetELFSize(fileBuffer) + 4095) / 4096;
     uint64 pml4Entry = MemoryManager::CreateProcessMap();
@@ -75,9 +63,28 @@ static void SetupTestProcess(uint8* loadBase)
     for(int i = 0; i < 10; i++)
         MemoryManager::MapProcessPage(pml4Entry, stack + i * 4096, (void*)(0x1000 + i * 4096));
 
-    Scheduler::RegisterProcess(pml4Entry, 0x1000 + 10 * 4096, entryPoint, true);
+    IDT::Registers regs;
+    memset(&regs, 0, sizeof(IDT::Registers));
+    regs.cs = GDT::UserCode;
+    regs.ds = GDT::UserData;
+    regs.ss = GDT::UserData;
+    regs.rflags = 0b000000000001000000000;
+    regs.rip = entryPoint;
+    regs.userrsp = 0x1000 + 10 * 4096;
+    Scheduler::CreateProcess(pml4Entry, &regs);
 
     delete[] fileBuffer;
+}
+
+static void KernelThread1() {
+    printf("Example KernelThread starting...\n");
+
+    while(true) {
+        Scheduler::KernelThreadWait(2000);
+        printf("Example KernelThread alive...\n");
+    }
+
+    Scheduler::ThreadExit(0);
 }
 
 extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
@@ -89,9 +96,9 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     
     MemoryManager::Init(info);
 
-    GDT::Init();
+    GDT::Init(info);
     IDT::Init();
-    IDT::SetISR(Syscall::InterruptNumber, SyscallInterrupt);
+    SyscallHandler::Init();
 
     VFS::Init();
 
@@ -107,11 +114,10 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     new ZeroDevice("zero");
 
     APIC::Init();
-    APIC::SetTimerEvent(TimerEvent);
 
     SetupTestProcess((uint8*)0x16000);
+    Scheduler::CreateKernelThread((uint64)&KernelThread1);
     //SetupTestProcess((uint8*)0x16000);
-    IDT::EnableInterrupts();
     APIC::StartTimer(10);
     Scheduler::Start();
 

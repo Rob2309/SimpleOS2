@@ -7,13 +7,11 @@ namespace MemoryManager {
 
     void Init(KernelHeader* header);
 
-    void Dump();
-
     void* AllocatePages(uint64 numPages = 1);
     void FreePages(void* pages, uint64 numPages = 1);
 
-    void* PhysToKernelPtr(void* ptr);
-    void* KernelToPhysPtr(void* ptr);
+    void* PhysToKernelPtr(const void* ptr);
+    void* KernelToPhysPtr(const void* ptr);
 
     uint64 CreateProcessMap();
     uint64 ForkProcessMap();
@@ -25,5 +23,7 @@ namespace MemoryManager {
     void UnmapKernelPage(void* virt);
     void MapProcessPage(uint64 pml4Entry, void* phys, void* virt, bool invalidate = true);
     void UnmapProcessPage(uint64 pml4Entry, void* virt, bool invalidate = true);
+
+    void* UserToKernelPtr(const void* ptr);
 
 }

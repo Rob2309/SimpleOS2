@@ -14,8 +14,8 @@ public:
 private:
     struct Node
     {
-        Node* next;
-        Node* prev;
+        volatile Node* next;
+        volatile Node* prev;
         Segment seg;
     };
 
@@ -23,10 +23,10 @@ public:
     class Iterator
     {
     private:
-        Node* m_Node;
+        volatile Node* m_Node;
 
     public:
-        Iterator(Node* n) : m_Node(n) { }
+        Iterator(volatile Node* n) : m_Node(n) { }
 
         bool operator== (const Iterator& r) const { return m_Node == r.m_Node; }
         bool operator!= (const Iterator& r) const { return !(*this == r); }
@@ -34,8 +34,8 @@ public:
         Iterator& operator++() { m_Node = m_Node->next; return *this; }
         Iterator& operator--() { m_Node = m_Node->prev; return *this; }
 
-        Segment& operator*() { return m_Node->seg; }
-        Segment* operator->() { return &m_Node->seg; }
+        volatile Segment& operator*() { return m_Node->seg; }
+        volatile Segment* operator->() { return &m_Node->seg; }
     };
 
 public:
@@ -46,7 +46,7 @@ public:
             uint64 size = list->numPages * 4096;
             void* next = list->next;
             
-            Node* n = (Node*)list;
+            volatile Node* n = (volatile Node*)list;
             n->seg.base = (uint64)list;
             n->seg.size = size;
 
@@ -60,10 +60,10 @@ public:
 
     void* FindFree(uint64 size) 
     {
-        Node* tmp = m_Head;
+        volatile Node* tmp = m_Head;
         while(tmp != nullptr) {
             if(tmp->seg.size >= size)
-                return tmp;
+                return (void*)tmp;
             tmp = tmp->next;
         }
         return nullptr;
@@ -71,7 +71,7 @@ public:
 
     void MarkFree(void* base, uint64 size)
     {
-        Node* node = (Node*)base;
+        volatile Node* node = (volatile Node*)base;
         node->seg.base = (uint64)base;
         node->seg.size = size;
 
@@ -81,9 +81,9 @@ public:
 
     void MarkUsed(void* base, uint64 size) 
     {
-        Node* node = (Node*)base;
+        volatile Node* node = (volatile Node*)base;
         if(node->seg.size > size) {
-            Node* newNode = (Node*)((char*)node + size);
+            volatile Node* newNode = (volatile Node*)((char*)node + size);
             newNode->next = node->next;
             newNode->prev = node->prev;
             newNode->seg.base = node->seg.base + size;
@@ -103,7 +103,7 @@ public:
     }
 
 private:
-    void RemoveNode(Node* node) 
+    void RemoveNode(volatile Node* node) 
     {
         if(node->prev != nullptr)
             node->prev->next = node->next;
@@ -115,7 +115,7 @@ private:
         else
             m_Tail = node->prev;
     }
-    void AddNode(Node* node)
+    void AddNode(volatile Node* node)
     {
         if(m_Head == nullptr) {
             m_Head = m_Tail = node;
@@ -128,12 +128,12 @@ private:
             m_Tail = node;
         }
     }
-    void JoinAdjacent(Node* cmp) 
+    void JoinAdjacent(volatile Node* cmp) 
     {
         uint64 start = cmp->seg.base;
         uint64 end = start + cmp->seg.size;
 
-        Node* tmp = m_Head;
+        volatile Node* tmp = m_Head;
         while(tmp != nullptr) {
             if(tmp->seg.base == end) {
                 cmp->seg.size += tmp->seg.size;
@@ -151,6 +151,6 @@ private:
     }
 
 private:
-    Node* m_Head;
-    Node* m_Tail;
+    volatile Node* m_Head;
+    volatile Node* m_Tail;
 };

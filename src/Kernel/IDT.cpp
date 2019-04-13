@@ -2,15 +2,15 @@
 
 #include "types.h"
 #include "conio.h"
-
+#include "GDT.h"
 
 #define ISRSTUB(vectno) extern "C" void ISRSTUB_##vectno();
 #define ISRSTUBE(vectno) extern "C" void ISRSTUB_##vectno();
 #include "ISR.inc"
 
+#include "Scheduler.h"
+
 namespace IDT {
-    
-    uint8 g_InterruptStack[4096];
 
     struct __attribute__((packed)) IDTDesc
     {
@@ -22,15 +22,15 @@ namespace IDT {
     {
         uint16 offset1;
         uint16 csSelector;
-        uint8 zero;
+        uint8 ist;
         uint8 typeAttrib;
         uint16 offset2;
         uint32 offset3;
         uint32 reserved;
     };
 
-    static IDTEntry g_IDT[256] = { 0 };
-    static IDTDesc g_IDTDesc;
+    static volatile IDTEntry g_IDT[256] = { 0 };
+    static volatile IDTDesc g_IDTDesc;
 
     static ISR g_Handlers[256] = { 0 };
 
@@ -46,7 +46,7 @@ namespace IDT {
     {
         g_IDT[number].offset1 = (uint64)vector & 0xFFFF;
         g_IDT[number].csSelector = selector;
-        g_IDT[number].zero = 0;
+        g_IDT[number].ist = 1;
         g_IDT[number].typeAttrib = flags;
         g_IDT[number].offset2 = ((uint64)vector >> 16) & 0xFFFF;
         g_IDT[number].offset3 = ((uint64)vector >> 32) & 0xFFFFFFFF;
@@ -56,21 +56,21 @@ namespace IDT {
     {
         switch (regs->intNumber)
         {
-        case ISRNumbers::ExceptionDiv0: printf("Divide by zero error\n"); break;
+        case ISRNumbers::ExceptionDiv0: printf("%i.%i: Divide by zero error\n", Scheduler::ThreadGetPID(), Scheduler::ThreadGetTID()); break;
         case ISRNumbers::ExceptionDebug: printf("Debug trap\n"); break;
         case ISRNumbers::ExceptionNMI: printf("Non maskable interrupt\n"); break;
         case ISRNumbers::ExceptionBreakpoint: printf("Breakpoint\n"); break;
         case ISRNumbers::ExceptionOverflow: printf("Overflow\n"); break;
         case ISRNumbers::ExceptionBoundRangeExceeded: printf("Bound Range exceeded\n"); break;
-        case ISRNumbers::ExceptionInvalidOpcode: printf("Invalid opcode\n"); break;
+        case ISRNumbers::ExceptionInvalidOpcode: printf("%i.%i: Invalid opcode\n", Scheduler::ThreadGetPID(), Scheduler::ThreadGetTID()); break;
         case ISRNumbers::ExceptionDeviceUnavailable: printf("Device unavailable\n"); break;
         case ISRNumbers::ExceptionDoubleFault: printf("Double fault\n"); break;
         case ISRNumbers::ExceptionCoprocesssorSegmentOverrun: printf("Coprocessor error\n"); break;
         case ISRNumbers::ExceptionInvalidTSS: printf("Invalid TSS\n"); break;
         case ISRNumbers::ExceptionSegmentNotPresent: printf("Segment not present\n"); break;
         case ISRNumbers::ExceptionStackSegmentNotPresent: printf("Stack segment not present\n"); break;
-        case ISRNumbers::ExceptionGPFault: printf("General protection fault\n"); break;
-        case ISRNumbers::ExceptionPageFault: printf("Page fault\n"); break;
+        case ISRNumbers::ExceptionGPFault: printf("%i.%i: General protection fault\n", Scheduler::ThreadGetPID(), Scheduler::ThreadGetTID()); break;
+        case ISRNumbers::ExceptionPageFault: printf("%i.%i: Page fault\n", Scheduler::ThreadGetPID(), Scheduler::ThreadGetTID()); break;
         case ISRNumbers::ExceptionFPException: printf("Floating point exception\n"); break;
         case ISRNumbers::ExceptionAlignmentCheck: printf("Alignment check\n"); break;
         case ISRNumbers::ExceptionMachineCheck: printf("Machine check\n"); break;
@@ -86,6 +86,8 @@ namespace IDT {
         );
         printf("CR2: 0x%x\n", cr2);
         printf("Error: 0x%X\n", regs->errorCode);
+        printf("RIP: 0x%x\n", regs->rip);
+        printf("PID: %i.%i\n", Scheduler::ThreadGetPID(), Scheduler::ThreadGetTID());
         while(true);
     }
 
@@ -96,8 +98,8 @@ namespace IDT {
 
         #undef ISRSTUB
         #undef ISRSTUBE
-        #define ISRSTUB(vectno) SetIDTEntry(vectno, ISRSTUB_##vectno, 0x08, 0xEE);
-        #define ISRSTUBE(vectno) SetIDTEntry(vectno, ISRSTUB_##vectno, 0x08, 0xEE);
+        #define ISRSTUB(vectno) SetIDTEntry(vectno, ISRSTUB_##vectno, GDT::KernelCode, 0x8E);
+        #define ISRSTUBE(vectno) SetIDTEntry(vectno, ISRSTUB_##vectno, GDT::KernelCode, 0x8E);
         #include "ISR.inc"
 
         SetISR(0, ISR_Exceptions);

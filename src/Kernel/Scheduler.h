@@ -5,15 +5,20 @@
 
 namespace Scheduler {
 
-    uint64 RegisterProcess(uint64 pml4Entry, uint64 rsp, uint64 rip, bool user);
+    uint64 CreateProcess(uint64 pml4Entry, IDT::Registers* regs);
+    uint64 CreateKernelThread(uint64 rip);
 
     void Start();
-    void Tick(IDT::Registers* regs, bool processBlocked);
 
-    void ProcessWait(uint64 ms);
-    void ProcessExit(uint64 code, IDT::Registers* regs);
-    void ProcessFork(IDT::Registers* regs);
+    void Tick(IDT::Registers* regs);
 
-    uint64 GetCurrentPID();
+    void ThreadWait(uint64 ms, IDT::Registers* returnregs);
+    void ThreadWaitForLock(void* lock, IDT::Registers* returnregs);
+    void ThreadExit(uint64 code);
+    uint64 ThreadCreateThread(uint64 entry, uint64 stack);
+    uint64 ThreadGetTID();
+    uint64 ThreadGetPID();
+
+    void KernelThreadWait(uint64 ms);
 
 }

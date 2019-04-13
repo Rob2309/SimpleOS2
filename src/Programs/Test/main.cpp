@@ -1,35 +1,32 @@
 #include "Syscall.h"
+#include "Mutex.h"
 
-static char g_Buffer[4096];
+static char g_Thread1Stack[4096];
+
+Mutex g_Lock;
+
+void Thread1()
+{
+    g_Lock.SpinLock();
+
+    for(int i = 0; i < 5; i++) {
+        Syscall::Print("Sub thread has lock\n");
+        Syscall::Wait(500);
+    }
+
+    g_Lock.Unlock();
+    Syscall::Exit(0);
+}
 
 extern "C" void main()
 {
-    Syscall::Print("Parent starting\n");
-
-    if(Syscall::Fork() == 0) {
-        Syscall::Print("Child process\n");
-
-        for(int i = 0; i < 5; i++) {
-            Syscall::Wait(1000);
-            Syscall::Print("Child process alive\n");
-        }
-
-        Syscall::Exit(0);
-    } else {
-        Syscall::Print("Parent process\n");
-
-        uint64 f = Syscall::Open("/dev/zero");
-        if(f == 0)
-            Syscall::Print("Failed to open /dev/zero\n");
-        
-        for(int i = 0; i < sizeof(g_Buffer); i++)
-            g_Buffer[i] = i;
-        Syscall::Read(f, g_Buffer, sizeof(g_Buffer));
-        for(int i = 0; i < sizeof(g_Buffer); i++)
-            if(g_Buffer[i] != 0)
-                Syscall::Print("/dev/zero not working\n");
-        Syscall::Close(f);
-    }
+    Syscall::CreateThread((uint64)&Thread1, (uint64)&g_Thread1Stack + 4096);
     
-    while(true);
+    Syscall::Wait(500);
+
+    Syscall::Print("Main thread waiting for lock\n");
+    Syscall::WaitForLock(&g_Lock);
+    Syscall::Print("Main thread has lock\n");
+
+    Syscall::Exit(0);
 }
