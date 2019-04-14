@@ -43,12 +43,7 @@ struct ThreadInfo {
 };
 
 struct ProcessInfo {
-    ProcessInfo* next;
-    ProcessInfo* prev;
-
     uint64 pid;
-
-    Mutex lock;
 
     uint64 pml4Entry;
 
