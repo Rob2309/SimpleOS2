@@ -85,7 +85,7 @@ namespace SyscallHandler {
             break;
         case Syscall::FunctionFork: return DoFork(state); break;
         case Syscall::FunctionCreateThread: Scheduler::ThreadCreateThread(arg1, arg2); break;
-        case Syscall::FunctionWaitForLock: Scheduler::ThreadWaitForLock((void*)arg1); break;
+        case Syscall::FunctionWaitForLock: Scheduler::ThreadWaitForLock(MemoryManager::UserToKernelPtr((void*)arg1)); break;
         }
 
         return 0;

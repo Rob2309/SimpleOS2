@@ -227,7 +227,7 @@ namespace Scheduler {
     {
         IDT::DisableInterrupts();
         g_CPUData.currentThread->blockEvent.type = ThreadBlockEvent::TYPE_MUTEX;
-        g_CPUData.currentThread->blockEvent.mutex.lock = (Mutex*)MemoryManager::UserToKernelPtr(lock);
+        g_CPUData.currentThread->blockEvent.mutex.lock = (Mutex*)lock;
         
         Yield();
         IDT::EnableInterrupts();
