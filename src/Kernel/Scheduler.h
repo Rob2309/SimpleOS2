@@ -12,13 +12,11 @@ namespace Scheduler {
 
     void Tick(IDT::Registers* regs);
 
-    void ThreadWait(uint64 ms, IDT::Registers* returnregs);
-    void ThreadWaitForLock(void* lock, IDT::Registers* returnregs);
+    void ThreadWait(uint64 ms);
+    void ThreadWaitForLock(void* lock);
     void ThreadExit(uint64 code);
     uint64 ThreadCreateThread(uint64 entry, uint64 stack);
     uint64 ThreadGetTID();
     uint64 ThreadGetPID();
-
-    void KernelThreadWait(uint64 ms);
 
 }

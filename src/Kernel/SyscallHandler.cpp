@@ -65,46 +65,6 @@ namespace SyscallHandler {
         return Scheduler::CreateProcess(pml4Entry, &childRegs);
     }
 
-    static void DoWait(State* state, uint64 ms)
-    {
-        IDT::Registers returnregs;
-        memset(&returnregs, 0, sizeof(IDT::Registers));
-        returnregs.rip = state->userrip;
-        returnregs.userrsp = state->userrsp;
-        returnregs.rbp = state->userrbp;
-        returnregs.rflags = state->userflags;
-        returnregs.rbx = state->userrbx;
-        returnregs.r12 = state->userr12;
-        returnregs.r13 = state->userr13;
-        returnregs.r14 = state->userr14;
-        returnregs.r15 = state->userr15;
-        returnregs.ss = GDT::UserData;
-        returnregs.cs = GDT::UserCode;
-        returnregs.ds = GDT::UserData;
-
-        Scheduler::ThreadWait(ms, &returnregs);
-    }
-
-    static void DoWaitForLock(State* state, void* lock)
-    {
-        IDT::Registers returnregs;
-        memset(&returnregs, 0, sizeof(IDT::Registers));
-        returnregs.rip = state->userrip;
-        returnregs.userrsp = state->userrsp;
-        returnregs.rbp = state->userrbp;
-        returnregs.rflags = state->userflags;
-        returnregs.rbx = state->userrbx;
-        returnregs.r12 = state->userr12;
-        returnregs.r13 = state->userr13;
-        returnregs.r14 = state->userr14;
-        returnregs.r15 = state->userr15;
-        returnregs.ss = GDT::UserData;
-        returnregs.cs = GDT::UserCode;
-        returnregs.ds = GDT::UserData;
-
-        Scheduler::ThreadWaitForLock(lock, &returnregs);
-    }
-
     extern "C" uint64 SyscallDispatcher(uint64 func, uint64 arg1, uint64 arg2, uint64 arg3, uint64 arg4, State* state)
     {
         switch(func) {
@@ -114,7 +74,7 @@ namespace SyscallHandler {
             SetTerminalColor(255, 255, 255);
             printf((const char*)arg1); 
             break;
-        case Syscall::FunctionWait: DoWait(state, arg1); break;
+        case Syscall::FunctionWait: Scheduler::ThreadWait(arg1); break;
         case Syscall::FunctionGetPID: return Scheduler::ThreadGetPID(); break;
         case Syscall::FunctionExit: 
             SetTerminalColor(200, 50, 50);
@@ -125,7 +85,7 @@ namespace SyscallHandler {
             break;
         case Syscall::FunctionFork: return DoFork(state); break;
         case Syscall::FunctionCreateThread: Scheduler::ThreadCreateThread(arg1, arg2); break;
-        case Syscall::FunctionWaitForLock: DoWaitForLock(state, (void*)arg1); break;
+        case Syscall::FunctionWaitForLock: Scheduler::ThreadWaitForLock(MemoryManager::UserToKernelPtr((void*)arg1)); break;
         }
 
         return 0;

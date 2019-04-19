@@ -33,8 +33,8 @@ ReturnToThread:
         add rsp, 16
         o64 a64 iret
 
-GLOBAL SyscallContextSwitch
-SyscallContextSwitch:
+GLOBAL ContextSwitchAndReturn
+ContextSwitchAndReturn:
         mov rax, [rsp]          ; save return address
         mov [rdi + 18 * 8], rax
 

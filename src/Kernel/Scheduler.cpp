@@ -15,6 +15,7 @@ namespace Scheduler {
     extern "C" void IdleThread();
 
     static std::nlist<ThreadInfo> g_ThreadList;
+    static std::nlist<ThreadInfo> g_DeadThreads;
 
     static uint64 g_PIDCounter = 1;
     static uint64 g_TIDCounter = 1;
@@ -22,7 +23,7 @@ namespace Scheduler {
     static ThreadInfo* FindNextThread();
 
     extern "C" void ReturnToThread(IDT::Registers* regs);
-    extern "C" void SyscallContextSwitch(IDT::Registers* from, IDT::Registers* to);
+    extern "C" void ContextSwitchAndReturn(IDT::Registers* from, IDT::Registers* to);
 
     static struct {
         uint64 currentThreadKernelStack;
@@ -36,6 +37,23 @@ namespace Scheduler {
         Scheduler::Tick(regs);
     }
 
+    static ThreadInfo* CreateThreadStruct()
+    {
+        IDT::DisableInterrupts();
+        if(!g_DeadThreads.empty()) {
+            ThreadInfo* res = &g_DeadThreads.back();
+            g_DeadThreads.pop_back();
+            IDT::EnableInterrupts();
+            return res;
+        }
+
+        IDT::EnableInterrupts();
+        
+        ThreadInfo* n = new ThreadInfo();
+        n->kernelStack = (uint64)MemoryManager::PhysToKernelPtr(MemoryManager::AllocatePages(KernelStackPages)) + KernelStackSize;
+        return n;
+    }
+
     uint64 CreateProcess(uint64 pml4Entry, IDT::Registers* regs)
     {
         ProcessInfo* pInfo = new ProcessInfo();
@@ -43,13 +61,10 @@ namespace Scheduler {
         pInfo->pid = g_PIDCounter++;
         pInfo->pml4Entry = pml4Entry;
 
-        ThreadInfo* tInfo = new ThreadInfo();
-        memset(tInfo, 0, sizeof(ThreadInfo));
-
+        ThreadInfo* tInfo = CreateThreadStruct();
         tInfo->tid = g_TIDCounter++;
         tInfo->process = pInfo;
         tInfo->blockEvent.type = ThreadBlockEvent::TYPE_NONE;
-        tInfo->kernelStack = (uint64)MemoryManager::PhysToKernelPtr(MemoryManager::AllocatePages(KernelStackPages)) + KernelStackSize;
         tInfo->userGSBase = 0;
         tInfo->registers = *regs;
 
@@ -65,7 +80,7 @@ namespace Scheduler {
 
     uint64 CreateKernelThread(uint64 rip)
     {
-        uint64 kernelStack = (uint64)MemoryManager::PhysToKernelPtr(MemoryManager::AllocatePages(KernelStackPages)) + KernelStackSize;
+        ThreadInfo* tInfo = CreateThreadStruct();
 
         IDT::Registers regs;
         memset(&regs, 0, sizeof(IDT::Registers));
@@ -74,15 +89,11 @@ namespace Scheduler {
         regs.ss = GDT::KernelData;
         regs.rflags = 0b000000000001000000000;
         regs.rip = rip;
-        regs.userrsp = kernelStack;
-
-        ThreadInfo* tInfo = new ThreadInfo();
-        memset(tInfo, 0, sizeof(ThreadInfo));
+        regs.userrsp = tInfo->kernelStack;
 
         tInfo->tid = g_TIDCounter++;
         tInfo->process = nullptr;
         tInfo->blockEvent.type = ThreadBlockEvent::TYPE_NONE;
-        tInfo->kernelStack = kernelStack;
         tInfo->userGSBase = 0;
         tInfo->registers = regs;
         
@@ -191,75 +202,60 @@ namespace Scheduler {
         );
     }
 
-    void ThreadWait(uint64 ms, IDT::Registers* returnregs)
+    static void Yield()
     {
-        IDT::DisableInterrupts();
-        g_CPUData.currentThread->blockEvent.type = ThreadBlockEvent::TYPE_WAIT;
-        g_CPUData.currentThread->blockEvent.wait.remainingMillis = ms;
-        
-        SaveThreadInfo(returnregs);
-
-        ThreadInfo* next = FindNextThread();
-        SetContext(next, returnregs);
-        ReturnToThread(returnregs);
-    }
-    void ThreadWaitForLock(void* lock, IDT::Registers* returnregs)
-    {
-        IDT::DisableInterrupts();
-        g_CPUData.currentThread->blockEvent.type = ThreadBlockEvent::TYPE_MUTEX;
-        g_CPUData.currentThread->blockEvent.mutex.lock = (Mutex*)MemoryManager::UserToKernelPtr(lock);
-
-        SaveThreadInfo(returnregs);
-
-        ThreadInfo* next = FindNextThread();
-        SetContext(next, returnregs);
-        ReturnToThread(returnregs);
-    }
-
-    void KernelThreadWait(uint64 ms)
-    {
-        IDT::DisableInterrupts();
-        g_CPUData.currentThread->blockEvent.type = ThreadBlockEvent::TYPE_WAIT;
-        g_CPUData.currentThread->blockEvent.wait.remainingMillis = ms;
         IDT::Registers* myRegs = &g_CPUData.currentThread->registers;
 
         ThreadInfo* nextThread = FindNextThread();
 
         IDT::Registers nextRegs;
         SetContext(nextThread, &nextRegs);
-        
-        SyscallContextSwitch(myRegs, &nextRegs);
+        ContextSwitchAndReturn(myRegs, &nextRegs);
+    }
 
+    void ThreadWait(uint64 ms)
+    {
+        IDT::DisableInterrupts();
+
+        g_CPUData.currentThread->blockEvent.type = ThreadBlockEvent::TYPE_WAIT;
+        g_CPUData.currentThread->blockEvent.wait.remainingMillis = ms;
+
+        Yield();
+        IDT::EnableInterrupts();
+    }
+    void ThreadWaitForLock(void* lock)
+    {
+        IDT::DisableInterrupts();
+        g_CPUData.currentThread->blockEvent.type = ThreadBlockEvent::TYPE_MUTEX;
+        g_CPUData.currentThread->blockEvent.mutex.lock = (Mutex*)lock;
+        
+        Yield();
         IDT::EnableInterrupts();
     }
 
     void ThreadExit(uint64 code)
     {
-        IDT::DisableInterrupts();
+        ThreadInfo* tInfo = g_CPUData.currentThread;
+        ProcessInfo* pInfo = tInfo->process;
 
-        ThreadInfo* me = g_CPUData.currentThread;
-
-        if(me->process != nullptr) {
-            me->process->lock.SpinLock();
-            me->process->threads.erase(me);
-            if(me->process->threads.empty()) {
-                MemoryManager::FreeProcessMap(me->process->pml4Entry);
-                delete me->process;
-            } else {
-                me->process->lock.Unlock();
+        if(pInfo != nullptr) {
+            IDT::DisableInterrupts();
+            pInfo->threads.erase(tInfo);
+            if(pInfo->threads.empty()) {
+                tInfo->process = nullptr;
+                IDT::EnableInterrupts();
+                MemoryManager::FreeProcessMap(pInfo->pml4Entry);
+                delete pInfo;
             }
         }
 
-        //void* kStack = (void*)(me->kernelStack - KernelStackSize);
-        //MemoryManager::FreePages(kStack, KernelStackPages);
-
-        g_ThreadList.erase(me);
+        IDT::DisableInterrupts();
+        g_ThreadList.erase(tInfo);
+        g_DeadThreads.push_back(tInfo);
         
         IDT::Registers regs;
         ThreadInfo* next = FindNextThread();
         SetContext(next, &regs);
-
-        delete me;
         
         ReturnToThread(&regs);
     }
@@ -278,11 +274,9 @@ namespace Scheduler {
 
     uint64 ThreadCreateThread(uint64 entry, uint64 stack)
     {
-        ThreadInfo* tInfo = new ThreadInfo();
-        memset(tInfo, 0, sizeof(ThreadInfo));
+        ThreadInfo* tInfo = CreateThreadStruct();
         tInfo->tid = g_TIDCounter++;
         tInfo->process = g_CPUData.currentThread->process;
-        tInfo->kernelStack = (uint64)MemoryManager::PhysToKernelPtr(MemoryManager::AllocatePages(KernelStackPages)) + KernelStackSize;
         tInfo->userGSBase = 0;
         tInfo->registers.cs = GDT::UserCode;
         tInfo->registers.ds = GDT::UserData;
@@ -292,9 +286,8 @@ namespace Scheduler {
         tInfo->registers.userrsp = stack;
 
         if(tInfo->process != nullptr) {
-            tInfo->process->lock.SpinLock();
+            IDT::DisableInterrupts();
             tInfo->process->threads.push_back(tInfo);
-            tInfo->process->lock.Unlock();
         }
 
         IDT::DisableInterrupts();
