@@ -7,6 +7,8 @@
 
 constexpr uint64 KernelStackPages = 3;
 constexpr uint64 KernelStackSize = KernelStackPages * 4096;
+constexpr uint64 UserStackPages = 4;
+constexpr uint64 UserStackSize = UserStackPages * 4096;
 
 struct ThreadBlockEvent {
     enum {

@@ -27,6 +27,8 @@
 
 #include "Process.h"
 
+#include "CPU.h"
+
 static void SetupTestProcess(uint8* loadBase)
 {
     uint64 file = VFS::OpenNode("/initrd/test.elf");
@@ -55,8 +57,8 @@ static void SetupTestProcess(uint8* loadBase)
         return;
     }
 
-    uint8* stack = (uint8*)MemoryManager::AllocatePages(10);
-    for(int i = 0; i < 10; i++)
+    uint8* stack = (uint8*)MemoryManager::AllocatePages(UserStackPages);
+    for(int i = 0; i < UserStackPages; i++)
         MemoryManager::MapProcessPage(pml4Entry, stack + i * 4096, (void*)(0x1000 + i * 4096));
 
     IDT::Registers regs;
@@ -64,9 +66,9 @@ static void SetupTestProcess(uint8* loadBase)
     regs.cs = GDT::UserCode;
     regs.ds = GDT::UserData;
     regs.ss = GDT::UserData;
-    regs.rflags = 0b000000000001000000000;
+    regs.rflags = CPU::Flags::FLAGS_IF;
     regs.rip = entryPoint;
-    regs.userrsp = 0x1000 + 10 * 4096;
+    regs.userrsp = 0x1000 + UserStackSize;
     Scheduler::CreateProcess(pml4Entry, &regs);
 
     delete[] fileBuffer;
