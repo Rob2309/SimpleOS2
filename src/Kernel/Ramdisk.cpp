@@ -43,9 +43,9 @@ void RamdiskFS::Mount(VFS::Node& mountPoint)
 void RamdiskFS::Unmount()
 { }
 
-void RamdiskFS::CreateNode(VFS::Node& folder, VFS::Node& node)
+void RamdiskFS::CreateNode(VFS::Node& node)
 { }
-void RamdiskFS::DestroyNode(VFS::Node& folder, VFS::Node& node)
+void RamdiskFS::DestroyNode(VFS::Node& node)
 { }
 
 uint64 RamdiskFS::ReadNode(const VFS::Node& node, uint64 pos, void* buffer, uint64 bufferSize)

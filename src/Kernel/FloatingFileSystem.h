@@ -10,8 +10,8 @@ namespace VFS
         void Mount(Node& mountPoint) override;
         void Unmount() override;
 
-        void CreateNode(Node& folder, Node& node) override;
-        void DestroyNode(Node& folder, Node& node) override;
+        void CreateNode(Node& node) override;
+        void DestroyNode(Node& node) override;
 
         uint64 ReadNode(const Node& node, uint64 pos, void* buffer, uint64 bufferSize) override;
         void WriteNode(Node& node, uint64 pos, void* buffer, uint64 bufferSize) override;

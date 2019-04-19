@@ -19,7 +19,7 @@ namespace VFS {
 
     }
 
-    void FloatingFileSystem::CreateNode(Node& folder, Node& node)
+    void FloatingFileSystem::CreateNode(Node& node)
     {
         if(node.type == Node::TYPE_FILE) {
             INode* n = new INode();
@@ -27,7 +27,7 @@ namespace VFS {
             node.fsNodeID = (uint64)n;
         }
     }
-    void FloatingFileSystem::DestroyNode(Node& folder, Node& node)
+    void FloatingFileSystem::DestroyNode(Node& node)
     {
         if(node.type == Node::TYPE_FILE) {
             INode* n = (INode*)node.fsNodeID;

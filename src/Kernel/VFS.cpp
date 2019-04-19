@@ -43,7 +43,7 @@ namespace VFS {
         return nullptr;
     }
 
-    static Node* AcquirePath(const char* path)
+    static Node* AcquirePath(const char* path, Node** containingFolder)
     {
         static char nameBuffer[50] = { 0 };
 
@@ -75,7 +75,10 @@ namespace VFS {
             } else if(c == '\0') {
                 nameBuffer[bufferPos] = '\0';
                 Node* res = FindFolderEntry(node, nameBuffer);
-                ReleaseNode(node);
+                if(res != nullptr && containingFolder != nullptr)
+                    *containingFolder = node;
+                else
+                    ReleaseNode(node);
                 return res;
             } else {
                 nameBuffer[bufferPos] = c;
@@ -86,7 +89,7 @@ namespace VFS {
 
     bool CreateFile(const char* folder, const char* name) 
     {
-        Node* f = AcquirePath(folder);
+        Node* f = AcquirePath(folder, nullptr);
         if(f == nullptr)
             return false;
         if(f->type != Node::TYPE_DIRECTORY) {
@@ -99,7 +102,7 @@ namespace VFS {
         newNode->file.size = 0;
         memcpy(newNode->name, name, strlen(name) + 1);
         newNode->fs = f->fs;
-        newNode->fs->CreateNode(*f, *newNode);
+        newNode->fs->CreateNode(*newNode);
 
         newNode->refCount++; // ref of folder entry
 
@@ -118,7 +121,7 @@ namespace VFS {
 
     bool CreateFolder(const char* folder, const char* name) 
     {
-        Node* f = AcquirePath(folder);
+        Node* f = AcquirePath(folder, nullptr);
         if(f == nullptr)
             return false;
         if(f->type != Node::TYPE_DIRECTORY) {
@@ -132,7 +135,7 @@ namespace VFS {
         newNode->directory.files = nullptr;
         memcpy(newNode->name, name, strlen(name) + 1);
         newNode->fs = f->fs;
-        newNode->fs->CreateNode(*f, *newNode);
+        newNode->fs->CreateNode(*newNode);
 
         newNode->refCount++;
 
@@ -151,7 +154,7 @@ namespace VFS {
 
     bool CreateDeviceFile(const char* folder, const char* name, uint64 devID) 
     {
-        Node* f = AcquirePath(folder);
+        Node* f = AcquirePath(folder, nullptr);
         if(f == nullptr)
             return false;
         if(f->type != Node::TYPE_DIRECTORY) {
@@ -164,7 +167,7 @@ namespace VFS {
         newNode->device.devID = devID;
         memcpy(newNode->name, name, strlen(name) + 1);
         newNode->fs = f->fs;
-        newNode->fs->CreateNode(*f, *newNode);
+        newNode->fs->CreateNode(*newNode);
 
         newNode->refCount++;
 
@@ -181,9 +184,37 @@ namespace VFS {
         return true;
     }
 
+    bool DeleteFile(const char* file) 
+    {
+        Node* folder;
+        Node* node = AcquirePath(file, &folder);
+        if(node == nullptr)
+            return false;
+
+        uint64* files = new uint64[folder->directory.numFiles - 1];
+        int index = 0;
+        for(int i = 0; i < folder->directory.numFiles; i++) {
+            uint64 f = folder->directory.files[i];
+            if(f != node->id) {
+                files[index++] = f;
+            }
+        }
+
+        delete[] folder->directory.files;
+        folder->directory.numFiles--;
+        folder->directory.files = files;
+
+        node->refCount--;
+
+        ReleaseNode(folder);
+        ReleaseNode(node);
+
+        return true;
+    }
+
     void Mount(const char* mountPoint, FileSystem* fs)
     {
-        Node* f = AcquirePath(mountPoint);
+        Node* f = AcquirePath(mountPoint, nullptr);
         if(f == nullptr)
             return;
         if(f->type != Node::TYPE_DIRECTORY || f->directory.numFiles != 0) {
@@ -198,7 +229,7 @@ namespace VFS {
 
     uint64 OpenNode(const char* path)
     {
-        Node* n = AcquirePath(path);
+        Node* n = AcquirePath(path, nullptr);
         if(n == nullptr)
             return 0;
         if(n->type == Node::TYPE_DIRECTORY) {
@@ -291,6 +322,7 @@ namespace VFS {
     void ReleaseNode(Node* node) {
         node->refCount--;
         if(node->refCount == 0) {
+            node->fs->DestroyNode(*node);
             g_NodesLock.SpinLock();
             node->refCount = g_FirstFreeNode;
             g_FirstFreeNode = node->id;

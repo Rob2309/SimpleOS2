@@ -45,8 +45,8 @@ namespace VFS {
         virtual void Mount(Node& mountPoint) = 0;
         virtual void Unmount() = 0;
 
-        virtual void CreateNode(Node& folder, Node& node) = 0;
-        virtual void DestroyNode(Node& folder, Node& node) = 0;
+        virtual void CreateNode(Node& node) = 0;
+        virtual void DestroyNode(Node& node) = 0;
 
         virtual uint64 ReadNode(const Node& node, uint64 pos, void* buffer, uint64 bufferSize) = 0;
         virtual void WriteNode(Node& node, uint64 pos, void* buffer, uint64 bufferSize) = 0;
