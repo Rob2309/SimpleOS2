@@ -11,7 +11,7 @@ namespace VFS {
 
     void FloatingFileSystem::Mount(Node& mountPoint)
     {
-        mountPoint.fsNode = 0;
+        mountPoint.fsNodeID = 0;
     }
 
     void FloatingFileSystem::Unmount()
@@ -19,34 +19,35 @@ namespace VFS {
 
     }
 
-    void FloatingFileSystem::CreateNode(Node& folder, Node& node)
+    void FloatingFileSystem::CreateNode(Node& node)
     {
         if(node.type == Node::TYPE_FILE) {
             INode* n = new INode();
             n->data = nullptr;
-            node.fsNode = (uint64)n;
+            node.fsNodeID = (uint64)n;
         }
     }
-    void FloatingFileSystem::DestroyNode(Node& folder, Node& node)
+    void FloatingFileSystem::DestroyNode(Node& node)
     {
         if(node.type == Node::TYPE_FILE) {
-            INode* n = new INode();
+            INode* n = (INode*)node.fsNodeID;
             delete[] n->data;
+            node.fsNodeID = 0;
         }
     }
 
-    uint64 FloatingFileSystem::ReadFile(const Node& node, uint64 pos, void* buffer, uint64 bufferSize)
+    uint64 FloatingFileSystem::ReadNode(const Node& node, uint64 pos, void* buffer, uint64 bufferSize)
     {
         uint64 rem = node.file.size - pos;
         if(rem > bufferSize)
             rem = bufferSize;
 
-        memcpy(buffer, ((INode*)node.fsNode)->data, rem);
+        memcpy(buffer, ((INode*)node.fsNodeID)->data, rem);
         return rem;
     }
-    void FloatingFileSystem::WriteFile(Node& node, uint64 pos, void* buffer, uint64 bufferSize)
+    void FloatingFileSystem::WriteNode(Node& node, uint64 pos, void* buffer, uint64 bufferSize)
     {
-        INode* inode = (INode*)node.fsNode;
+        INode* inode = (INode*)node.fsNodeID;
         uint64 neededSize = pos + bufferSize;
 
         if(neededSize > node.file.size) {

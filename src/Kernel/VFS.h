@@ -1,6 +1,7 @@
 #pragma once
 
 #include "types.h"
+#include "Mutex.h"
 
 namespace VFS {
 
@@ -30,11 +31,12 @@ namespace VFS {
         char name[50];
 
         FileSystem* fs;
-        uint64 fsNode;
+        uint64 fsNodeID;
 
         uint64 id;
-        uint64 numReaders;
-        uint64 numWriters;
+        uint64 refCount;
+
+        Mutex lock;
     };
 
     class FileSystem
@@ -43,37 +45,33 @@ namespace VFS {
         virtual void Mount(Node& mountPoint) = 0;
         virtual void Unmount() = 0;
 
-        virtual void CreateNode(Node& folder, Node& node) = 0;
-        virtual void DestroyNode(Node& folder, Node& node) = 0;
+        virtual void CreateNode(Node& node) = 0;
+        virtual void DestroyNode(Node& node) = 0;
 
-        virtual uint64 ReadFile(const Node& node, uint64 pos, void* buffer, uint64 bufferSize) = 0;
-        virtual void WriteFile(Node& node, uint64 pos, void* buffer, uint64 bufferSize) = 0;
+        virtual uint64 ReadNode(const Node& node, uint64 pos, void* buffer, uint64 bufferSize) = 0;
+        virtual void WriteNode(Node& node, uint64 pos, void* buffer, uint64 bufferSize) = 0;
     
         virtual void ReadDirEntries(Node& folder) = 0;
     };
 
     void Init();
-
-    void Mount(const char* mountPoint, FileSystem* fs);
     
     bool CreateFile(const char* folder, const char* name);
     bool CreateFolder(const char* folder, const char* name);
     bool CreateDeviceFile(const char* folder, const char* name, uint64 devID);
     bool DeleteFile(const char* file);
 
-    uint64 GetFileNode(const char* path);
+    void Mount(const char* mountPoint, FileSystem* fs);
 
-    bool AddFileUserRead(uint64 node);
-    bool AddFileUserWrite(uint64 node);
-    void RemoveFileUserRead(uint64 node);
-    void RemoveFileUserWrite(uint64 node);
+    uint64 OpenNode(const char* path);
+    uint64 CloseNode(uint64 node);
 
-    uint64 GetFileSize(uint64 node);
-    uint64 ReadFile(uint64 node, uint64 pos, void* buffer, uint64 bufferSize);
-    void WriteFile(uint64 node, uint64 pos, void* buffer, uint64 bufferSize);
+    uint64 GetSize(uint64 node);
+    uint64 ReadNode(uint64 node, uint64 pos, void* buffer, uint64 bufferSize);
+    void WriteNode(uint64 node, uint64 pos, void* buffer, uint64 bufferSize);
 
-    Node* GetNode(uint64 id);
-    Node* GetFreeNode();
-    void FreeNode(uint64 id);
+    Node* AcquireNode(uint64 id);
+    Node* CreateNode();
+    void ReleaseNode(Node* node);
 
 }

@@ -29,20 +29,16 @@
 
 static void SetupTestProcess(uint8* loadBase)
 {
-    uint64 file = VFS::GetFileNode("/initrd/test.elf");
+    uint64 file = VFS::OpenNode("/initrd/test.elf");
     if(file == 0) {
         printf("Failed to find test.elf\n");
         return;
     }
-    if(!VFS::AddFileUserRead(file)) {
-        printf("Failed to open test.elf\n");
-        return;
-    }
 
-    uint64 fileSize = VFS::GetFileSize(file);
+    uint64 fileSize = VFS::GetSize(file);
     uint8* fileBuffer = new uint8[fileSize];
-    VFS::ReadFile(file, 0, fileBuffer, fileSize);
-    VFS::RemoveFileUserRead(file);
+    VFS::ReadNode(file, 0, fileBuffer, fileSize);
+    VFS::CloseNode(file);
 
     uint64 pages = (GetELFSize(fileBuffer) + 4095) / 4096;
     uint64 pml4Entry = MemoryManager::CreateProcessMap();

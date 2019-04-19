@@ -12,11 +12,11 @@ public:
     void Mount(VFS::Node& mountPoint);
     void Unmount();
 
-    void CreateNode(VFS::Node& folder, VFS::Node& node);
-    void DestroyNode(VFS::Node& folder, VFS::Node& node);
+    void CreateNode(VFS::Node& node);
+    void DestroyNode(VFS::Node& node);
 
-    uint64 ReadFile(const VFS::Node& node, uint64 pos, void* buffer, uint64 bufferSize);
-    void WriteFile(VFS::Node& node, uint64 pos, void* buffer, uint64 bufferSize);
+    uint64 ReadNode(const VFS::Node& node, uint64 pos, void* buffer, uint64 bufferSize);
+    void WriteNode(VFS::Node& node, uint64 pos, void* buffer, uint64 bufferSize);
 
     void ReadDirEntries(VFS::Node& folder);
 
