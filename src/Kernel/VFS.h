@@ -5,6 +5,8 @@
 
 namespace VFS {
 
+    constexpr uint64 PipeBufferSize = 4096;
+
     class FileSystem;
 
     struct Node
@@ -13,6 +15,8 @@ namespace VFS {
             TYPE_FILE,
             TYPE_DIRECTORY,
             TYPE_DEVICE,
+
+            TYPE_PIPE,
         } type;
 
         union {
@@ -26,6 +30,11 @@ namespace VFS {
             struct {
                 uint64 devID;
             } device;
+            struct {
+                uint64 head;
+                uint64 tail;
+                char* buffer;
+            } pipe;
         };
 
         char name[50];
@@ -49,7 +58,7 @@ namespace VFS {
         virtual void DestroyNode(Node& node) = 0;
 
         virtual uint64 ReadNode(const Node& node, uint64 pos, void* buffer, uint64 bufferSize) = 0;
-        virtual void WriteNode(Node& node, uint64 pos, void* buffer, uint64 bufferSize) = 0;
+        virtual uint64 WriteNode(Node& node, uint64 pos, void* buffer, uint64 bufferSize) = 0;
     
         virtual void ReadDirEntries(Node& folder) = 0;
     };
@@ -59,6 +68,7 @@ namespace VFS {
     bool CreateFile(const char* folder, const char* name);
     bool CreateFolder(const char* folder, const char* name);
     bool CreateDeviceFile(const char* folder, const char* name, uint64 devID);
+    uint64 CreatePipe();
     bool DeleteFile(const char* file);
 
     void Mount(const char* mountPoint, FileSystem* fs);
@@ -68,7 +78,7 @@ namespace VFS {
 
     uint64 GetSize(uint64 node);
     uint64 ReadNode(uint64 node, uint64 pos, void* buffer, uint64 bufferSize);
-    void WriteNode(uint64 node, uint64 pos, void* buffer, uint64 bufferSize);
+    uint64 WriteNode(uint64 node, uint64 pos, void* buffer, uint64 bufferSize);
 
     Node* AcquireNode(uint64 id);
     Node* CreateNode();

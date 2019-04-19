@@ -13,6 +13,8 @@ struct ThreadBlockEvent {
         TYPE_NONE,
         TYPE_WAIT,
         TYPE_MUTEX,
+        TYPE_NODE_READ,
+        TYPE_NODE_WRITE,
     } type;
 
     union {
@@ -22,6 +24,9 @@ struct ThreadBlockEvent {
         struct {
             Mutex* lock;
         } mutex;
+        struct {
+            uint64 nodeID;
+        } node;
     };
 };
 

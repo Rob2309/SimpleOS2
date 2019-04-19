@@ -233,6 +233,25 @@ namespace Scheduler {
         IDT::EnableInterrupts();
     }
 
+    void ThreadWaitForNodeRead(uint64 node)
+    {
+        IDT::DisableInterrupts();
+        g_CPUData.currentThread->blockEvent.type = ThreadBlockEvent::TYPE_NODE_READ;
+        g_CPUData.currentThread->blockEvent.node.nodeID = node;
+        
+        Yield();
+        IDT::EnableInterrupts();
+    }
+    void ThreadWaitForNodeWrite(uint64 node)
+    {
+        IDT::DisableInterrupts();
+        g_CPUData.currentThread->blockEvent.type = ThreadBlockEvent::TYPE_NODE_WRITE;
+        g_CPUData.currentThread->blockEvent.node.nodeID = node;
+        
+        Yield();
+        IDT::EnableInterrupts();
+    }
+
     void ThreadExit(uint64 code)
     {
         ThreadInfo* tInfo = g_CPUData.currentThread;
@@ -296,6 +315,25 @@ namespace Scheduler {
         IDT::EnableInterrupts();
 
         return res;
+    }
+
+    void NotifyNodeRead(uint64 nodeID)
+    {
+        IDT::DisableInterrupts();
+        for(auto& t : g_ThreadList) {
+            if(t.blockEvent.type == ThreadBlockEvent::TYPE_NODE_READ && t.blockEvent.node.nodeID == nodeID)
+                t.blockEvent.type = ThreadBlockEvent::TYPE_NONE;
+        }
+        IDT::EnableInterrupts();
+    }
+    void NotifyNodeWrite(uint64 nodeID)
+    {
+        IDT::DisableInterrupts();
+        for(auto& t : g_ThreadList) {
+            if(t.blockEvent.type == ThreadBlockEvent::TYPE_NODE_WRITE && t.blockEvent.node.nodeID == nodeID)
+                t.blockEvent.type = ThreadBlockEvent::TYPE_NONE;
+        }
+        IDT::EnableInterrupts();
     }
 
 }

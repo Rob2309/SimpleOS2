@@ -14,7 +14,7 @@ namespace VFS
         void DestroyNode(Node& node) override;
 
         uint64 ReadNode(const Node& node, uint64 pos, void* buffer, uint64 bufferSize) override;
-        void WriteNode(Node& node, uint64 pos, void* buffer, uint64 bufferSize) override;
+        uint64 WriteNode(Node& node, uint64 pos, void* buffer, uint64 bufferSize) override;
     
         void ReadDirEntries(Node& folder) override;
     };

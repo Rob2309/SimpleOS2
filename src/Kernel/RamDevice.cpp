@@ -18,14 +18,14 @@ uint64 RamDevice::Read(uint64 pos, void* buffer, uint64 bufferSize) {
     return rem;
 }
 
-void RamDevice::Write(uint64 pos, void* buffer, uint64 bufferSize) {
+uint64 RamDevice::Write(uint64 pos, void* buffer, uint64 bufferSize) {
     if(pos == m_Size)
-        return;
+        return 0;
 
     uint64 rem = m_Size - pos;
     if(bufferSize < rem)
         rem = bufferSize;
 
     memcpy(m_Buffer + pos, buffer, rem);
-    return;
+    return rem;
 }

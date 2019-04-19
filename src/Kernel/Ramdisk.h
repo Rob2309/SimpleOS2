@@ -16,7 +16,7 @@ public:
     void DestroyNode(VFS::Node& node);
 
     uint64 ReadNode(const VFS::Node& node, uint64 pos, void* buffer, uint64 bufferSize);
-    void WriteNode(VFS::Node& node, uint64 pos, void* buffer, uint64 bufferSize);
+    uint64 WriteNode(VFS::Node& node, uint64 pos, void* buffer, uint64 bufferSize);
 
     void ReadDirEntries(VFS::Node& folder);
 

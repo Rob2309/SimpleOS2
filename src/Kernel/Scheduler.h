@@ -14,9 +14,14 @@ namespace Scheduler {
 
     void ThreadWait(uint64 ms);
     void ThreadWaitForLock(void* lock);
+    void ThreadWaitForNodeRead(uint64 node);
+    void ThreadWaitForNodeWrite(uint64 node);
     void ThreadExit(uint64 code);
     uint64 ThreadCreateThread(uint64 entry, uint64 stack);
     uint64 ThreadGetTID();
     uint64 ThreadGetPID();
+
+    void NotifyNodeRead(uint64 nodeID);
+    void NotifyNodeWrite(uint64 nodeID);
 
 }

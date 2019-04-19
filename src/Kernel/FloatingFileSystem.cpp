@@ -45,7 +45,7 @@ namespace VFS {
         memcpy(buffer, ((INode*)node.fsNodeID)->data, rem);
         return rem;
     }
-    void FloatingFileSystem::WriteNode(Node& node, uint64 pos, void* buffer, uint64 bufferSize)
+    uint64 FloatingFileSystem::WriteNode(Node& node, uint64 pos, void* buffer, uint64 bufferSize)
     {
         INode* inode = (INode*)node.fsNodeID;
         uint64 neededSize = pos + bufferSize;
@@ -59,6 +59,7 @@ namespace VFS {
         }
 
         memcpy(&inode->data[pos], buffer, bufferSize);
+        return bufferSize;
     }
 
     void FloatingFileSystem::ReadDirEntries(Node& node)
