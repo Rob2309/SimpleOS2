@@ -42,7 +42,7 @@ namespace VFS {
         if(rem > bufferSize)
             rem = bufferSize;
 
-        memcpy(buffer, ((INode*)node.fsNodeID)->data, rem);
+        memcpy(buffer, ((INode*)node.fsNodeID)->data + pos, rem);
         return rem;
     }
     uint64 FloatingFileSystem::WriteNode(Node& node, uint64 pos, void* buffer, uint64 bufferSize)

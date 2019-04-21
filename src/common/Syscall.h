@@ -16,6 +16,7 @@ namespace Syscall
     constexpr uint64 FunctionClose = 11;
     constexpr uint64 FunctionRead = 12;
     constexpr uint64 FunctionWrite = 13;
+    constexpr uint64 FunctionPipe = 14;
 
     inline uint64 Open(const char* path)
     {
@@ -23,8 +24,8 @@ namespace Syscall
         __asm__ __volatile__ (
             "syscall"
             : "=a"(fileDesc) 
-            : "a"(FunctionOpen), "S"(path)
-            : "r10", "r11", "rcx"
+            : "D"(FunctionOpen), "S"(path)
+            : "rcx", "rdx", "r8", "r9", "r10", "r11"
         );
         return fileDesc;
     }
@@ -32,28 +33,41 @@ namespace Syscall
     {
         __asm__ __volatile__ (
             "syscall"
-            : : "a"(FunctionClose), "S"(desc)
-            : "r10", "r11", "rcx"
+            : : "D"(FunctionClose), "S"(desc)
+            : "rax", "rcx", "rdx", "r8", "r9", "r10", "r11"
         );
     }
     inline uint64 Read(uint64 desc, uint64 pos, void* buffer, uint64 bufferSize) 
     {
         uint64 ret;
+        register uint64 r8 __asm__("r8") = (uint64)buffer;
+        register uint64 r9 __asm__("r9") = bufferSize;
         __asm__ __volatile__ (
-            "movq %4, %%r10;"
-            "movq %5, %%r11;"
-            "int $0x80"
-            : "=a"(ret) : "a"(FunctionRead), "D"(buffer), "S"(desc), "r"(bufferSize), "r"(pos)
+            "syscall"
+            : "=a"(ret)
+            : "D"(FunctionRead), "S"(desc), "d"(pos)
+            : "rcx", "r8", "r9", "r10", "r11"
         );
         return ret;
     }
-    inline void Write(uint64 desc, uint64 pos, void* buffer, uint64 bufferSize)
+    inline uint64 Write(uint64 desc, uint64 pos, void* buffer, uint64 bufferSize)
     {
+        uint64 ret;
+        register uint64 r8 __asm__("r8") = (uint64)buffer;
+        register uint64 r9 __asm__("r9") = bufferSize;
         __asm__ __volatile__ (
-            "movq %3, %%r10;"
-            "movq %4, %%r11;"
-            "int $0x80"
-            : : "a"(FunctionWrite), "D"(desc), "S"(buffer), "r"(bufferSize), "r"(pos)
+            "syscall"
+            : "=a"(ret)
+            : "D"(FunctionWrite), "S"(desc), "d"(pos)
+            : "rcx", "r8", "r9", "r10", "r11"
+        );
+    }
+
+    inline void Pipe(uint64* descs) {
+        __asm__ __volatile__ (
+            "syscall"
+            : : "D"(FunctionPipe), "S"(descs)
+            : "rax", "rcx", "rdx", "r8", "r9", "r10", "r11"
         );
     }
 

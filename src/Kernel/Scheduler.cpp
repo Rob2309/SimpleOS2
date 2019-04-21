@@ -57,9 +57,9 @@ namespace Scheduler {
     uint64 CreateProcess(uint64 pml4Entry, IDT::Registers* regs)
     {
         ProcessInfo* pInfo = new ProcessInfo();
-        memset(pInfo, 0, sizeof(ProcessInfo));
         pInfo->pid = g_PIDCounter++;
         pInfo->pml4Entry = pml4Entry;
+        pInfo->fileDescIDCounter = 1;
 
         ThreadInfo* tInfo = CreateThreadStruct();
         tInfo->tid = g_TIDCounter++;
@@ -334,6 +334,54 @@ namespace Scheduler {
                 t.blockEvent.type = ThreadBlockEvent::TYPE_NONE;
         }
         IDT::EnableInterrupts();
+    }
+
+    uint64 ProcessAddFileDescriptor(uint64 nodeID, bool read, bool write)
+    {
+        ProcessInfo* pInfo = g_CPUData.currentThread->process;
+        pInfo->fileDescLock.SpinLock();
+
+        FileDescriptor* desc = new FileDescriptor();
+        desc->nodeID = nodeID;
+        desc->readable = read;
+        desc->writable = write;
+        desc->id = pInfo->fileDescIDCounter++;
+        pInfo->fileDescriptors.push_back(desc);
+
+        uint64 res = desc->id;
+        pInfo->fileDescLock.Unlock();
+        return res;
+    }
+    void ProcessRemoveFileDescriptor(uint64 id)
+    {
+        ProcessInfo* pInfo = g_CPUData.currentThread->process;
+        pInfo->fileDescLock.SpinLock();
+
+        for(auto a = pInfo->fileDescriptors.begin(); a != pInfo->fileDescriptors.end(); ++a) {
+            if(a->id == id) {
+                pInfo->fileDescriptors.erase(a);
+                pInfo->fileDescLock.Unlock();
+                return;
+            }
+        }
+
+        pInfo->fileDescLock.Unlock();
+    }
+    uint64 ProcessGetFileDescriptorNode(uint64 id)
+    {
+        ProcessInfo* pInfo = g_CPUData.currentThread->process;
+        pInfo->fileDescLock.SpinLock();
+
+        for(auto a = pInfo->fileDescriptors.begin(); a != pInfo->fileDescriptors.end(); ++a) {
+            if(a->id == id) {
+                uint64 res = a->nodeID;
+                pInfo->fileDescLock.Unlock();
+                return res;
+            }
+        }
+
+        pInfo->fileDescLock.Unlock();
+        return 0;
     }
 
 }

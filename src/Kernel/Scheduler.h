@@ -24,4 +24,8 @@ namespace Scheduler {
     void NotifyNodeRead(uint64 nodeID);
     void NotifyNodeWrite(uint64 nodeID);
 
+    uint64 ProcessAddFileDescriptor(uint64 nodeID, bool read, bool write);
+    void ProcessRemoveFileDescriptor(uint64 id);
+    uint64 ProcessGetFileDescriptorNode(uint64 id);
+
 }

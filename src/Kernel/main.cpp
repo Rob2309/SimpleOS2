@@ -99,6 +99,8 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
 
     APIC::Init();
 
+    VFS::CreateFile("/", "test.txt");
+
     SetupTestProcess((uint8*)0x16000);
     //SetupTestProcess((uint8*)0x16000);
     APIC::StartTimer(10);

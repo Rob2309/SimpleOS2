@@ -1,32 +1,29 @@
 #include "Syscall.h"
 #include "Mutex.h"
 
-static char g_Thread1Stack[4096];
+static uint64 g_Descs[2];
 
-Mutex g_Lock;
-
-void Thread1()
+static char g_Thread1Stack[3 * 4096];
+static void Thread1()
 {
-    g_Lock.SpinLock();
+    static char s_Buffer[4096];
 
-    for(int i = 0; i < 5; i++) {
-        Syscall::Print("Sub thread has lock\n");
-        Syscall::Wait(500);
-    }
+    Syscall::Print("Reading pipe...\n");
+    Syscall::Read(g_Descs[1], 0, s_Buffer, sizeof(s_Buffer));
 
-    g_Lock.Unlock();
+    Syscall::Print(s_Buffer);
     Syscall::Exit(0);
 }
 
 extern "C" void main()
 {
-    Syscall::CreateThread((uint64)&Thread1, (uint64)&g_Thread1Stack + 4096);
+    Syscall::Pipe(g_Descs);
+
+    Syscall::CreateThread((uint64)&Thread1, (uint64)g_Thread1Stack + sizeof(g_Thread1Stack));
+    Syscall::Wait(1000);
+
+    const char msg[] = "Hello World\n";
+    Syscall::Write(g_Descs[0], 0, (void*)msg, sizeof(msg));
     
-    Syscall::Wait(500);
-
-    Syscall::Print("Main thread waiting for lock\n");
-    Syscall::WaitForLock(&g_Lock);
-    Syscall::Print("Main thread has lock\n");
-
     Syscall::Exit(0);
 }
