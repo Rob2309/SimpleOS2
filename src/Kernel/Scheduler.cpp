@@ -9,6 +9,7 @@
 #include "MSR.h"
 #include "APIC.h"
 #include "conio.h"
+#include "VFS.h"
 
 namespace Scheduler {
 
@@ -100,6 +101,49 @@ namespace Scheduler {
         IDT::DisableInterrupts();
         g_ThreadList.push_back(tInfo);
         uint64 ret = tInfo->tid;
+        IDT::EnableInterrupts();
+
+        return ret;
+    }
+
+    uint64 CloneProcess(IDT::Registers* regs)
+    {
+        ProcessInfo* oldPInfo = g_CPUData.currentThread->process;
+
+        uint64 pml4Entry = MemoryManager::ForkProcessMap();
+
+        ProcessInfo* pInfo = new ProcessInfo();
+        pInfo->pid = g_PIDCounter++;
+        pInfo->pml4Entry = pml4Entry;
+
+        oldPInfo->fileDescLock.SpinLock();
+        pInfo->fileDescIDCounter = oldPInfo->fileDescIDCounter;
+        for(auto& oldDesc : oldPInfo->fileDescriptors) {
+            FileDescriptor* newDesc = new FileDescriptor();
+            newDesc->id = oldDesc.id;
+            newDesc->nodeID = oldDesc.nodeID;
+            newDesc->readable = oldDesc.readable;
+            newDesc->writable = oldDesc.writable;
+            
+            VFS::Node* n = VFS::AcquireNode(newDesc->id);
+            n->refCount++;
+            VFS::ReleaseNode(n);
+            pInfo->fileDescriptors.push_back(newDesc);
+        }
+        oldPInfo->fileDescLock.Unlock();
+
+        ThreadInfo* tInfo = CreateThreadStruct();
+        tInfo->tid = g_TIDCounter++;
+        tInfo->process = pInfo;
+        tInfo->blockEvent.type = ThreadBlockEvent::TYPE_NONE;
+        tInfo->userGSBase = 0;
+        tInfo->registers = *regs;
+
+        pInfo->threads.push_back(tInfo);
+        
+        IDT::DisableInterrupts();
+        g_ThreadList.push_back(tInfo);
+        uint64 ret = pInfo->pid;
         IDT::EnableInterrupts();
 
         return ret;

@@ -62,9 +62,7 @@ namespace SyscallHandler {
         childRegs.ds = GDT::UserData;
         childRegs.rax = 0;
 
-        uint64 pml4Entry = MemoryManager::ForkProcessMap();
-
-        return Scheduler::CreateProcess(pml4Entry, &childRegs);
+        return Scheduler::CloneProcess(&childRegs);
     }
 
     extern "C" uint64 SyscallDispatcher(uint64 func, uint64 arg1, uint64 arg2, uint64 arg3, uint64 arg4, State* state)

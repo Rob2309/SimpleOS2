@@ -7,6 +7,7 @@ namespace Scheduler {
 
     uint64 CreateProcess(uint64 pml4Entry, IDT::Registers* regs);
     uint64 CreateKernelThread(uint64 rip);
+    uint64 CloneProcess(IDT::Registers* regs);
 
     void Start();
 
