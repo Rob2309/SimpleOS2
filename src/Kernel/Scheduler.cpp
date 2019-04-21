@@ -118,12 +118,12 @@ namespace Scheduler {
 
         oldPInfo->fileDescLock.SpinLock();
         pInfo->fileDescIDCounter = oldPInfo->fileDescIDCounter;
-        for(auto& oldDesc : oldPInfo->fileDescriptors) {
+        for(auto oldDesc : oldPInfo->fileDescriptors) {
             FileDescriptor* newDesc = new FileDescriptor();
-            newDesc->id = oldDesc.id;
-            newDesc->nodeID = oldDesc.nodeID;
-            newDesc->readable = oldDesc.readable;
-            newDesc->writable = oldDesc.writable;
+            newDesc->id = oldDesc->id;
+            newDesc->nodeID = oldDesc->nodeID;
+            newDesc->readable = oldDesc->readable;
+            newDesc->writable = oldDesc->writable;
             
             VFS::Node* n = VFS::AcquireNode(newDesc->id);
             n->refCount++;
@@ -150,18 +150,18 @@ namespace Scheduler {
     }
 
     static void UpdateEvents() {
-        for(auto& p : g_ThreadList) {
-            switch(p.blockEvent.type) {
+        for(auto p : g_ThreadList) {
+            switch(p->blockEvent.type) {
             case ThreadBlockEvent::TYPE_WAIT:
-                if(p.blockEvent.wait.remainingMillis <= 10) {
-                    p.blockEvent.type = ThreadBlockEvent::TYPE_NONE;
+                if(p->blockEvent.wait.remainingMillis <= 10) {
+                    p->blockEvent.type = ThreadBlockEvent::TYPE_NONE;
                 } else {
-                    p.blockEvent.wait.remainingMillis -= 10;
+                    p->blockEvent.wait.remainingMillis -= 10;
                 }
                 break;
             case ThreadBlockEvent::TYPE_MUTEX:
-                if(p.blockEvent.mutex.lock->TryLock()) {
-                    p.blockEvent.type = ThreadBlockEvent::TYPE_NONE;
+                if(p->blockEvent.mutex.lock->TryLock()) {
+                    p->blockEvent.type = ThreadBlockEvent::TYPE_NONE;
                 }
             }
         }
@@ -169,11 +169,11 @@ namespace Scheduler {
 
     static ThreadInfo* FindNextThread() {
         for(auto a = g_ThreadList.begin(); a != g_ThreadList.end(); ++a) {
-            ThreadInfo& p = *a;
-            if(p.blockEvent.type == ThreadBlockEvent::TYPE_NONE) {
+            ThreadInfo* p = *a;
+            if(p->blockEvent.type == ThreadBlockEvent::TYPE_NONE) {
                 g_ThreadList.erase(a);
-                g_ThreadList.push_back(&p);
-                return &p;
+                g_ThreadList.push_back(p);
+                return p;
             }
         }
 
@@ -296,6 +296,15 @@ namespace Scheduler {
         IDT::EnableInterrupts();
     }
 
+    static void FreeProcess(ProcessInfo* pInfo)
+    {
+        MemoryManager::FreeProcessMap(pInfo->pml4Entry);
+        for(auto a = pInfo->fileDescriptors.begin(); a != pInfo->fileDescriptors.end();) {
+            VFS::CloseNode(a->nodeID);
+            delete *(a++);
+        }
+    }
+
     void ThreadExit(uint64 code)
     {
         ThreadInfo* tInfo = g_CPUData.currentThread;
@@ -307,8 +316,8 @@ namespace Scheduler {
             if(pInfo->threads.empty()) {
                 tInfo->process = nullptr;
                 IDT::EnableInterrupts();
-                MemoryManager::FreeProcessMap(pInfo->pml4Entry);
-                delete pInfo;
+
+                FreeProcess(pInfo);
             }
         }
 
@@ -364,18 +373,18 @@ namespace Scheduler {
     void NotifyNodeRead(uint64 nodeID)
     {
         IDT::DisableInterrupts();
-        for(auto& t : g_ThreadList) {
-            if(t.blockEvent.type == ThreadBlockEvent::TYPE_NODE_READ && t.blockEvent.node.nodeID == nodeID)
-                t.blockEvent.type = ThreadBlockEvent::TYPE_NONE;
+        for(auto t : g_ThreadList) {
+            if(t->blockEvent.type == ThreadBlockEvent::TYPE_NODE_READ && t->blockEvent.node.nodeID == nodeID)
+                t->blockEvent.type = ThreadBlockEvent::TYPE_NONE;
         }
         IDT::EnableInterrupts();
     }
     void NotifyNodeWrite(uint64 nodeID)
     {
         IDT::DisableInterrupts();
-        for(auto& t : g_ThreadList) {
-            if(t.blockEvent.type == ThreadBlockEvent::TYPE_NODE_WRITE && t.blockEvent.node.nodeID == nodeID)
-                t.blockEvent.type = ThreadBlockEvent::TYPE_NONE;
+        for(auto t : g_ThreadList) {
+            if(t->blockEvent.type == ThreadBlockEvent::TYPE_NODE_WRITE && t->blockEvent.node.nodeID == nodeID)
+                t->blockEvent.type = ThreadBlockEvent::TYPE_NONE;
         }
         IDT::EnableInterrupts();
     }
@@ -404,6 +413,7 @@ namespace Scheduler {
         for(auto a = pInfo->fileDescriptors.begin(); a != pInfo->fileDescriptors.end(); ++a) {
             if(a->id == id) {
                 pInfo->fileDescriptors.erase(a);
+                delete *a;
                 pInfo->fileDescLock.Unlock();
                 return;
             }

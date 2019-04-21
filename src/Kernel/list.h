@@ -119,7 +119,18 @@ namespace std {
             Iterator& operator++() { m_Node = m_Node->next; return *this; }
             Iterator& operator--() { m_Node = m_Node->prev; return *this; }
 
-            Node& operator* () { return *m_Node; }
+            Iterator operator++(int) { 
+                Node* res = m_Node;
+                m_Node = m_Node->next;
+                return Iterator(res);
+            }
+            Iterator operator--(int) {
+                Node* res = m_Node;
+                m_Node = m_Node->prev;
+                return Iterator(res);
+            }
+
+            Node* operator* () { return m_Node; }
             Node* operator-> () { return m_Node; }
 
             bool operator== (const Iterator& r) const { return m_Node == r.m_Node; }
