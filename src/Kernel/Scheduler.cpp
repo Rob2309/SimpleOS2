@@ -9,6 +9,7 @@
 #include "MSR.h"
 #include "APIC.h"
 #include "conio.h"
+#include "CPU.h"
 
 namespace Scheduler {
 
@@ -87,7 +88,7 @@ namespace Scheduler {
         regs.cs = GDT::KernelCode;
         regs.ds = GDT::KernelData;
         regs.ss = GDT::KernelData;
-        regs.rflags = 0b000000000001000000000;
+        regs.rflags = CPU::FLAGS_IF;
         regs.rip = rip;
         regs.userrsp = tInfo->kernelStack;
 
@@ -180,7 +181,7 @@ namespace Scheduler {
         p->registers.cs = GDT::KernelCode;
         p->registers.ds = GDT::KernelData;
         p->registers.ss = GDT::KernelData;
-        p->registers.rflags = 0b000000000001000000000;
+        p->registers.rflags = CPU::FLAGS_IF;
 
         g_CPUData.idleThread = p;
         g_CPUData.currentThread = p;
@@ -281,7 +282,7 @@ namespace Scheduler {
         tInfo->registers.cs = GDT::UserCode;
         tInfo->registers.ds = GDT::UserData;
         tInfo->registers.ss = GDT::UserData;
-        tInfo->registers.rflags = 0b000000000001000000000;
+        tInfo->registers.rflags = CPU::FLAGS_IF;
         tInfo->registers.rip = entry;
         tInfo->registers.userrsp = stack;
 
