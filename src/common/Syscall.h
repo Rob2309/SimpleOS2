@@ -45,8 +45,8 @@ namespace Syscall
         __asm__ __volatile__ (
             "syscall"
             : "=a"(ret)
-            : "D"(FunctionRead), "S"(desc), "d"(pos)
-            : "rcx", "r8", "r9", "r10", "r11"
+            : "D"(FunctionRead), "S"(desc), "d"(pos), "r"(r8), "r"(r9)
+            : "rcx", "r10", "r11"
         );
         return ret;
     }
@@ -58,9 +58,10 @@ namespace Syscall
         __asm__ __volatile__ (
             "syscall"
             : "=a"(ret)
-            : "D"(FunctionWrite), "S"(desc), "d"(pos)
-            : "rcx", "r8", "r9", "r10", "r11"
+            : "D"(FunctionWrite), "S"(desc), "d"(pos), "r"(r8), "r"(r9)
+            : "rcx", "r10", "r11"
         );
+        return ret;
     }
 
     inline void Pipe(uint64* descs) {
