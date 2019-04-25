@@ -57,7 +57,7 @@ uint64 RamdiskFS::ReadNode(const VFS::Node& node, uint64 pos, void* buffer, uint
     VFS::ReadNode(m_DevFile, node.fsNodeID + pos, buffer, rem);
     return rem;
 }
-void RamdiskFS::WriteNode(VFS::Node& node, uint64 pos, void* buffer, uint64 bufferSize)
+uint64 RamdiskFS::WriteNode(VFS::Node& node, uint64 pos, void* buffer, uint64 bufferSize)
 { }
 
 void RamdiskFS::ReadDirEntries(VFS::Node& folder)

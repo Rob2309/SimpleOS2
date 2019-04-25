@@ -5,6 +5,7 @@
 #include "conio.h"
 #include "Device.h"
 #include "FloatingFileSystem.h"
+#include "Scheduler.h"
 
 namespace VFS {
 
@@ -184,6 +185,24 @@ namespace VFS {
         return true;
     }
 
+    uint64 CreatePipe()
+    {
+        Node* node = CreateNode();
+
+        node->type = Node::TYPE_PIPE;
+        node->pipe.head = 0;
+        node->pipe.tail = 0;
+        node->pipe.buffer = new char[PipeBufferSize];
+
+        node->fs = nullptr;
+        
+        node->refCount += 2;
+
+        uint64 ret = node->id;
+        ReleaseNode(node);
+        return ret;
+    }
+
     bool DeleteFile(const char* file) 
     {
         Node* folder;
@@ -266,6 +285,24 @@ namespace VFS {
             ReleaseNode(n);
             uint64 ret = dev->Read(pos, buffer, bufferSize);
             return ret;
+        } else if(n->type == Node::TYPE_PIPE) {
+            uint64 end = n->pipe.tail;
+            if(n->pipe.tail < n->pipe.head)
+                n->pipe.tail += PipeBufferSize;
+            uint64 size = end - n->pipe.head;
+            if(size > bufferSize)
+                size = bufferSize;
+            for(int i = 0; i < size; i++) {
+                ((char*)buffer)[i] = n->pipe.buffer[(n->pipe.head + i) % PipeBufferSize];
+            }
+            n->pipe.head += size;
+            n->pipe.head %= PipeBufferSize;
+            
+            if(size > 0)
+                Scheduler::NotifyNodeRead(n->id);
+
+            ReleaseNode(n);
+            return size;
         } else {
             uint64 ret = n->fs->ReadNode(*n, pos, buffer, bufferSize);
             ReleaseNode(n);
@@ -273,19 +310,36 @@ namespace VFS {
         }
     }
 
-    void WriteNode(uint64 node, uint64 pos, void* buffer, uint64 bufferSize)
+    uint64 WriteNode(uint64 node, uint64 pos, void* buffer, uint64 bufferSize)
     {
         Node* n = AcquireNode(node);
 
         if(n->type == Node::TYPE_DEVICE) {
             Device* dev = Device::GetByID(n->device.devID);
             ReleaseNode(n);
-            dev->Write(pos, buffer, bufferSize);
-            return;
-        } else {
-            n->fs->WriteNode(*n, pos, buffer, bufferSize);
+            return dev->Write(pos, buffer, bufferSize);
+        } else if(n->type == Node::TYPE_PIPE) {
+            uint64 end = n->pipe.tail;
+            if(n->pipe.tail < n->pipe.head)
+                n->pipe.tail += PipeBufferSize;
+            uint64 size = PipeBufferSize - (end - n->pipe.head);
+            if(size > bufferSize)
+                size = bufferSize;
+            for(int i = 0; i < size; i++) {
+                n->pipe.buffer[(n->pipe.tail + i) % PipeBufferSize] = ((char*)buffer)[i];
+            }
+            n->pipe.tail += size;
+            n->pipe.tail %= PipeBufferSize;
+
+            if(size > 0)
+                Scheduler::NotifyNodeWrite(n->id);
+
             ReleaseNode(n);
-            return;
+            return size;
+        } else {
+            uint64 res = n->fs->WriteNode(*n, pos, buffer, bufferSize);
+            ReleaseNode(n);
+            return res;
         }
     }
 
@@ -322,7 +376,8 @@ namespace VFS {
     void ReleaseNode(Node* node) {
         node->refCount--;
         if(node->refCount == 0) {
-            node->fs->DestroyNode(*node);
+            if(node->fs != nullptr)
+                node->fs->DestroyNode(*node);
             g_NodesLock.SpinLock();
             node->refCount = g_FirstFreeNode;
             g_FirstFreeNode = node->id;

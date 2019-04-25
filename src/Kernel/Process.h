@@ -15,6 +15,8 @@ struct ThreadBlockEvent {
         TYPE_NONE,
         TYPE_WAIT,
         TYPE_MUTEX,
+        TYPE_NODE_READ,
+        TYPE_NODE_WRITE,
     } type;
 
     union {
@@ -24,7 +26,20 @@ struct ThreadBlockEvent {
         struct {
             Mutex* lock;
         } mutex;
+        struct {
+            uint64 nodeID;
+        } node;
     };
+};
+
+struct FileDescriptor {
+    FileDescriptor* next;
+    FileDescriptor* prev;
+
+    uint64 id;
+    uint64 nodeID;
+    bool readable;
+    bool writable;
 };
 
 struct ProcessInfo;
@@ -48,6 +63,10 @@ struct ProcessInfo {
     uint64 pid;
 
     uint64 pml4Entry;
+
+    Mutex fileDescLock;
+    uint64 fileDescIDCounter;
+    std::nlist<FileDescriptor> fileDescriptors;
 
     std::nlist<ThreadInfo> threads;
 };

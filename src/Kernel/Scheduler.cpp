@@ -10,6 +10,7 @@
 #include "APIC.h"
 #include "conio.h"
 #include "CPU.h"
+#include "VFS.h"
 
 namespace Scheduler {
 
@@ -58,9 +59,9 @@ namespace Scheduler {
     uint64 CreateProcess(uint64 pml4Entry, IDT::Registers* regs)
     {
         ProcessInfo* pInfo = new ProcessInfo();
-        memset(pInfo, 0, sizeof(ProcessInfo));
         pInfo->pid = g_PIDCounter++;
         pInfo->pml4Entry = pml4Entry;
+        pInfo->fileDescIDCounter = 1;
 
         ThreadInfo* tInfo = CreateThreadStruct();
         tInfo->tid = g_TIDCounter++;
@@ -106,19 +107,62 @@ namespace Scheduler {
         return ret;
     }
 
+    uint64 CloneProcess(IDT::Registers* regs)
+    {
+        ProcessInfo* oldPInfo = g_CPUData.currentThread->process;
+
+        uint64 pml4Entry = MemoryManager::ForkProcessMap();
+
+        ProcessInfo* pInfo = new ProcessInfo();
+        pInfo->pid = g_PIDCounter++;
+        pInfo->pml4Entry = pml4Entry;
+
+        oldPInfo->fileDescLock.SpinLock();
+        pInfo->fileDescIDCounter = oldPInfo->fileDescIDCounter;
+        for(auto oldDesc : oldPInfo->fileDescriptors) {
+            FileDescriptor* newDesc = new FileDescriptor();
+            newDesc->id = oldDesc->id;
+            newDesc->nodeID = oldDesc->nodeID;
+            newDesc->readable = oldDesc->readable;
+            newDesc->writable = oldDesc->writable;
+            
+            VFS::Node* n = VFS::AcquireNode(newDesc->id);
+            n->refCount++;
+            VFS::ReleaseNode(n);
+            pInfo->fileDescriptors.push_back(newDesc);
+        }
+        oldPInfo->fileDescLock.Unlock();
+
+        ThreadInfo* tInfo = CreateThreadStruct();
+        tInfo->tid = g_TIDCounter++;
+        tInfo->process = pInfo;
+        tInfo->blockEvent.type = ThreadBlockEvent::TYPE_NONE;
+        tInfo->userGSBase = 0;
+        tInfo->registers = *regs;
+
+        pInfo->threads.push_back(tInfo);
+        
+        IDT::DisableInterrupts();
+        g_ThreadList.push_back(tInfo);
+        uint64 ret = pInfo->pid;
+        IDT::EnableInterrupts();
+
+        return ret;
+    }
+
     static void UpdateEvents() {
-        for(auto& p : g_ThreadList) {
-            switch(p.blockEvent.type) {
+        for(auto p : g_ThreadList) {
+            switch(p->blockEvent.type) {
             case ThreadBlockEvent::TYPE_WAIT:
-                if(p.blockEvent.wait.remainingMillis <= 10) {
-                    p.blockEvent.type = ThreadBlockEvent::TYPE_NONE;
+                if(p->blockEvent.wait.remainingMillis <= 10) {
+                    p->blockEvent.type = ThreadBlockEvent::TYPE_NONE;
                 } else {
-                    p.blockEvent.wait.remainingMillis -= 10;
+                    p->blockEvent.wait.remainingMillis -= 10;
                 }
                 break;
             case ThreadBlockEvent::TYPE_MUTEX:
-                if(p.blockEvent.mutex.lock->TryLock()) {
-                    p.blockEvent.type = ThreadBlockEvent::TYPE_NONE;
+                if(p->blockEvent.mutex.lock->TryLock()) {
+                    p->blockEvent.type = ThreadBlockEvent::TYPE_NONE;
                 }
             }
         }
@@ -126,11 +170,11 @@ namespace Scheduler {
 
     static ThreadInfo* FindNextThread() {
         for(auto a = g_ThreadList.begin(); a != g_ThreadList.end(); ++a) {
-            ThreadInfo& p = *a;
-            if(p.blockEvent.type == ThreadBlockEvent::TYPE_NONE) {
+            ThreadInfo* p = *a;
+            if(p->blockEvent.type == ThreadBlockEvent::TYPE_NONE) {
                 g_ThreadList.erase(a);
-                g_ThreadList.push_back(&p);
-                return &p;
+                g_ThreadList.push_back(p);
+                return p;
             }
         }
 
@@ -234,6 +278,34 @@ namespace Scheduler {
         IDT::EnableInterrupts();
     }
 
+    void ThreadWaitForNodeRead(uint64 node)
+    {
+        IDT::DisableInterrupts();
+        g_CPUData.currentThread->blockEvent.type = ThreadBlockEvent::TYPE_NODE_READ;
+        g_CPUData.currentThread->blockEvent.node.nodeID = node;
+        
+        Yield();
+        IDT::EnableInterrupts();
+    }
+    void ThreadWaitForNodeWrite(uint64 node)
+    {
+        IDT::DisableInterrupts();
+        g_CPUData.currentThread->blockEvent.type = ThreadBlockEvent::TYPE_NODE_WRITE;
+        g_CPUData.currentThread->blockEvent.node.nodeID = node;
+        
+        Yield();
+        IDT::EnableInterrupts();
+    }
+
+    static void FreeProcess(ProcessInfo* pInfo)
+    {
+        MemoryManager::FreeProcessMap(pInfo->pml4Entry);
+        for(auto a = pInfo->fileDescriptors.begin(); a != pInfo->fileDescriptors.end();) {
+            VFS::CloseNode(a->nodeID);
+            delete *(a++);
+        }
+    }
+
     void ThreadExit(uint64 code)
     {
         ThreadInfo* tInfo = g_CPUData.currentThread;
@@ -245,8 +317,8 @@ namespace Scheduler {
             if(pInfo->threads.empty()) {
                 tInfo->process = nullptr;
                 IDT::EnableInterrupts();
-                MemoryManager::FreeProcessMap(pInfo->pml4Entry);
-                delete pInfo;
+
+                FreeProcess(pInfo);
             }
         }
 
@@ -297,6 +369,74 @@ namespace Scheduler {
         IDT::EnableInterrupts();
 
         return res;
+    }
+
+    void NotifyNodeRead(uint64 nodeID)
+    {
+        IDT::DisableInterrupts();
+        for(auto t : g_ThreadList) {
+            if(t->blockEvent.type == ThreadBlockEvent::TYPE_NODE_READ && t->blockEvent.node.nodeID == nodeID)
+                t->blockEvent.type = ThreadBlockEvent::TYPE_NONE;
+        }
+        IDT::EnableInterrupts();
+    }
+    void NotifyNodeWrite(uint64 nodeID)
+    {
+        IDT::DisableInterrupts();
+        for(auto t : g_ThreadList) {
+            if(t->blockEvent.type == ThreadBlockEvent::TYPE_NODE_WRITE && t->blockEvent.node.nodeID == nodeID)
+                t->blockEvent.type = ThreadBlockEvent::TYPE_NONE;
+        }
+        IDT::EnableInterrupts();
+    }
+
+    uint64 ProcessAddFileDescriptor(uint64 nodeID, bool read, bool write)
+    {
+        ProcessInfo* pInfo = g_CPUData.currentThread->process;
+        pInfo->fileDescLock.SpinLock();
+
+        FileDescriptor* desc = new FileDescriptor();
+        desc->nodeID = nodeID;
+        desc->readable = read;
+        desc->writable = write;
+        desc->id = pInfo->fileDescIDCounter++;
+        pInfo->fileDescriptors.push_back(desc);
+
+        uint64 res = desc->id;
+        pInfo->fileDescLock.Unlock();
+        return res;
+    }
+    void ProcessRemoveFileDescriptor(uint64 id)
+    {
+        ProcessInfo* pInfo = g_CPUData.currentThread->process;
+        pInfo->fileDescLock.SpinLock();
+
+        for(auto a = pInfo->fileDescriptors.begin(); a != pInfo->fileDescriptors.end(); ++a) {
+            if(a->id == id) {
+                pInfo->fileDescriptors.erase(a);
+                delete *a;
+                pInfo->fileDescLock.Unlock();
+                return;
+            }
+        }
+
+        pInfo->fileDescLock.Unlock();
+    }
+    uint64 ProcessGetFileDescriptorNode(uint64 id)
+    {
+        ProcessInfo* pInfo = g_CPUData.currentThread->process;
+        pInfo->fileDescLock.SpinLock();
+
+        for(auto a = pInfo->fileDescriptors.begin(); a != pInfo->fileDescriptors.end(); ++a) {
+            if(a->id == id) {
+                uint64 res = a->nodeID;
+                pInfo->fileDescLock.Unlock();
+                return res;
+            }
+        }
+
+        pInfo->fileDescLock.Unlock();
+        return 0;
     }
 
 }

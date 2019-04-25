@@ -11,7 +11,7 @@ public:
     Device(const char* name);
     
     virtual uint64 Read(uint64 pos, void* buffer, uint64 bufferSize) = 0;
-    virtual void Write(uint64 pos, void* buffer, uint64 bufferSize) = 0;
+    virtual uint64 Write(uint64 pos, void* buffer, uint64 bufferSize) = 0;
 
     uint64 GetDeviceID() const { return m_DevID; }
 

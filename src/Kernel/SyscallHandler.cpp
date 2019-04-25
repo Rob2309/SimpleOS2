@@ -13,6 +13,8 @@
 
 #include "Process.h"
 
+#include "VFS.h"
+
 namespace SyscallHandler {
 
     extern "C" void SyscallEntry();
@@ -60,9 +62,7 @@ namespace SyscallHandler {
         childRegs.ds = GDT::UserData;
         childRegs.rax = 0;
 
-        uint64 pml4Entry = MemoryManager::ForkProcessMap();
-
-        return Scheduler::CreateProcess(pml4Entry, &childRegs);
+        return Scheduler::CloneProcess(&childRegs);
     }
 
     extern "C" uint64 SyscallDispatcher(uint64 func, uint64 arg1, uint64 arg2, uint64 arg3, uint64 arg4, State* state)
@@ -86,6 +86,59 @@ namespace SyscallHandler {
         case Syscall::FunctionFork: return DoFork(state); break;
         case Syscall::FunctionCreateThread: Scheduler::ThreadCreateThread(arg1, arg2); break;
         case Syscall::FunctionWaitForLock: Scheduler::ThreadWaitForLock(MemoryManager::UserToKernelPtr((void*)arg1)); break;
+        
+        case Syscall::FunctionOpen: 
+            {
+                uint64 nodeID = VFS::OpenNode((const char*)arg1);
+                if(nodeID == 0)
+                    return 0;
+                uint64 res = Scheduler::ProcessAddFileDescriptor(nodeID, true, true);
+                return res;
+            } 
+            break;
+        case Syscall::FunctionClose:
+            {
+                uint64 nodeID = Scheduler::ProcessGetFileDescriptorNode(arg1);
+                if(nodeID == 0)
+                    return 0;
+                VFS::CloseNode(nodeID);
+                Scheduler::ProcessRemoveFileDescriptor(arg1);
+            }
+            break;
+        case Syscall::FunctionRead:
+            {
+                uint64 nodeID = Scheduler::ProcessGetFileDescriptorNode(arg1);
+                if(nodeID == 0)
+                    return 0;
+                
+                uint64 count;
+                while((count = VFS::ReadNode(nodeID, arg2, (void*)arg3, arg4)) == 0)
+                    Scheduler::ThreadWaitForNodeWrite(nodeID);
+                return count;
+            }
+            break;
+        case Syscall::FunctionWrite:
+            {
+                uint64 nodeID = Scheduler::ProcessGetFileDescriptorNode(arg1);
+                if(nodeID == 0)
+                    return 0;
+                uint64 count;
+                while((count = VFS::WriteNode(nodeID, arg2, (void*)arg3, arg4)) == 0)
+                    Scheduler::ThreadWaitForNodeWrite(nodeID);
+                return count;
+            }
+            break;
+        case Syscall::FunctionPipe:
+            {
+                uint64 nodeID = VFS::CreatePipe();
+                uint64 descRead = Scheduler::ProcessAddFileDescriptor(nodeID, true, false);
+                uint64 descWrite = Scheduler::ProcessAddFileDescriptor(nodeID, false, true);
+
+                uint64* buf = (uint64*)arg1;
+                buf[0] = descWrite;
+                buf[1] = descRead;
+            }
+            break;
         }
 
         return 0;
