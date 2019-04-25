@@ -46,7 +46,7 @@ namespace IDT {
     {
         g_IDT[number].offset1 = (uint64)vector & 0xFFFF;
         g_IDT[number].csSelector = selector;
-        g_IDT[number].ist = 1;
+        g_IDT[number].ist = 1;  // use ist1 stack for this interrupt (see GDT.cpp)
         g_IDT[number].typeAttrib = flags;
         g_IDT[number].offset2 = ((uint64)vector >> 16) & 0xFFFF;
         g_IDT[number].offset3 = ((uint64)vector >> 32) & 0xFFFFFFFF;
