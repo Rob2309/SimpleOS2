@@ -307,6 +307,52 @@ namespace MemoryManager {
             );
         }
     }
+    void* MapProcessPage(uint64 pml4Entry, void* virt, bool invalidate)
+    {
+        uint64 pml3Index = GET_PML3_INDEX((uint64)virt);
+        uint64 pml2Index = GET_PML2_INDEX((uint64)virt);
+        uint64 pml1Index = GET_PML1_INDEX((uint64)virt);
+
+        volatile uint64* pml3 = (uint64*)PhysToKernelPtr((void*)PML_GET_ADDR(pml4Entry));
+
+        uint64 pml3Entry = pml3[pml3Index];
+        volatile uint64* pml2;
+        if(!PML_GET_P(pml3Entry)) {
+            pml2 = (uint64*)PhysToKernelPtr(AllocatePages());
+            for(int i = 0; i < 512; i++)
+                pml2[i] = 0;
+            pml3[pml3Index] = PML_SET_ADDR((uint64)KernelToPhysPtr((uint64*)pml2)) | PML_SET_P(1) | PML_SET_RW(1) | PML_SET_US(1);
+        } else {
+            pml2 = (uint64*)PhysToKernelPtr((void*)PML_GET_ADDR(pml3Entry));
+        }
+
+        uint64 pml2Entry = pml2[pml2Index];
+        volatile uint64* pml1;
+        if(!PML_GET_P(pml2Entry)) {
+            pml1 = (uint64*)PhysToKernelPtr(AllocatePages());
+            for(int i = 0; i < 512; i++)
+                pml1[i] = 0;
+            pml2[pml2Index] = PML_SET_ADDR((uint64)KernelToPhysPtr((uint64*)pml1)) | PML_SET_P(1) | PML_SET_RW(1) | PML_SET_US(1);
+        } else {
+            pml1 = (uint64*)PhysToKernelPtr((void*)PML_GET_ADDR(pml2Entry));
+        }
+
+        uint64 pml1Entry = pml1[pml1Index];
+        if(PML_GET_P(pml1Entry))
+            return PhysToKernelPtr((void*)PML_GET_ADDR(pml1Entry));
+            
+        void* phys = MemoryManager::AllocatePages(1);
+        pml1[pml1Index] = PML_SET_ADDR((uint64)phys) | PML_SET_P(1) | PML_SET_RW(1) | PML_SET_US(1);
+
+        if(invalidate) {
+            __asm__ __volatile__ (
+                "invlpg (%0)"
+                : : "r"(virt)
+            );
+        }
+
+        return PhysToKernelPtr(phys);
+    }
     void UnmapProcessPage(uint64 pml4Entry, void* virt, bool invalidate)
     {
         uint64 pml3Index = GET_PML3_INDEX((uint64)virt);

@@ -42,34 +42,10 @@ static void SetupTestProcess(uint8* loadBase)
     VFS::ReadNode(file, 0, fileBuffer, fileSize);
     VFS::CloseNode(file);
 
-    uint64 pages = (GetELFSize(fileBuffer) + 4095) / 4096;
-    uint64 pml4Entry = MemoryManager::CreateProcessMap();
-    MemoryManager::SwitchProcessMap(pml4Entry);
-
-    uint8* processBuffer = (uint8*)MemoryManager::AllocatePages(pages);
-    for(uint64 i = 0; i < pages; i++) {
-        MemoryManager::MapProcessPage(pml4Entry, processBuffer + i * 4096, loadBase + i * 4096);
-    }
-
-    Elf64Addr entryPoint;
-    if(!PrepareELF(fileBuffer, loadBase, &entryPoint)) {
+    if(!RunELF(fileBuffer)) {
         printf("Failed to setup process\n");
         return;
     }
-
-    uint8* stack = (uint8*)MemoryManager::AllocatePages(UserStackPages);
-    for(int i = 0; i < UserStackPages; i++)
-        MemoryManager::MapProcessPage(pml4Entry, stack + i * 4096, (void*)(0x1000 + i * 4096));
-
-    IDT::Registers regs;
-    memset(&regs, 0, sizeof(IDT::Registers));
-    regs.cs = GDT::UserCode;
-    regs.ds = GDT::UserData;
-    regs.ss = GDT::UserData;
-    regs.rflags = CPU::Flags::FLAGS_IF;
-    regs.rip = entryPoint;
-    regs.userrsp = 0x1000 + UserStackSize;
-    Scheduler::CreateProcess(pml4Entry, &regs);
 
     delete[] fileBuffer;
 }
