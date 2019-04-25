@@ -107,6 +107,10 @@ namespace std {
         Node* m_Tail;
     };
 
+    /**
+     * This is a special list class that does not allocate or free any memory.
+     * Instead, the type that is stored in the list has to have a 'prev' and 'next' member.
+     **/
     template<typename Node>
     class nlist
     {

@@ -12,6 +12,9 @@ typedef signed long long Elf64SXWord;
 typedef unsigned char Elf64Byte;
 typedef unsigned short Elf64Section;
 
+/**
+ * Creates a user process from the given elf executable image
+ **/
 bool RunELF(const uint8* diskImg);
 
 struct ELFHeader {

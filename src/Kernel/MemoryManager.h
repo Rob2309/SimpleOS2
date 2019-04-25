@@ -7,9 +7,15 @@ namespace MemoryManager {
 
     void Init(KernelHeader* header);
 
+    /**
+     * Allocate physically continuous pages
+     **/
     void* AllocatePages(uint64 numPages = 1);
     void FreePages(void* pages, uint64 numPages = 1);
 
+    /**
+     * Convert the given physical address to a pointer that can be accessed by the kernel
+     **/
     void* PhysToKernelPtr(const void* ptr);
     void* KernelToPhysPtr(const void* ptr);
 

@@ -18,9 +18,18 @@ namespace IDT {
 
     void Init();
 
+    /**
+     * Sets the function to be called when the given interrupt is fired
+     **/
     void SetISR(uint8 index, ISR isr);
 
+    /**
+     * Enable all maskable interrupts
+     **/
     void EnableInterrupts();
+    /**
+     * Disable all maskable interrupts
+     **/
     void DisableInterrupts();
 
 }
