@@ -3,6 +3,10 @@
 #include "types.h"
 #include "KernelHeader.h"
 
+/**
+ * This list keeps track of free spaces in memory. It stores its entries directly in the free spaces instead of allocating extra memory for them.
+ * It is used in the MemoryManager
+ **/
 class FreeList
 {
 public:
@@ -58,6 +62,9 @@ public:
     Iterator begin() { return Iterator(m_Head); }
     Iterator end() { return Iterator(nullptr); }
 
+    /**
+     * Find the first free segment that has enough capacity to fit the number of bytes requested
+     **/
     void* FindFree(uint64 size) 
     {
         volatile Node* tmp = m_Head;
@@ -69,6 +76,9 @@ public:
         return nullptr;
     }
 
+    /**
+     * Marks the given bytes as available
+     **/
     void MarkFree(void* base, uint64 size)
     {
         volatile Node* node = (volatile Node*)base;
@@ -79,6 +89,9 @@ public:
         JoinAdjacent(node);
     }
 
+    /**
+     * Marks the given bytes as occupied
+     **/
     void MarkUsed(void* base, uint64 size) 
     {
         volatile Node* node = (volatile Node*)base;

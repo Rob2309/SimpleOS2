@@ -99,7 +99,10 @@ namespace GDT
         memset((void*)&g_TSS, 0, sizeof(TSS));
         g_TSS.iopbOffset = sizeof(TSS);
         // this is the stack pointer that will be loaded when an interrupt CHANGES the priviledge level to 0
+        // if an interrupt is fired in kernel mode, this stack pointer won't be used
         g_TSS.rsp0 = 0;
+        // This is a stack that can be explicitly enabled for specific interrupts.
+        // Those interrupts will then always use this stack, no matter in which privilege level it occured
         g_TSS.ist1 = (uint64)header->stack + header->stackPages * 4096;
 
         volatile TSSDesc* tssDesc = (volatile TSSDesc*)&g_GDT[5];

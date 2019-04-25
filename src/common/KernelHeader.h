@@ -16,23 +16,23 @@ struct PhysicalMapSegment {
 };
 
 struct KernelHeader {
-    ModuleDescriptor kernelImage;
-    ModuleDescriptor ramdiskImage;
+    ModuleDescriptor kernelImage;   // The memory the Kernel occupies
+    ModuleDescriptor ramdiskImage;  // The memory the ramdisk occupies
 
-    uint32 screenWidth;
-    uint32 screenHeight;
-    uint32 screenScanlineWidth;
-    uint32 screenBufferPages;
-    uint32* screenBuffer;
-    bool screenColorsInverted;
+    uint32 screenWidth;             // Width of the screen in pixels
+    uint32 screenHeight;            // Height of the screen in pixels
+    uint32 screenScanlineWidth;     // Width of a screen scanline
+    uint32 screenBufferPages;       // Number of pages the video buffer occupies
+    uint32* screenBuffer;           // The video buffer
+    bool screenColorsInverted;      // if true, the pixel format is 0xBBGGRR instead of 0xRRGGBB
 
-    PhysicalMapSegment* physMapStart;
+    PhysicalMapSegment* physMapStart;   // The Physical memory map
     PhysicalMapSegment* physMapEnd;
 
-    void* stack;
-    uint64 stackPages;
+    void* stack;                    // The stack the kernel is using on entry
+    uint64 stackPages;              // The size of the stack in pages
 
-    uint64* pageBuffer;
+    uint64* pageBuffer;             // Buffer of the initial paging structure
     uint64 pageBufferPages;
-    uint64 highMemoryBase;
+    uint64 highMemoryBase;          // The Virtual Memory Address associated with the lowest addressable physical address
 };

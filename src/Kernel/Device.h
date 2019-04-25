@@ -2,6 +2,9 @@
 
 #include "types.h"
 
+/**
+ * This class represents a Character device that can be read from and written to
+ **/
 class Device 
 {
 public:

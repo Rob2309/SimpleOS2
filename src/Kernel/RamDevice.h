@@ -2,6 +2,9 @@
 
 #include "Device.h"
 
+/**
+ * This device class is used for devices that reside directly in RAM (e.g. the initial ramdisk)
+ **/
 class RamDevice : public Device {
 public:
     RamDevice(const char* name, void* buffer, uint64 size);

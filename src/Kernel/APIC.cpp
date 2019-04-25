@@ -6,6 +6,8 @@
 
 #include "port.h"
 
+#include "MSR.h"
+
 namespace APIC
 {
     constexpr uint64 RegSpurious = 0xF0;
@@ -38,6 +40,7 @@ namespace APIC
     }
     static void ISR_Spurious(IDT::Registers* regs)
     {
+        // Spurious APIC interrupts don't wait for and EOI
     }
 
     static void CalibrateTimer()
@@ -70,22 +73,13 @@ namespace APIC
 
     void Init()
     {
-        uint32 eax, edx;
-        __asm__ __volatile__ (
-            "movl $0x1B, %%ecx;"    // msr 0x1B contains the physical address of the APIC registers
-            "rdmsr"
-            : "=a"(eax), "=d"(edx)
-            :
-            : "ecx"
-        );
+        uint64 lapicBase = MSR::Read(MSR::RegLAPICBase);    // Physical address of LAPIC memory space
 
-        g_APICBase = (uint64)MemoryManager::PhysToKernelPtr((void*)(((uint64)edx << 32) | (eax & 0xFFFFF000)));
+        g_APICBase = (uint64)MemoryManager::PhysToKernelPtr((void*)(lapicBase & 0xFFFFFFFFFFFFF000));
         printf("APIC Base: 0x%x\n", g_APICBase);
 
         IDT::SetISR(ISRNumbers::APICError, ISR_Error);
-
         IDT::SetISR(ISRNumbers::APICSpurious, ISR_Spurious);
-
         IDT::SetISR(ISRNumbers::APICTimer, ISR_Timer);
 
         *(volatile uint32*)(g_APICBase + RegSpurious) = 0x100 | ISRNumbers::APICSpurious;

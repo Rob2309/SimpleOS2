@@ -18,6 +18,10 @@ namespace Syscall
     constexpr uint64 FunctionWrite = 13;
     constexpr uint64 FunctionPipe = 14;
 
+    /**
+     * Open the FileSystem Node with the given path
+     * @returns the FileDescriptorID of the opened node, 0 on error
+     **/
     inline uint64 Open(const char* path)
     {
         uint64 fileDesc;
@@ -29,6 +33,9 @@ namespace Syscall
         );
         return fileDesc;
     }
+    /**
+     * Close the given FileDescriptor
+     **/
     inline void Close(uint64 desc)
     {
         __asm__ __volatile__ (
@@ -37,6 +44,9 @@ namespace Syscall
             : "rax", "rcx", "rdx", "r8", "r9", "r10", "r11"
         );
     }
+    /**
+     * Read from the given FileDescriptor
+     **/
     inline uint64 Read(uint64 desc, uint64 pos, void* buffer, uint64 bufferSize) 
     {
         uint64 ret;
@@ -50,6 +60,9 @@ namespace Syscall
         );
         return ret;
     }
+    /**
+     * Write to the given FileDescriptor
+     **/
     inline uint64 Write(uint64 desc, uint64 pos, void* buffer, uint64 bufferSize)
     {
         uint64 ret;
@@ -64,6 +77,9 @@ namespace Syscall
         return ret;
     }
 
+    /**
+     * Create a pipe and write the two FileDescriptors associated with it into descs
+     **/
     inline void Pipe(uint64* descs) {
         __asm__ __volatile__ (
             "syscall"
@@ -72,6 +88,9 @@ namespace Syscall
         );
     }
 
+    /**
+     * Print a message onto the screen
+     **/
     inline void Print(const char* msg)
     {
         __asm__ __volatile__ (
@@ -81,6 +100,9 @@ namespace Syscall
         );
     }
 
+    /**
+     * Wait *at least* [ms] milliseconds
+     **/
     inline void Wait(uint64 ms) 
     {
         __asm__ __volatile__ (
@@ -90,6 +112,9 @@ namespace Syscall
         );
     }
 
+    /**
+     * Wait until the given mutex can be locked by the Scheduler
+     **/
     inline void WaitForLock(void* lock)
     {
         __asm__ __volatile__ (
@@ -99,6 +124,9 @@ namespace Syscall
         );
     }
 
+    /**
+     * Get the ProcessID of the Process associated with this thread
+     **/
     inline uint64 GetPID()
     {
         uint64 pid;
@@ -111,6 +139,9 @@ namespace Syscall
         return pid;
     }
 
+    /**
+     * Exit the current Thread
+     **/
     inline void Exit(uint64 code)
     {
         __asm__ __volatile__ (
@@ -120,6 +151,9 @@ namespace Syscall
         );
     }
 
+    /**
+     * Fork the current process
+     **/
     inline uint64 Fork()
     {
         uint64 ret;
@@ -132,6 +166,9 @@ namespace Syscall
         return ret;
     }
 
+    /**
+     * Create a new thread at the given entrypoint
+     **/
     inline void CreateThread(uint64 entry, uint64 stack)
     {
         __asm__ __volatile__ (

@@ -107,6 +107,10 @@ namespace std {
         Node* m_Tail;
     };
 
+    /**
+     * This is a special list class that does not allocate or free any memory.
+     * Instead, the type that is stored in the list has to have a 'prev' and 'next' member.
+     **/
     template<typename Node>
     class nlist
     {
@@ -149,6 +153,9 @@ namespace std {
 
         Node& back() { return *m_Tail; }
 
+        /**
+         * Add a node to the end of the list.
+         **/
         void push_back(Node* n)
         {
             n->next = nullptr;
@@ -161,16 +168,25 @@ namespace std {
                 m_Tail = n;
             }
         }
+        /**
+         * Remove a node from the end of the list (note: the element will not be freed)
+         **/
         void pop_back()
         {
             erase(--end());
         }
 
+        /**
+         * Remove a node from the front of the list (note: the element will not be freed)
+         **/
         void pop_front()
         {
             erase(begin());
         }
 
+        /**
+         * Remove a node from the list at the position given by the iterator (note: the element will not be freed)
+         **/
         void erase(const Iterator& it)
         {
             Node* n = it.m_Node;
@@ -186,6 +202,9 @@ namespace std {
                 m_Tail = n->prev;
             }
         }
+        /**
+         * Remove the first (if any) occurence of the given element from the list (note: the element will not be freed)
+         **/
         void erase(const Node* node)
         {
             for(auto a = begin(); a != end(); ++a)

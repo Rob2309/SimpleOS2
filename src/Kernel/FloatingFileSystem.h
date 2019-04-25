@@ -4,6 +4,9 @@
 
 namespace VFS
 {
+    /**
+     * This file system is used for every file that does not belong to any other FileSystem
+     **/
     class FloatingFileSystem : public FileSystem
     {
     public:
