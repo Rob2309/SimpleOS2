@@ -2,6 +2,9 @@
 
 #include "Device.h"
 
+/**
+ * This device returns endless zeroes and eats everything you write to it
+ **/
 class ZeroDevice : public Device
 {
 public:

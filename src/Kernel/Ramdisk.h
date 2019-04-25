@@ -3,6 +3,9 @@
 #include "VFS.h"
 #include "RamdiskStructs.h"
 
+/**
+ * This FileSystem is used to mount the initial ramdisk into the file hierarchy
+ **/
 class RamdiskFS : public VFS::FileSystem
 {
 public:

@@ -14,6 +14,12 @@ namespace MSR
     constexpr uint32 RegGSBase          = 0xC0000101;
     constexpr uint32 RegKernelGSBase    = 0xC0000102;
 
+    /**
+     * Write a value to the given Model Specific Register
+     **/
     void Write(uint32 reg, uint64 val);
+    /**
+     * Read a value from the given Model Specific Register
+     **/
     uint64 Read(uint32 reg);
 }

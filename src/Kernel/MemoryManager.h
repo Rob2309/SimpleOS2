@@ -56,6 +56,9 @@ namespace MemoryManager {
      * Map any available physical page to the given virtual page. If the virtual page is already mapped to any physical page, do nothing
      **/
     void* MapProcessPage(uint64 pml4Entry, void* virt, bool invalidate);
+    /**
+     * Remove a page from the given User Memory Space
+     **/
     void UnmapProcessPage(uint64 pml4Entry, void* virt);
 
     /**
