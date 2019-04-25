@@ -12,8 +12,7 @@ typedef signed long long Elf64SXWord;
 typedef unsigned char Elf64Byte;
 typedef unsigned short Elf64Section;
 
-uint64 GetELFSize(const uint8* image);
-bool PrepareELF(const uint8* diskImg, uint8* processImg, Elf64Addr* entryPoint);
+bool RunELF(const uint8* diskImg);
 
 struct ELFHeader {
     Elf64Byte magic[4];
