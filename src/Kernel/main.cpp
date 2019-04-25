@@ -27,6 +27,8 @@
 
 #include "Process.h"
 
+#include "CPU.h"
+
 static void SetupTestProcess(uint8* loadBase)
 {
     uint64 file = VFS::OpenNode("/initrd/test.elf");
