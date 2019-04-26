@@ -9,8 +9,9 @@ namespace Syscall
     constexpr uint64 FunctionWait = 2;
     constexpr uint64 FunctionExit = 3;
     constexpr uint64 FunctionFork = 4;
-    constexpr uint64 FunctionCreateThread = 5;
-    constexpr uint64 FunctionWaitForLock = 6;
+    constexpr uint64 FunctionExec = 5;
+    constexpr uint64 FunctionCreateThread = 6;
+    constexpr uint64 FunctionWaitForLock = 7;
 
     constexpr uint64 FunctionOpen = 10;
     constexpr uint64 FunctionClose = 11;
@@ -63,10 +64,10 @@ namespace Syscall
     /**
      * Write to the given FileDescriptor
      **/
-    inline uint64 Write(uint64 desc, uint64 pos, void* buffer, uint64 bufferSize)
+    inline uint64 Write(uint64 desc, uint64 pos, const void* buffer, uint64 bufferSize)
     {
         uint64 ret;
-        register uint64 r8 __asm__("r8") = (uint64)buffer;
+        register const void* r8 __asm__("r8") = buffer;
         register uint64 r9 __asm__("r9") = bufferSize;
         __asm__ __volatile__ (
             "syscall"
@@ -164,6 +165,15 @@ namespace Syscall
             : "rcx", "rdx", "rsi", "r8", "r9", "r10", "r11"
         );
         return ret;
+    }
+
+    inline void Exec(const char* file)
+    {
+        __asm__ __volatile__ (
+            "syscall"
+            : : "D"(FunctionExec), "S"(file)
+            : "rax", "rcx", "rdx", "r8", "r9", "r10", "r11"
+        );
     }
 
     /**

@@ -7,21 +7,20 @@ extern "C" void main()
 {
     Syscall::Pipe(g_Descs);
 
-    if(Syscall::Fork() == 0) {
-        Syscall::Print("Child process alive...\n");
+    if(Syscall::Fork()) {
+        Syscall::Print("Parent process alive\n");
 
-        static char s_Buffer[4096];
-        uint64 count = Syscall::Read(g_Descs[1], 0, s_Buffer, sizeof(s_Buffer));
-        if(count == 0)
-            Syscall::Print("Failed to read pipe\n");
-        Syscall::Print(s_Buffer);
+        static char s_Buffer[128] = { 0 };
+
+        while(true) {
+            Syscall::Read(2, 0, s_Buffer, sizeof(s_Buffer));
+            Syscall::Print(s_Buffer);
+        }
     } else {
-        Syscall::Print("Parent process alive...\n");
-
-        const char msg[] = "Hello World\n";
-        uint64 count = Syscall::Write(g_Descs[0], 0, (void*)msg, sizeof(msg));
-        if(count == 0)
-            Syscall::Print("Failed to write pipe\n");
+        Syscall::Print("Executing test2...\n");
+        Syscall::Exec("/initrd/test2.elf");
+        Syscall::Print("Failed to exec!\n");
+        Syscall::Exit(1);
     }
 
     Syscall::Exit(0);

@@ -15,6 +15,8 @@
 
 #include "VFS.h"
 
+#include "ELF.h"
+
 namespace SyscallHandler {
 
     extern "C" void SyscallEntry();
@@ -84,6 +86,29 @@ namespace SyscallHandler {
             Scheduler::ThreadExit(arg1); 
             break;
         case Syscall::FunctionFork: return DoFork(state); break;
+        case Syscall::FunctionExec:
+            {
+                uint64 file = VFS::OpenNode((const char*)arg1);
+                if(file == 0) {
+                    printf("exec: failed to open %s\n", arg1);
+                    return 0;
+                }
+                uint64 fileSize = VFS::GetSize(file);
+                uint8* fileBuffer = new uint8[fileSize];
+                VFS::ReadNode(file, 0, fileBuffer, fileSize);
+                VFS::CloseNode(file);
+
+                uint64 pml4Entry;
+                IDT::Registers regs;
+                if(!PrepareELF(fileBuffer, pml4Entry, regs)) {
+                    printf("exec: failed to exec %s\n", arg1);
+                    return 0;
+                }
+
+                delete[] fileBuffer;
+                Scheduler::ProcessExec(pml4Entry, &regs);
+            }
+            break;
         case Syscall::FunctionCreateThread: Scheduler::ThreadCreateThread(arg1, arg2); break;
         case Syscall::FunctionWaitForLock: Scheduler::ThreadWaitForLock(MemoryManager::UserToKernelPtr((void*)arg1)); break;
         

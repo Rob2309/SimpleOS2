@@ -156,7 +156,7 @@ private:
             } else if(tmp->seg.base + tmp->seg.size == start) {
                 tmp->seg.size += cmp->seg.size;
                 RemoveNode(cmp);
-                JoinAdjacent(cmp);
+                JoinAdjacent(tmp);
                 return;
             }
             tmp = tmp->next;

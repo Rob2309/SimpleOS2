@@ -16,6 +16,7 @@ include src/RamdiskBuilder/module.mk
 include src/Bootloader/module.mk
 include src/Kernel/module.mk
 include src/Programs/Test/module.mk
+include src/Programs/Test2/module.mk
 
 depcheck: FORCE
 	./depcheck.sh

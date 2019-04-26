@@ -98,4 +98,6 @@ namespace Scheduler {
      **/
     uint64 ProcessGetFileDescriptorNode(uint64 id);
 
+    void ProcessExec(uint64 pml4Entry, IDT::Registers* regs);
+
 }
