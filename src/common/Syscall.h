@@ -9,8 +9,9 @@ namespace Syscall
     constexpr uint64 FunctionWait = 2;
     constexpr uint64 FunctionExit = 3;
     constexpr uint64 FunctionFork = 4;
-    constexpr uint64 FunctionCreateThread = 5;
-    constexpr uint64 FunctionWaitForLock = 6;
+    constexpr uint64 FunctionExec = 5;
+    constexpr uint64 FunctionCreateThread = 6;
+    constexpr uint64 FunctionWaitForLock = 7;
 
     constexpr uint64 FunctionOpen = 10;
     constexpr uint64 FunctionClose = 11;
@@ -130,6 +131,15 @@ namespace Syscall
             : "rcx", "rdx", "rsi", "r8", "r9", "r10", "r11"
         );
         return ret;
+    }
+
+    inline void Exec(const char* file)
+    {
+        __asm__ __volatile__ (
+            "syscall"
+            : : "D"(FunctionExec), "S"(file)
+            : "rax", "rcx", "rdx", "r8", "r9", "r10", "r11"
+        );
     }
 
     inline void CreateThread(uint64 entry, uint64 stack)

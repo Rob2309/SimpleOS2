@@ -1,6 +1,7 @@
 #pragma once
 
 #include "types.h"
+#include "IDT.h"
 
 typedef unsigned long long Elf64Addr;
 typedef unsigned long long Elf64Offs;
@@ -16,6 +17,7 @@ typedef unsigned short Elf64Section;
  * Creates a user process from the given elf executable image
  **/
 bool RunELF(const uint8* diskImg);
+bool PrepareELF(const uint8* diskImg, uint64& pml4Entry, IDT::Registers& regs);
 
 struct ELFHeader {
     Elf64Byte magic[4];

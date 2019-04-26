@@ -29,4 +29,6 @@ namespace Scheduler {
     void ProcessRemoveFileDescriptor(uint64 id);
     uint64 ProcessGetFileDescriptorNode(uint64 id);
 
+    void ProcessExec(uint64 pml4Entry, IDT::Registers* regs);
+
 }

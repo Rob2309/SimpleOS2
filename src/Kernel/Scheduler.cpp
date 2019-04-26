@@ -439,4 +439,20 @@ namespace Scheduler {
         return 0;
     }
 
+    void ProcessExec(uint64 pml4Entry, IDT::Registers* regs)
+    {
+        IDT::DisableInterrupts();
+        uint64 oldPML4Entry = g_CPUData.currentThread->process->pml4Entry;
+        g_CPUData.currentThread->process->pml4Entry = pml4Entry;
+        IDT::EnableInterrupts();
+
+        MemoryManager::FreeProcessMap(oldPML4Entry);
+
+        IDT::DisableInterrupts();
+
+        SaveThreadInfo(regs);
+        SetContext(g_CPUData.currentThread, regs);
+        ReturnToThread(regs);
+    }
+
 }
