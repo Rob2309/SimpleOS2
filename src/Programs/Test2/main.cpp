@@ -2,7 +2,8 @@
 
 extern "C" void main()
 {
-    Syscall::Print("Hello world from Test2!\n");
+    const char msg[] = "Hello World from Test2\n";
 
+    Syscall::Write(1, 0, (void*)msg, sizeof(msg));
     Syscall::Exit(0);
 }

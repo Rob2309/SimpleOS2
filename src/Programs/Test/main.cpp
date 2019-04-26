@@ -9,7 +9,13 @@ extern "C" void main()
 
     if(Syscall::Fork()) {
         Syscall::Print("Parent process alive\n");
-        Syscall::Exit(0);
+
+        static char s_Buffer[128];
+
+        while(true) {
+            Syscall::Read(2, 0, s_Buffer, sizeof(s_Buffer));
+            Syscall::Print(s_Buffer);
+        }
     } else {
         Syscall::Print("Executing test2...\n");
         Syscall::Exec("/initrd/test2.elf");
