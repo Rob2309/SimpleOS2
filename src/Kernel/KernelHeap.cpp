@@ -15,16 +15,14 @@ namespace KernelHeap {
     static FreeList g_FreeList;
     static uint64 g_HeapPos = HeapBase;
 
-    static void* ReserveNew(uint64 size) 
+    static void ReserveNew(uint64 size) 
     {
         size = (size + 4095) / 4096;
         void* g = MemoryManager::AllocatePages(size);
         for(int i = 0; i < size; i++)
             MemoryManager::MapKernelPage((char*)g + 4096 * i, (char*)g_HeapPos + 4096 * i);
         g_FreeList.MarkFree((void*)g_HeapPos, size * 4096);
-        void* ret = (void*)g_HeapPos;
         g_HeapPos += size * 4096;
-        return ret;
     }
 
     void* Allocate(uint64 size)
@@ -33,8 +31,10 @@ namespace KernelHeap {
 
         g_Lock.SpinLock();
         void* g = g_FreeList.FindFree(size);
-        if(g == nullptr)
-            g = ReserveNew(size);
+        if(g == nullptr) {
+            ReserveNew(size);
+            g = g_FreeList.FindFree(size);
+        }
         g_FreeList.MarkUsed(g, size);
         g_Lock.Unlock();
 
