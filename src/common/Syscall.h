@@ -51,10 +51,10 @@ namespace Syscall
         );
         return ret;
     }
-    inline uint64 Write(uint64 desc, uint64 pos, void* buffer, uint64 bufferSize)
+    inline uint64 Write(uint64 desc, uint64 pos, const void* buffer, uint64 bufferSize)
     {
         uint64 ret;
-        register uint64 r8 __asm__("r8") = (uint64)buffer;
+        register const void* r8 __asm__("r8") = buffer;
         register uint64 r9 __asm__("r9") = bufferSize;
         __asm__ __volatile__ (
             "syscall"

@@ -1,9 +1,9 @@
 #include "Syscall.h"
 
+const char msg[] = "Hello World from Test2\n";
+
 extern "C" void main()
 {
-    const char msg[] = "Hello World from Test2\n";
-
-    Syscall::Write(1, 0, (void*)msg, sizeof(msg));
+    Syscall::Write(1, 0, msg, sizeof(msg));
     Syscall::Exit(0);
 }

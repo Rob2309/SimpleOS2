@@ -10,7 +10,7 @@ extern "C" void main()
     if(Syscall::Fork()) {
         Syscall::Print("Parent process alive\n");
 
-        static char s_Buffer[128];
+        static char s_Buffer[128] = { 0 };
 
         while(true) {
             Syscall::Read(2, 0, s_Buffer, sizeof(s_Buffer));
