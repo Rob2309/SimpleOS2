@@ -1,33 +1,31 @@
 #include <KernelHeader.h>
 
-#include "terminal.h"
-#include "conio.h"
-#include "MemoryManager.h"
-#include "GDT.h"
-#include "IDT.h"
-#include "APIC.h"
+#include "terminal/terminal.h"
+#include "terminal/conio.h"
+#include "memory/MemoryManager.h"
+#include "arch/GDT.h"
+#include "interrupts/IDT.h"
+#include "arch/APIC.h"
 
-#include "Scheduler.h"
+#include "scheduler/Scheduler.h"
 
-#include "ELF.h"
+#include "scheduler/ELF.h"
 
-#include "Syscall.h"
+#include "fs/Ramdisk.h"
 
-#include "Ramdisk.h"
+#include "memory/KernelHeap.h"
 
-#include "KernelHeap.h"
+#include "fs/VFS.h"
+#include "devices/RamDevice.h"
+#include "devices/ZeroDevice.h"
 
-#include "VFS.h"
-#include "RamDevice.h"
-#include "ZeroDevice.h"
+#include "syscalls/SyscallHandler.h"
 
-#include "SyscallHandler.h"
+#include "memory/memutil.h"
 
-#include "memutil.h"
+#include "scheduler/Process.h"
 
-#include "Process.h"
-
-#include "CPU.h"
+#include "arch/CPU.h"
 
 static void SetupTestProcess(uint8* loadBase)
 {

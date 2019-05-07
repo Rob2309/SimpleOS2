@@ -2,62 +2,58 @@ export PE_GCC := x86_64-w64-mingw32-gcc
 export ELF_GCC := gcc
 export NASM := nasm
 
-root_partition_img_deps := 
-clean_files := bin int tools
-include_paths := 
+config := Debug
 
-ramdisk_files := 
-ramdisk_command := 
+export bin_dir := $(shell pwd)/bin/$(config)
+export int_dir := $(shell pwd)/int/$(config)
+export RD_BUILDER = $(bin_dir)/tools/RamdiskBuilder
 
-config := dbg
-
-include src/RamdiskBuilder/module.mk
-
-include src/Bootloader/module.mk
-include src/Kernel/module.mk
-include src/Programs/Test/module.mk
-include src/Programs/Test2/module.mk
+root_partition_img_deps := $(bin_dir)/Kernel/Kernel.sys $(bin_dir)/Bootloader/BOOTX64.EFI
+ramdisk_files := $(bin_dir)/Programs/Test/test.elf $(bin_dir)/Programs/Test2/test2.elf
+ramdisk_command := $(bin_dir)/Programs/Test/test.elf test.elf $(bin_dir)/Programs/Test2/test2.elf test2.elf
 
 depcheck: FORCE
 	./depcheck.sh
 
-run: partition FORCE
-	qemu-system-x86_64 -m 1024 -cpu qemu64 -net none -drive if=pflash,unit=0,format=raw,file=dep/ovmf/x64/OVMF_CODE.fd,readonly=on -drive if=pflash,unit=1,format=raw,file=dep/ovmf/x64/OVMF_VARS.fd,readonly=on -drive file=bin/$(config)/partition.img,if=ide
-runvbox: vboxpartition FORCE
-	make env_config_$(config); make bin/$(config)/partition.vdi
-	rm -rf bin/partition.vdi
-	cp bin/$(config)/partition.vdi bin/partition.vdi
+run: $(bin_dir)/partition.img FORCE
+	qemu-system-x86_64 -m 1024 -cpu qemu64 -net none -drive if=pflash,unit=0,format=raw,file=dep/ovmf/x64/OVMF_CODE.fd,readonly=on -drive if=pflash,unit=1,format=raw,file=dep/ovmf/x64/OVMF_VARS.fd,readonly=on -drive file=$(bin_dir)/partition.img,if=ide
+runvbox: $(bin_dir)../partition.vdi FORCE
 	VBoxManage startvm SimpleOS2
 
-debug: partition FORCE
-	make env_config_$(config); make bin/$(config)/partition.img
-	qemu-system-x86_64 -gdb tcp::26000 -m 1024 -cpu qemu64 -net none -drive if=pflash,unit=0,format=raw,file=dep/ovmf/x64/OVMF_CODE.fd,readonly=on -drive if=pflash,unit=1,format=raw,file=dep/ovmf/x64/OVMF_VARS.fd,readonly=on -drive file=bin/$(config)/partition.img,if=ide -S & \
+debug: $(bin_dir)/partition.img FORCE
+	qemu-system-x86_64 -gdb tcp::26000 -m 1024 -cpu qemu64 -net none -drive if=pflash,unit=0,format=raw,file=dep/ovmf/x64/OVMF_CODE.fd,readonly=on -drive if=pflash,unit=1,format=raw,file=dep/ovmf/x64/OVMF_VARS.fd,readonly=on -drive file=$(bin_dir)/partition.img,if=ide -S & \
 	gdb --command=debug.cmd
 
-partition: FORCE
-	if [ "$(config)" = "dbg" ];     then export compile_defs="-DDEBUG"; fi; \
-	if [ "$(config)" = "release" ]; then export compile_defs="-DRELEASE"; export compile_flags="-O2"; fi; \
-	make bin/$(config)/partition.img
+$(bin_dir)/../partition.vdi: $(bin_dir)/partition.vdi
+	rm -f $@
+	cp $< $@
 
-vboxpartition: FORCE
-	make partition
-	make bin/$(config)/partition.vdi
-
-bin/$(config)/partition.vdi: bin/$(config)/partition.img
+$(bin_dir)/partition.vdi: $(bin_dir)/partition.img
 	rm -rf $@
 	VBoxManage convertfromraw $< $@ --format VDI --uuid 430eee2a-0fdf-4d2a-88f0-5b99ea8cffca
 
-bin/$(config)/partition.img: $(root_partition_img_deps) bin/$(config)/initrd
+$(bin_dir)/partition.img: $(root_partition_img_deps) $(bin_dir)/initrd
 	dd if=/dev/zero of=$@ bs=512 count=102400
 	mkfs.fat $@
 	mmd -i $@ ::/EFI
 	mmd -i $@ ::/EFI/BOOT
 	mcopy -i $@ $^ ::/EFI/BOOT
 
-bin/$(config)/initrd: $(RDBUILDER) $(ramdisk_files)
-	$(RDBUILDER) $@ $(ramdisk_command)
+$(bin_dir)/initrd: $(RD_BUILDER) $(ramdisk_files)
+	$(RD_BUILDER) $@ $(ramdisk_command)
+$(bin_dir)/Kernel/Kernel.sys: FORCE
+	make -C src/Kernel
+$(bin_dir)/Programs/Test/test.elf: FORCE
+	make -C src/Programs/Test
+$(bin_dir)/Programs/Test2/test2.elf: FORCE
+	make -C src/Programs/Test2
+$(bin_dir)/Bootloader/BOOTX64.EFI: FORCE
+	make -C src/Bootloader
+
+$(RD_BUILDER): FORCE
+	make -C src/RamdiskBuilder 
 
 clean: FORCE
-	rm -rf $(clean_files)
+	rm -rf bin int
 
 FORCE: 
