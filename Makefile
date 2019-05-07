@@ -2,10 +2,11 @@ export PE_GCC := x86_64-w64-mingw32-gcc
 export ELF_GCC := gcc
 export NASM := nasm
 
-config := Debug
+export config := Debug
 
-export bin_dir := $(shell pwd)/bin/$(config)
-export int_dir := $(shell pwd)/int/$(config)
+export out_dir := $(shell pwd)
+export bin_dir := $(out_dir)/bin/$(config)
+export int_dir := $(out_dir)/int/$(config)
 export RD_BUILDER = $(bin_dir)/tools/RamdiskBuilder
 
 root_partition_img_deps := $(bin_dir)/Kernel/Kernel.sys $(bin_dir)/Bootloader/BOOTX64.EFI
@@ -16,12 +17,12 @@ depcheck: FORCE
 	./depcheck.sh
 
 run: $(bin_dir)/partition.img FORCE
-	qemu-system-x86_64 -m 1024 -cpu qemu64 -net none -drive if=pflash,unit=0,format=raw,file=dep/ovmf/x64/OVMF_CODE.fd,readonly=on -drive if=pflash,unit=1,format=raw,file=dep/ovmf/x64/OVMF_VARS.fd,readonly=on -drive file=$(bin_dir)/partition.img,if=ide
+	qemu-system-x86_64 -m 1024 -cpu qemu64 -net none -drive if=pflash,unit=0,format=raw,file=dep/ovmf/x64/OVMF_CODE.fd,readonly=on -drive if=pflash,unit=1,format=raw,file=dep/ovmf/x64/OVMF_VARS.fd,readonly=on -drive file=$<,if=ide
 runvbox: $(bin_dir)../partition.vdi FORCE
 	VBoxManage startvm SimpleOS2
 
 debug: $(bin_dir)/partition.img FORCE
-	qemu-system-x86_64 -gdb tcp::26000 -m 1024 -cpu qemu64 -net none -drive if=pflash,unit=0,format=raw,file=dep/ovmf/x64/OVMF_CODE.fd,readonly=on -drive if=pflash,unit=1,format=raw,file=dep/ovmf/x64/OVMF_VARS.fd,readonly=on -drive file=$(bin_dir)/partition.img,if=ide -S & \
+	qemu-system-x86_64 -gdb tcp::26000 -m 1024 -cpu qemu64 -net none -drive if=pflash,unit=0,format=raw,file=dep/ovmf/x64/OVMF_CODE.fd,readonly=on -drive if=pflash,unit=1,format=raw,file=dep/ovmf/x64/OVMF_VARS.fd,readonly=on -drive file=$<,if=ide -S & \
 	gdb --command=debug.cmd
 
 $(bin_dir)/../partition.vdi: $(bin_dir)/partition.vdi
