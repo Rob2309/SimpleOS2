@@ -151,6 +151,11 @@ namespace VFS {
 
         return node;
     }
+    static Node* CreateNode(MountPoint* mp) {
+        uint64 nodeID = mp->fs->GetFreeNode();
+        Node* node = AcquireNode(mp, nodeID);
+        return node;
+    }
     static void ReleaseNode(Node* node) {
         if(node->refCount == 0) {
             node->fs->DestroyNode(node);
@@ -169,10 +174,24 @@ namespace VFS {
         return node->dir;
     }
 
-    Node* AcquirePath(const char* path) {
-        MountPoint* mp = AcquireMountPoint(path);
-        path = AdvancePath(mp->path, path);
+    static void RemoveFileName(const char* path, char* buffer) {
+        uint64 lastSlashPos = 0;
 
+        uint64 i = 0;
+        while(true) {
+            buffer[i] = path[i];
+            if(path[i] == '/')
+                lastSlashPos = i;
+            if(path[i] == '\0')
+                break;
+
+            i++;
+        }
+
+        buffer[lastSlashPos] = '\0';
+    }
+
+    Node* AcquirePath(MountPoint* mp, const char* path) {
         Node* node = AcquireNode(mp, mp->sb.rootNode);
         if(path[0] == '\0') 
             return node;
@@ -209,7 +228,34 @@ namespace VFS {
     }
 
     bool CreateFile(const char* path) {
+        char folderBuffer[255];
+        RemoveFileName(path, folderBuffer);
+
+        MountPoint* mp = AcquireMountPoint(folderBuffer);
+        const char* folderPath = AdvancePath(mp->path, folderBuffer);
+        const char* fileName = AdvancePath(folderBuffer, path);
+
+        Node* folder = AcquirePath(mp, folderPath);
+        if(folder == nullptr)
+            return false;
+        if(folder->type != Node::TYPE_DIRECTORY) {
+            ReleaseNode(folder);
+            return false;
+        }
+
+        Node* file = CreateNode(mp);
+        file->type = Node::TYPE_FILE;
+        file->refCount = 1;
         
+        GetDirectory(folder);
+        DirectoryEntry* entry;
+        Directory::AddEntry(&folder->dir, &entry);
+        strcpy(entry->name, fileName);
+        entry->nodeID = file->id;
+
+        ReleaseNode(file);
+        ReleaseNode(folder);
+        return true;
     }
 
 }

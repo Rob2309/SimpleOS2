@@ -18,6 +18,8 @@ public:
     void CreateNode(VFS::Node& node);
     void DestroyNode(VFS::Node& node);
 
+    uint64 GetFreeNode() override;
+
     uint64 ReadNode(const VFS::Node& node, uint64 pos, void* buffer, uint64 bufferSize);
     uint64 WriteNode(VFS::Node& node, uint64 pos, void* buffer, uint64 bufferSize);
 
