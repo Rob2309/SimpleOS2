@@ -18,6 +18,7 @@ namespace VFS {
         } type;
 
         FileSystem* fs;     // The FileSystem instance this node belongs to
+        Directory* dir;
 
         uint64 id;
         uint64 refCount;    // How often this node is referenced globally

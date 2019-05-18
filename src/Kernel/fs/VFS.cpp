@@ -11,11 +11,10 @@ namespace VFS {
         NodeBlock* next;
         NodeBlock* prev;
 
-        uint64 refCount;
-
         uint64 baseNode;
+
+        Mutex nodesLock;
         Node nodes[NodeBlockLength];
-        Directory* directories[NodeBlockLength];
     };
 
     struct SuperBlock {
@@ -30,27 +29,23 @@ namespace VFS {
         SuperBlock sb;
         char path[255];
 
+        Mutex nodeCacheLock;
         std::nlist<NodeBlock> nodeCache;
+
+        Mutex childMountLock;
+        std::nlist<MountPoint> childMounts;
     };
 
-    static Mutex g_MountPointsLock;
-    static std::nlist<MountPoint> g_MountPoints;
+    static MountPoint* g_RootMount = nullptr;
 
     bool Mount(const char* mountPoint, FileSystem* fs) {
-        g_MountPointsLock.SpinLock();
-        if(strcmp(mountPoint, "/") == 0 && g_MountPoints.empty()) {
+        if(strcmp(mountPoint, "/") == 0 && g_RootMount == nullptr) {
             MountPoint* mp = new MountPoint();
             mp->fs = fs;
             strcpy(mp->path, "/");
             fs->GetSuperBlock(&mp->sb);
-            g_MountPoints.push_back(mp);
-            g_MountPointsLock.Unlock();
             return true;
         }
-
-
-
-        g_MountPointsLock.Unlock();
     }
 
     static bool MountCmp(const char* mount, const char* path) {
@@ -79,30 +74,142 @@ namespace VFS {
         return path;
     }
 
-    static MountPoint* FindMountPoint(const char* path) {
-        g_MountPointsLock.SpinLock();
-        for(MountPoint* mp : g_MountPoints) {
-            if(MountCmp(mp->path, path)) {
-                g_MountPointsLock.Unlock();
-                return mp;
+    static MountPoint* AcquireMountPoint(const char* path) {
+        MountPoint* current = g_RootMount;
+        current->childMountLock.SpinLock();
+
+        while(true) {
+            MountPoint* next = nullptr;
+
+            for(MountPoint* mp : current->childMounts) {
+                if(MountCmp(mp->path, path)) {
+                    mp->childMountLock.SpinLock();
+                    current->childMountLock.Unlock();
+                    next = mp;
+                    break;
+                }
+            }
+
+            if(next != nullptr) {
+                current = next;
+            } else {
+                current->childMountLock.Unlock();
+                return current;
             }
         }
-        g_MountPointsLock.Unlock();
-        return nullptr;
     }
 
-    static Node* AcquireNode(FileSystem* fs, uint64 id) {
+    static bool PathWalk(const char** pathPtr, const char* name) {
+        const char* path = *pathPtr;
+
+        while(true) {
+            if(*name == '\0') {
+                if(*path == '/') {
+                    *pathPtr = path + 1;
+                    return true;
+                } else if(*path == '\0') {
+                    *pathPtr = path;
+                    return true;
+                } else {
+                    return false;
+                }
+            }
+
+            if(*name != *path)
+                return false;
+
+            name++;
+            path++;
+        }
+    }
+
+    static NodeBlock* AcquireNodeBlock(MountPoint* mp, uint64 nodeID) {
+        mp->nodeCacheLock.SpinLock();
+        for(NodeBlock* nb : mp->nodeCache) {
+            if(nb->baseNode <= nodeID && nb->baseNode + NodeBlockLength > nodeID) {
+                mp->nodeCacheLock.Unlock();
+                return nb;
+            }
+        }
         
+        NodeBlock* nb = new NodeBlock();
+        nb->baseNode = nodeID / NodeBlockLength * NodeBlockLength;
+        mp->nodeCache.push_back(nb);
+        mp->nodeCacheLock.Unlock();
+        return nb;
+    }
+    static Node* AcquireNode(MountPoint* mp, uint64 nodeID) {
+        NodeBlock* nb = AcquireNodeBlock(mp, nodeID);
+
+        uint64 index = nodeID - nb->baseNode;
+        Node* node = &nb->nodes[index];
+        node->lock.SpinLock();
+
+        if(node->id == 0) {
+            mp->fs->ReadNode(nodeID, node);
+        }
+
+        return node;
+    }
+    static void ReleaseNode(Node* node) {
+        if(node->refCount == 0) {
+            node->fs->DestroyNode(node);
+            if(node->type == Node::TYPE_DIRECTORY && node->dir != nullptr) {
+                Directory::Destroy(node->dir);
+                node->dir = nullptr;
+            }
+        }
+        node->lock.Unlock();
+    }
+
+    static Directory* GetDirectory(Node* node) {
+        if(node->dir == nullptr) {
+            node->dir = node->fs->ReadDirEntries(node);
+        }
+        return node->dir;
+    }
+
+    Node* AcquirePath(const char* path) {
+        MountPoint* mp = AcquireMountPoint(path);
+        path = AdvancePath(mp->path, path);
+
+        Node* node = AcquireNode(mp, mp->sb.rootNode);
+        if(path[0] == '\0') 
+            return node;
+
+        while(true) {
+            if(node->type != Node::TYPE_DIRECTORY) {
+                node->lock.Unlock();
+                return nullptr;
+            }
+
+            Directory* dir = GetDirectory(node);
+            Node* next = nullptr;
+
+            for(uint64 i = 0; i < dir->numEntries; i++) {
+                if(PathWalk(&path, dir->entries[i].name)) {
+                    next = AcquireNode(mp, dir->entries[i].nodeID);
+                    node->lock.Unlock();
+                    
+                    if(path[0] == '\0') {
+                        return next;
+                    }
+
+                    break;
+                }
+            }
+
+            if(next == nullptr) {
+                node->lock.Unlock();
+                return nullptr;
+            }
+
+            node = next;
+        }
     }
 
     bool CreateFile(const char* path) {
-        MountPoint* mp = FindMountPoint(path);
-        if(mp == nullptr)
-            return false;
-
-        path = AdvancePath(mp->path, path);
-
-
+        
     }
 
 }
