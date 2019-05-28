@@ -10,6 +10,9 @@ namespace VFS {
 
     struct Node
     {
+        Node* next;
+        Node* prev;
+
         enum Type {
             TYPE_FILE,      // Normal File
             TYPE_DIRECTORY, // Directory, containing other nodes

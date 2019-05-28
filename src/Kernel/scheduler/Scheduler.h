@@ -85,19 +85,6 @@ namespace Scheduler {
      **/
     void NotifyNodeWrite(uint64 nodeID);
 
-    /**
-     * Add a FileDescriptor to the currently active Process
-     **/
-    uint64 ProcessAddFileDescriptor(uint64 nodeID, bool read, bool write);
-    /**
-     * Remove a FileDescriptor from the currently active Process
-     **/
-    void ProcessRemoveFileDescriptor(uint64 id);
-    /**
-     * Get the FileSystem Node associated with the given FileDescriptor
-     **/
-    uint64 ProcessGetFileDescriptorNode(uint64 id);
-
     void ProcessExec(uint64 pml4Entry, IDT::Registers* regs);
 
 }

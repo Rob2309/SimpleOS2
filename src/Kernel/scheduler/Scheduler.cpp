@@ -61,7 +61,6 @@ namespace Scheduler {
         ProcessInfo* pInfo = new ProcessInfo();
         pInfo->pid = g_PIDCounter++;
         pInfo->pml4Entry = pml4Entry;
-        pInfo->fileDescIDCounter = 1;
 
         ThreadInfo* tInfo = CreateThreadStruct();
         tInfo->tid = g_TIDCounter++;
@@ -116,22 +115,6 @@ namespace Scheduler {
         ProcessInfo* pInfo = new ProcessInfo();
         pInfo->pid = g_PIDCounter++;
         pInfo->pml4Entry = pml4Entry;
-
-        oldPInfo->fileDescLock.SpinLock();
-        pInfo->fileDescIDCounter = oldPInfo->fileDescIDCounter;
-        for(auto oldDesc : oldPInfo->fileDescriptors) {
-            FileDescriptor* newDesc = new FileDescriptor();
-            newDesc->id = oldDesc->id;
-            newDesc->nodeID = oldDesc->nodeID;
-            newDesc->readable = oldDesc->readable;
-            newDesc->writable = oldDesc->writable;
-            
-            VFS::Node* n = VFS::AcquireNode(newDesc->id);
-            n->refCount++;
-            VFS::ReleaseNode(n);
-            pInfo->fileDescriptors.push_back(newDesc);
-        }
-        oldPInfo->fileDescLock.Unlock();
 
         ThreadInfo* tInfo = CreateThreadStruct();
         tInfo->tid = g_TIDCounter++;
@@ -300,10 +283,6 @@ namespace Scheduler {
     static void FreeProcess(ProcessInfo* pInfo)
     {
         MemoryManager::FreeProcessMap(pInfo->pml4Entry);
-        for(auto a = pInfo->fileDescriptors.begin(); a != pInfo->fileDescriptors.end();) {
-            VFS::CloseNode(a->nodeID);
-            delete *(a++);
-        }
     }
 
     void ThreadExit(uint64 code)
@@ -388,55 +367,6 @@ namespace Scheduler {
                 t->blockEvent.type = ThreadBlockEvent::TYPE_NONE;
         }
         IDT::EnableInterrupts();
-    }
-
-    uint64 ProcessAddFileDescriptor(uint64 nodeID, bool read, bool write)
-    {
-        ProcessInfo* pInfo = g_CPUData.currentThread->process;
-        pInfo->fileDescLock.SpinLock();
-
-        FileDescriptor* desc = new FileDescriptor();
-        desc->nodeID = nodeID;
-        desc->readable = read;
-        desc->writable = write;
-        desc->id = pInfo->fileDescIDCounter++;
-        pInfo->fileDescriptors.push_back(desc);
-
-        uint64 res = desc->id;
-        pInfo->fileDescLock.Unlock();
-        return res;
-    }
-    void ProcessRemoveFileDescriptor(uint64 id)
-    {
-        ProcessInfo* pInfo = g_CPUData.currentThread->process;
-        pInfo->fileDescLock.SpinLock();
-
-        for(auto a = pInfo->fileDescriptors.begin(); a != pInfo->fileDescriptors.end(); ++a) {
-            if(a->id == id) {
-                pInfo->fileDescriptors.erase(a);
-                delete *a;
-                pInfo->fileDescLock.Unlock();
-                return;
-            }
-        }
-
-        pInfo->fileDescLock.Unlock();
-    }
-    uint64 ProcessGetFileDescriptorNode(uint64 id)
-    {
-        ProcessInfo* pInfo = g_CPUData.currentThread->process;
-        pInfo->fileDescLock.SpinLock();
-
-        for(auto a = pInfo->fileDescriptors.begin(); a != pInfo->fileDescriptors.end(); ++a) {
-            if(a->id == id) {
-                uint64 res = a->nodeID;
-                pInfo->fileDescLock.Unlock();
-                return res;
-            }
-        }
-
-        pInfo->fileDescLock.Unlock();
-        return 0;
     }
 
     void ProcessExec(uint64 pml4Entry, IDT::Registers* regs)

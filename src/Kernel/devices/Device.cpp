@@ -14,6 +14,6 @@ Device::Device(const char* name) {
     m_DevID = g_Devices.size();
     g_Devices.push_back(this);
 
-    if(!VFS::CreateDeviceFile("/dev", name, m_DevID))
-        printf("Failed to create device file for %s\n", name);
+    /*if(!VFS::CreateDeviceFile("/dev", name, m_DevID))
+        printf("Failed to create device file for %s\n", name);*/
 }

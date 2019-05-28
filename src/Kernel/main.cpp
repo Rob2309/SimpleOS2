@@ -11,8 +11,6 @@
 
 #include "scheduler/ELF.h"
 
-#include "fs/Ramdisk.h"
-
 #include "memory/KernelHeap.h"
 
 #include "fs/VFS.h"
@@ -29,7 +27,7 @@
 
 static void SetupTestProcess(uint8* loadBase)
 {
-    uint64 file = VFS::OpenNode("/initrd/test.elf");
+    uint64 file = VFS::Open("/initrd/test.elf");
     if(file == 0) {
         printf("Failed to find test.elf\n");
         return;
@@ -37,8 +35,8 @@ static void SetupTestProcess(uint8* loadBase)
 
     uint64 fileSize = VFS::GetSize(file);
     uint8* fileBuffer = new uint8[fileSize];
-    VFS::ReadNode(file, 0, fileBuffer, fileSize);
-    VFS::CloseNode(file);
+    VFS::Read(file, 0, fileBuffer, fileSize);
+    VFS::Close(file);
 
     if(!RunELF(fileBuffer)) {
         printf("Failed to setup process\n");
@@ -60,11 +58,11 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     IDT::Init();
     SyscallHandler::Init();
 
-    VFS::Init();
+    /*VFS::CreateFile("/test/file1");
 
-    if(!VFS::CreateFolder("/", "dev"))
+    if(!VFS::CreateFolder("/dev"))
         printf("Failed to create /dev folder\n");
-    if(!VFS::CreateFolder("/", "initrd"))
+    if(!VFS::CreateFolder("/initrd"))
         printf("Failed to create /initrd folder\n");
 
     new RamDevice("ram0", info->ramdiskImage.buffer, info->ramdiskImage.numPages * 4096);
@@ -75,12 +73,12 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
 
     APIC::Init();
 
-    VFS::CreateFile("/", "test.txt");
+    VFS::CreateFile("/test.txt");
 
     SetupTestProcess((uint8*)0x16000);
     //SetupTestProcess((uint8*)0x16000);
     APIC::StartTimer(10);
-    Scheduler::Start();
+    Scheduler::Start();*/
 
     // should never be reached
     while(true) {

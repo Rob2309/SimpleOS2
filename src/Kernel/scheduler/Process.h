@@ -32,16 +32,6 @@ struct ThreadBlockEvent {
     };
 };
 
-struct FileDescriptor {
-    FileDescriptor* next;
-    FileDescriptor* prev;
-
-    uint64 id;
-    uint64 nodeID;
-    bool readable;
-    bool writable;
-};
-
 struct ProcessInfo;
 
 struct ThreadInfo {
@@ -63,10 +53,6 @@ struct ProcessInfo {
     uint64 pid;
 
     uint64 pml4Entry;
-
-    Mutex fileDescLock;
-    uint64 fileDescIDCounter;
-    std::nlist<FileDescriptor> fileDescriptors;
 
     std::nlist<ThreadInfo> threads;
 };

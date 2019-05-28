@@ -17,7 +17,6 @@ namespace VFS {
     public:
         virtual void GetSuperBlock(SuperBlock* sb) = 0;
         
-        virtual uint64 GetFreeNode() = 0;
         virtual void CreateNode(Node* node) = 0;
         virtual void DestroyNode(Node* node) = 0;
 
