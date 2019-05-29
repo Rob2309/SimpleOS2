@@ -14,6 +14,7 @@
 #include "memory/KernelHeap.h"
 
 #include "fs/VFS.h"
+#include "fs/RamdiskFS.h"
 #include "devices/RamDevice.h"
 #include "devices/ZeroDevice.h"
 
@@ -57,6 +58,9 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     GDT::Init(info);
     IDT::Init();
     SyscallHandler::Init();
+
+    VFS::Mount("/", new RamdiskFS());
+    VFS::CreateFile("/home/rob/test1.cpp");
 
     /*VFS::CreateFile("/test/file1");
 
