@@ -120,7 +120,7 @@ namespace VFS {
     Node* AcquireNode(MountPoint* mp, uint64 nodeID) {
         mp->nodeCacheLock.SpinLock();
         for(Node* n : mp->nodeCache) {
-            if(n->id == nodeID) {
+            if(n->id.Read() == nodeID) {
                 n->lock.SpinLock();
                 mp->nodeCacheLock.Unlock();
                 return n;

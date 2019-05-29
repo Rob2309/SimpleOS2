@@ -1,6 +1,7 @@
 #pragma once
 
 #include "types.h"
+#include "atomic/Atomics.h"
 #include "Mutex.h"
 #include "FileSystem.h"
 
@@ -23,8 +24,8 @@ namespace VFS {
         FileSystem* fs;     // The FileSystem instance this node belongs to
         Directory* dir;
 
-        uint64 id;
-        uint64 refCount;    // How often this node is referenced globally
+        Atomic<uint64> id;
+        Atomic<uint64> refCount;    // How often this node is referenced globally
 
         Mutex lock;
     };

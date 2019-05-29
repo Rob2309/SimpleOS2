@@ -23,4 +23,6 @@ void RamdiskFS::CreateNode(Node* node) {
     n->dir = nullptr;
     n->id = (uint64)n;
     n->refCount = 0;
+
+    
 }
