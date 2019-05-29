@@ -11,9 +11,6 @@ namespace VFS {
 
     struct Node
     {
-        Node* next;
-        Node* prev;
-
         enum Type {
             TYPE_FILE,      // Normal File
             TYPE_DIRECTORY, // Directory, containing other nodes
@@ -24,8 +21,8 @@ namespace VFS {
         FileSystem* fs;     // The FileSystem instance this node belongs to
         Directory* dir;
 
-        Atomic<uint64> id;
-        Atomic<uint64> refCount;    // How often this node is referenced globally
+        uint64 id;
+        uint64 refCount;    // How often this node is referenced globally
 
         Mutex lock;
     };

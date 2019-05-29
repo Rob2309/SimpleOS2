@@ -7,6 +7,13 @@
 
 namespace VFS {
 
+    struct CachedNode {
+        CachedNode* next;
+        CachedNode* prev;
+
+        Node node;
+    };
+
     struct MountPoint {
         MountPoint* next;
         MountPoint* prev;
@@ -19,8 +26,7 @@ namespace VFS {
         std::nlist<MountPoint> childMounts;
 
         Mutex nodeCacheLock;
-        std::nlist<Node> nodeCache;
-        uint64 firstFreeNode;
+        std::nlist<CachedNode> nodeCache;
     };
 
     static MountPoint* g_RootMount = nullptr;
@@ -118,23 +124,7 @@ namespace VFS {
     }
 
     Node* AcquireNode(MountPoint* mp, uint64 nodeID) {
-        mp->nodeCacheLock.SpinLock();
-        for(Node* n : mp->nodeCache) {
-            if(n->id.Read() == nodeID) {
-                n->lock.SpinLock();
-                mp->nodeCacheLock.Unlock();
-                return n;
-            }
-        }
-
-        Node* newCache = new Node();
-        newCache->id = nodeID;
-        newCache->lock.SpinLock();
-        mp->nodeCache.push_back(newCache);
-        mp->nodeCacheLock.Unlock();
-
-        mp->fs->ReadNode(nodeID, newCache);
-        return newCache;
+        
     }
 
     Node* AcquirePath(MountPoint* mp, const char* path) {
@@ -162,7 +152,6 @@ namespace VFS {
             strcpy(g_RootMount->path, mountPoint);
             g_RootMount->fs = fs;
             fs->GetSuperBlock(&g_RootMount->sb);
-            g_RootMount->firstFreeNode = (uint64)-1;
             return true;
         } else {
             return false;
