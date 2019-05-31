@@ -5,6 +5,8 @@
 #include "memory/memutil.h"
 #include "terminal/conio.h"
 
+#include "DeviceFS.h"
+
 namespace VFS {
 
     struct CachedNode {
@@ -158,6 +160,7 @@ namespace VFS {
         newNode->nodeID = nodeID;
         newNode->softRefCount = 1;
         newNode->node.lock.SpinLock();
+        mp->nodeCache.push_back(newNode);
         mp->nodeCacheLock.Unlock();
 
         mp->fs->ReadNode(nodeID, &newNode->node);
@@ -263,6 +266,17 @@ namespace VFS {
         return newNode;
     }
 
+    void Init(FileSystem* rootFS) {
+        MountPoint* mp = new MountPoint();
+        mp->fs = rootFS;
+        rootFS->GetSuperBlock(&mp->sb);
+        strcpy(mp->path, "/");
+        g_RootMount = mp;
+
+        CreateFolder("/dev");
+        Mount("/dev", new DeviceFS());
+    }
+
     bool CreateFile(const char* path) {
         char cleanBuffer[255];
         if(!CleanPath(path, cleanBuffer))
@@ -337,39 +351,31 @@ namespace VFS {
 
         return true;
     }
-    bool CreateDeviceFile(const char* path, uint64 devID) {
-        char cleanBuffer[255];
-        if(!CleanPath(path, cleanBuffer))
-            return false;
 
-        const char* folderPath;
-        const char* fileName;
-        SplitFolderAndFile(cleanBuffer, &folderPath, &fileName);
+    bool CreateDeviceFile(const char* name, uint64 devID) {
+        MountPoint* mp = AcquireMountPoint("/dev");
+        CachedNode* devNode = AcquireNode(mp, mp->sb.rootNode);
 
-        MountPoint* mp = AcquireMountPoint(folderPath);
-        folderPath = AdvancePath(folderPath, mp->path);
-
-        CachedNode* folderNode = AcquirePath(mp, folderPath);
-        if(folderNode == nullptr)
-            return false;
-        if(folderNode->node.type != Node::TYPE_DIRECTORY) {
-            ReleaseNode(mp, folderNode);
-            return false;
-        }
-
-        GetDir(&folderNode->node);
+        GetDir(&devNode->node);
         DirectoryEntry* newEntry;
-        Directory::AddEntry(&folderNode->node.dir, &newEntry);
+        Directory::AddEntry(&devNode->node.dir, &newEntry);
 
-        CachedNode* newNode = CreateNode(mp);
-        newNode->node.linkRefCount = 1;
+        CachedNode* newNode = new CachedNode();
+        newNode->node.dir = (Directory*)devID;
+        mp->fs->CreateNode(&newNode->node);
+        newNode->nodeID = newNode->node.id;
+        newNode->softRefCount = 1;
+        newNode->node.lock.SpinLock();
         newNode->node.type = Node::TYPE_DEVICE;
-        newNode->node.devID = devID;
+        newNode->node.linkRefCount = 1;
+        mp->nodeCacheLock.SpinLock();
+        mp->nodeCache.push_back(newNode);
+        mp->nodeCacheLock.Unlock();
         
         newEntry->nodeID = newNode->nodeID;
-        strcpy(newEntry->name, fileName);
+        strcpy(newEntry->name, name);
 
-        ReleaseNode(mp, folderNode);
+        ReleaseNode(mp, devNode);
         ReleaseNode(mp, newNode);
 
         return true;
@@ -429,45 +435,37 @@ namespace VFS {
     }
 
     bool Mount(const char* mountPoint, FileSystem* fs) {
-        if(g_RootMount == nullptr && strcmp(mountPoint, "/") == 0) {
-            g_RootMount = new MountPoint();
-            strcpy(g_RootMount->path, mountPoint);
-            g_RootMount->fs = fs;
-            fs->GetSuperBlock(&g_RootMount->sb);
-            return true;
-        } else {
-            char cleanBuffer[255];
-            if(!CleanPath(mountPoint, cleanBuffer))
-                return false;
+        char cleanBuffer[255];
+        if(!CleanPath(mountPoint, cleanBuffer))
+            return false;
 
-            MountPoint* mp = AcquireMountPoint(cleanBuffer);
-            const char* folderPath = AdvancePath(cleanBuffer, mp->path);
-            if(*folderPath == '\0') // Trying to mount onto mountpoint
-                return false;
+        MountPoint* mp = AcquireMountPoint(cleanBuffer);
+        const char* folderPath = AdvancePath(cleanBuffer, mp->path);
+        if(*folderPath == '\0') // Trying to mount onto mountpoint
+            return false;
 
-            CachedNode* folderNode = AcquirePath(mp, folderPath);
-            if(folderNode == nullptr)
-                return false;
-            if(folderNode->node.type != Node::TYPE_DIRECTORY) {
-                ReleaseNode(mp, folderNode);
-                return false;
-            }
-            
-            Directory* dir = GetDir(&folderNode->node);
-            if(dir->numEntries != 0) {
-                ReleaseNode(mp, folderNode);
-                return false;
-            }
-
-            MountPoint* newMP = new MountPoint();
-            strcpy(newMP->path, cleanBuffer);
-            newMP->fs = fs;
-            fs->GetSuperBlock(&newMP->sb);
-            
-            mp->childMountLock.SpinLock();
-            mp->childMounts.push_back(newMP);
-            mp->childMountLock.Unlock();
+        CachedNode* folderNode = AcquirePath(mp, folderPath);
+        if(folderNode == nullptr)
+            return false;
+        if(folderNode->node.type != Node::TYPE_DIRECTORY) {
+            ReleaseNode(mp, folderNode);
+            return false;
         }
+        
+        Directory* dir = GetDir(&folderNode->node);
+        if(dir->numEntries != 0) {
+            ReleaseNode(mp, folderNode);
+            return false;
+        }
+
+        MountPoint* newMP = new MountPoint();
+        strcpy(newMP->path, cleanBuffer);
+        newMP->fs = fs;
+        fs->GetSuperBlock(&newMP->sb);
+        
+        mp->childMountLock.SpinLock();
+        mp->childMounts.push_back(newMP);
+        mp->childMountLock.Unlock();
     }
 
     bool Unmount(const char* mountPoint) {
@@ -480,7 +478,7 @@ namespace VFS {
             return false;
 
         MountPoint* mp = AcquireMountPoint(cleanBuffer);
-        path = AdvancePath(path, mp->path);
+        path = AdvancePath(cleanBuffer, mp->path);
 
         CachedNode* node = AcquirePath(mp, path);
         if(node == nullptr)
@@ -513,7 +511,10 @@ namespace VFS {
     }
 
     uint64 GetSize(uint64 descID) {
-        return 0;
+        FileDescriptor* desc = (FileDescriptor*)descID;
+
+        CachedNode* node = desc->node;
+        return node->node.fs->GetNodeSize(&node->node);
     }
 
     uint64 Read(uint64 descID, void* buffer, uint64 bufferSize) {
@@ -522,6 +523,12 @@ namespace VFS {
         uint64 res = desc->mp->fs->ReadNodeData(&desc->node->node, desc->pos, buffer, bufferSize);
         desc->pos += res;
         return res;
+    }
+
+    uint64 Read(uint64 descID, uint64 pos, void* buffer, uint64 bufferSize) {
+        FileDescriptor* desc = (FileDescriptor*)descID;
+
+        return desc->mp->fs->ReadNodeData(&desc->node->node, pos, buffer, bufferSize);
     }
 
     uint64 Write(uint64 descID, const void* buffer, uint64 bufferSize) {

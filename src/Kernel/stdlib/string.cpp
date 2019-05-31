@@ -38,3 +38,18 @@ void strcpy(char* dest, const char* src)
     }
     dest[i] = '\0';
 }
+
+void strconcat(char* dest, const char* a, const char* b)
+{
+    while(*a != '\0') {
+        *dest = *a;
+        dest++;
+        a++;
+    }
+    while(*b != '\0') {
+        *dest = *b;
+        dest++;
+        b++;
+    }
+    *dest = '\0';
+}

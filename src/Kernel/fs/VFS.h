@@ -25,17 +25,18 @@ namespace VFS {
         
         union {
             Directory* dir;
-            uint64 devID;
         };
 
         uint64 id;
         uint64 linkRefCount;    // How often this node is referenced by directory entries
     };
+
+    void Init(FileSystem* rootFS);
     
     bool CreateFile(const char* path);
     bool CreateFolder(const char* path);
-    bool CreateDeviceFile(const char* path, uint64 devID);
 
+    bool CreateDeviceFile(const char* name, uint64 devID);
     bool CreatePipe(uint64* readDesc, uint64* writeDesc);
 
     /**

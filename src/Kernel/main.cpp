@@ -14,6 +14,7 @@
 #include "memory/KernelHeap.h"
 
 #include "fs/VFS.h"
+#include "fs/RamdiskFS.h"
 #include "devices/RamDevice.h"
 #include "devices/ZeroDevice.h"
 
@@ -60,56 +61,20 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     IDT::Init();
     SyscallHandler::Init();
 
-    TestFS* testfs = new TestFS();
-    if(!VFS::Mount("/", testfs))
-        printf("Failed to mount /\n");
-    if(!VFS::CreateFolder("/test"))
-        printf("Failed to create /test\n");
-    if(!VFS::CreateFile("/test/file1"))
-        printf("Failed to create /test/file1\n");
+    VFS::Init(new TestFS());
 
-    uint64 desc = VFS::Open("/test/file1");
-    if(desc == 0)
-        printf("Failed to open /test/file1 for writing\n");
-
-    uint64 desc2 = VFS::Open("/test/file1");
-    if(desc2 == 0)
-        printf("Failed to open /test/file1 for reading\n");
-
-    const char msg[] = "Hello World\n";
-    VFS::Write(desc, msg, sizeof(msg));
-    VFS::Close(desc);
-
-    if(!VFS::Delete("/test/file1"))
-        printf("Failed to delete /test/file1\n");
-
-    char buffer[20];
-    VFS::Read(desc2, buffer, sizeof(buffer));
-    VFS::Close(desc2);
-
-    printf("Message: %s", buffer);
-
-    /*VFS::CreateFile("/test/file1");
-
-    if(!VFS::CreateFolder("/dev"))
-        printf("Failed to create /dev folder\n");
-    if(!VFS::CreateFolder("/initrd"))
-        printf("Failed to create /initrd folder\n");
-
-    new RamDevice("ram0", info->ramdiskImage.buffer, info->ramdiskImage.numPages * 4096);
-    RamdiskFS* ramfs = new RamdiskFS("/dev/ram0");
-    VFS::Mount("/initrd", ramfs);
+    RamDevice* ramDev = new RamDevice("ram0", info->ramdiskImage.buffer, info->ramdiskImage.numPages * 4096);
+    VFS::RamdiskFS* ramFS = new VFS::RamdiskFS("/dev/ram0");
+    VFS::CreateFolder("/initrd");
+    VFS::Mount("/initrd", ramFS);
 
     new ZeroDevice("zero");
 
     APIC::Init();
 
-    VFS::CreateFile("/test.txt");
-
     SetupTestProcess((uint8*)0x16000);
-    //SetupTestProcess((uint8*)0x16000);
     APIC::StartTimer(10);
-    Scheduler::Start();*/
+    Scheduler::Start();
 
     // should never be reached
     while(true) {
