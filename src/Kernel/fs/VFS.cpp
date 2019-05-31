@@ -383,14 +383,14 @@ namespace VFS {
         if(!CleanPath(path, cleanBuffer))
             return false;
 
+        MountPoint* mp = AcquireMountPoint(cleanBuffer);
+        char* relPath = (char*)AdvancePath(cleanBuffer, mp->path);
+        if(*relPath == '\0') // trying to delete a mountpoint
+            return false;
+        
         const char* folderPath;
         const char* fileName;
-        SplitFolderAndFile(cleanBuffer, &folderPath, &fileName);
-
-        MountPoint* mp = AcquireMountPoint(folderPath);
-        folderPath = AdvancePath(folderPath, mp->path);
-        if(*folderPath == '\0') // trying to delete a mountpoint
-            return false;
+        SplitFolderAndFile(relPath, &folderPath, &fileName);
 
         CachedNode* folderNode = AcquirePath(mp, folderPath);
         if(folderNode == nullptr)
@@ -402,7 +402,7 @@ namespace VFS {
 
         Directory* dir = GetDir(&folderNode->node);
         for(uint64 i = 0; i < dir->numEntries; i++) {
-            if(strcmp(fileName, dir->entries[i].name)) {
+            if(strcmp(fileName, dir->entries[i].name) == 0) {
                 uint64 nodeID = dir->entries[i].nodeID;
                 CachedNode* fileNode = AcquireNode(mp, nodeID);
 

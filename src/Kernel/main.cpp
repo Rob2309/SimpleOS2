@@ -80,6 +80,9 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     VFS::Write(desc, msg, sizeof(msg));
     VFS::Close(desc);
 
+    if(!VFS::Delete("/test/file1"))
+        printf("Failed to delete /test/file1\n");
+
     char buffer[20];
     VFS::Read(desc2, buffer, sizeof(buffer));
     VFS::Close(desc2);
