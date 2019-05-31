@@ -68,6 +68,24 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     if(!VFS::CreateFile("/test/file1"))
         printf("Failed to create /test/file1\n");
 
+    uint64 desc = VFS::Open("/test/file1");
+    if(desc == 0)
+        printf("Failed to open /test/file1 for writing\n");
+
+    uint64 desc2 = VFS::Open("/test/file1");
+    if(desc2 == 0)
+        printf("Failed to open /test/file1 for reading\n");
+
+    const char msg[] = "Hello World\n";
+    VFS::Write(desc, msg, sizeof(msg));
+    VFS::Close(desc);
+
+    char buffer[20];
+    VFS::Read(desc2, buffer, sizeof(buffer));
+    VFS::Close(desc2);
+
+    printf("Message: %s", buffer);
+
     /*VFS::CreateFile("/test/file1");
 
     if(!VFS::CreateFolder("/dev"))
