@@ -14,7 +14,6 @@
 #include "memory/KernelHeap.h"
 
 #include "fs/VFS.h"
-#include "fs/RamdiskFS.h"
 #include "devices/RamDevice.h"
 #include "devices/ZeroDevice.h"
 
@@ -25,6 +24,8 @@
 #include "scheduler/Process.h"
 
 #include "arch/CPU.h"
+
+#include "fs/TestFS.h"
 
 static void SetupTestProcess(uint8* loadBase)
 {
@@ -59,8 +60,13 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     IDT::Init();
     SyscallHandler::Init();
 
-    VFS::Mount("/", new RamdiskFS());
-    VFS::CreateFile("/home/rob/test1.cpp");
+    TestFS* testfs = new TestFS();
+    if(!VFS::Mount("/", testfs))
+        printf("Failed to mount /\n");
+    if(!VFS::CreateFolder("/test"))
+        printf("Failed to create /test\n");
+    if(!VFS::CreateFile("/test/file1"))
+        printf("Failed to create /test/file1\n");
 
     /*VFS::CreateFile("/test/file1");
 

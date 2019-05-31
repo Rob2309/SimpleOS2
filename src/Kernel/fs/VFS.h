@@ -1,6 +1,7 @@
 #pragma once
 
 #include "types.h"
+#include "Directory.h"
 #include "atomic/Atomics.h"
 #include "Mutex.h"
 #include "FileSystem.h"
@@ -11,6 +12,8 @@ namespace VFS {
 
     struct Node
     {
+        Mutex lock;
+
         enum Type {
             TYPE_FILE,      // Normal File
             TYPE_DIRECTORY, // Directory, containing other nodes
@@ -19,17 +22,20 @@ namespace VFS {
         } type;
 
         FileSystem* fs;     // The FileSystem instance this node belongs to
-        Directory* dir;
+        
+        union {
+            Directory* dir;
+            uint64 devID;
+        };
 
         uint64 id;
-        uint64 refCount;    // How often this node is referenced globally
-
-        Mutex lock;
+        uint64 linkRefCount;    // How often this node is referenced by directory entries
     };
     
     bool CreateFile(const char* path);
     bool CreateFolder(const char* path);
     bool CreateDeviceFile(const char* path, uint64 devID);
+
     bool CreatePipe(uint64* readDesc, uint64* writeDesc);
 
     /**
@@ -57,7 +63,7 @@ namespace VFS {
     /**
      * Closes the given FileDescriptor
      **/
-    uint64 Close(uint64 desc);
+    void Close(uint64 desc);
 
     /**
      * Gets the file size of the given node. Only supported for Regular file nodes
@@ -87,7 +93,7 @@ namespace VFS {
      * @param bufferSize The number of bytes contained in the given buffer
      * @returns the number of bytes written.
      **/
-    uint64 Write(uint64 desc, void* buffer, uint64 bufferSize);
+    uint64 Write(uint64 desc, const void* buffer, uint64 bufferSize);
     /**
      * Writes to the given File.
      * This function blocks until at least one byte was written, except for when it is impossible to write further.
@@ -96,6 +102,6 @@ namespace VFS {
      * @param bufferSize The number of bytes contained in the given buffer
      * @returns the number of bytes written.
      **/
-    uint64 Write(uint64 desc, uint64 pos, void* buffer, uint64 bufferSize);
+    uint64 Write(uint64 desc, uint64 pos, const void* buffer, uint64 bufferSize);
 
 }
