@@ -510,13 +510,6 @@ namespace VFS {
         delete desc;
     }
 
-    uint64 GetSize(uint64 descID) {
-        FileDescriptor* desc = (FileDescriptor*)descID;
-
-        CachedNode* node = desc->node;
-        return node->node.fs->GetNodeSize(&node->node);
-    }
-
     uint64 Read(uint64 descID, void* buffer, uint64 bufferSize) {
         FileDescriptor* desc = (FileDescriptor*)descID;
 
@@ -543,6 +536,12 @@ namespace VFS {
         FileDescriptor* desc = (FileDescriptor*)descID;
 
         return desc->mp->fs->WriteNodeData(&desc->node->node, pos, buffer, bufferSize);
+    }
+
+    void Stat(uint64 descID, NodeStats* stats) {
+        FileDescriptor* desc = (FileDescriptor*)descID;
+
+        stats->size = desc->node->node.fileSize;
     }
 
 }

@@ -46,7 +46,7 @@ namespace VFS {
             node->fs = this;
             node->linkRefCount = 1;
             node->type = Node::TYPE_FILE;
-            node->dir = nullptr;
+            node->fileSize = m_Files[id].size;
         }
     }
     void RamdiskFS::WriteNode(Node* node) {
@@ -68,12 +68,6 @@ namespace VFS {
     Directory* RamdiskFS::ReadDirEntries(Node* node) {
     }
     Directory* RamdiskFS::WriteDirEntries(Node* node) {
-    }
-
-    uint64 RamdiskFS::GetNodeSize(Node* node) {
-        RamdiskFile* file = &m_Files[node->id];
-
-        return file->size;
     }
 
 }

@@ -25,10 +25,15 @@ namespace VFS {
         
         union {
             Directory* dir;
+            uint64 fileSize;
         };
 
         uint64 id;
         uint64 linkRefCount;    // How often this node is referenced by directory entries
+    };
+
+    struct NodeStats {
+        uint64 size;
     };
 
     void Init(FileSystem* rootFS);
@@ -67,10 +72,6 @@ namespace VFS {
     void Close(uint64 desc);
 
     /**
-     * Gets the file size of the given node. Only supported for Regular file nodes
-     **/
-    uint64 GetSize(uint64 desc);
-    /**
      * Reads from the given File and increases the FileDescriptor position by the number of bytes read.
      * This function blocks until at least one byte was read, except for when it is impossible to read further (e.g. end of file).
      * @param buffer The buffer to read the data into, should be a Kernel pointer
@@ -104,5 +105,12 @@ namespace VFS {
      * @returns the number of bytes written.
      **/
     uint64 Write(uint64 desc, uint64 pos, const void* buffer, uint64 bufferSize);
+
+    /**
+     * Retrieves information about the node associated with a FileDescriptor
+     * @param desc The FileDescriptor to retrieve information from
+     * @param stats The buffer to write the stats into
+     **/
+    void Stat(uint64 desc, NodeStats* stats);
 
 }

@@ -22,8 +22,6 @@ namespace VFS {
         Directory* ReadDirEntries(Node* node) override;
         Directory* WriteDirEntries(Node* node) override;
 
-        uint64 GetNodeSize(Node* node) override;
-
     private:
         uint64 m_Dev;
         RamdiskFile* m_Files;

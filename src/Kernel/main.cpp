@@ -36,9 +36,10 @@ static void SetupTestProcess(uint8* loadBase)
         return;
     }
 
-    uint64 fileSize = VFS::GetSize(file);
-    uint8* fileBuffer = new uint8[fileSize];
-    VFS::Read(file, 0, fileBuffer, fileSize);
+    VFS::NodeStats stats;
+    VFS::Stat(file, &stats);
+    uint8* fileBuffer = new uint8[stats.size];
+    VFS::Read(file, 0, fileBuffer, stats.size);
     VFS::Close(file);
 
     if(!RunELF(fileBuffer)) {

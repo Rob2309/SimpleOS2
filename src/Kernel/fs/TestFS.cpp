@@ -8,7 +8,7 @@ struct TestNode {
     Node::Type type;
     Directory* dir;
     uint64 linkRefCount;
-
+    
     uint64 fileSize;
     char* fileData;
 };

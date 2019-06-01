@@ -63,12 +63,6 @@ namespace VFS {
          * Node will be locked when given to this function.
          **/
         virtual Directory* WriteDirEntries(Node* node) = 0;
-
-        /**
-         * Returns the size of the given file node
-         * Node will not be locked
-         **/
-        virtual uint64 GetNodeSize(Node* node) { return (uint64)-1; }
     };
 
 }
