@@ -36,15 +36,21 @@ namespace VFS {
     };
 
     struct FileDescriptor {
+        FileDescriptor* next;
+        FileDescriptor* prev;
+
+        uint64 refCount;
+
         MountPoint* mp;
         CachedNode* node;
 
         uint64 pos;
-        bool readable;
-        bool writable;
     };
 
     static MountPoint* g_RootMount = nullptr;
+
+    static Mutex g_FileDescLock;
+    static std::nlist<FileDescriptor> g_FileDescs;
 
     static bool CleanPath(const char* path, char* cleanBuffer) {
         int length = strlen(path);
@@ -494,8 +500,7 @@ namespace VFS {
         desc->mp = mp;
         desc->node = node;
         desc->pos = 0;
-        desc->readable = true;
-        desc->writable = true;
+        desc->refCount = 1;
 
         return (uint64)desc;
     }
@@ -503,11 +508,14 @@ namespace VFS {
     void Close(uint64 descID) {
         FileDescriptor* desc = (FileDescriptor*)descID;
 
-        CachedNode* node = desc->node;
-        node->node.lock.SpinLock();
-        ReleaseNode(desc->mp, node);
+        desc->refCount--;
+        if(desc->refCount == 0) {
+            CachedNode* node = desc->node;
+            node->node.lock.SpinLock();
+            ReleaseNode(desc->mp, node);
 
-        delete desc;
+            delete desc;
+        }
     }
 
     uint64 Read(uint64 descID, void* buffer, uint64 bufferSize) {
