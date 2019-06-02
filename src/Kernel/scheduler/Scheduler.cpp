@@ -350,6 +350,43 @@ namespace Scheduler {
         return res;
     }
 
+    uint64 ProcessAddFileDescriptor(uint64 sysDescriptor) {
+        ProcessInfo* pInfo = g_CPUData.currentThread->process;
+        pInfo->fileDescLock.SpinLock();
+        for(ProcessFileDescriptor* d : pInfo->fileDescs) {
+            if(d->desc == 0) {
+                d->desc = sysDescriptor;
+                pInfo->fileDescLock.Unlock();
+                return d->id;
+            }
+        }
+
+        ProcessFileDescriptor* newDesc = new ProcessFileDescriptor();
+        newDesc->id = pInfo->fileDescs.size();
+        newDesc->desc = sysDescriptor;
+        pInfo->fileDescs.push_back(newDesc);
+        pInfo->fileDescLock.Unlock();
+        return newDesc->id;
+    };
+    void ProcessCloseFileDescriptor(uint64 descID) {
+        ProcessInfo* pInfo = g_CPUData.currentThread->process;
+
+        pInfo->fileDescLock.SpinLock();
+        ProcessFileDescriptor* desc = pInfo->fileDescs[descID];
+        VFS::Close(desc->desc);
+        desc->desc = 0;
+        pInfo->fileDescLock.Unlock();
+    }
+    uint64 ProcessGetSystemFileDescriptor(uint64 descID) {
+        ProcessInfo* pInfo = g_CPUData.currentThread->process;
+
+        pInfo->fileDescLock.SpinLock();
+        ProcessFileDescriptor* desc = pInfo->fileDescs[descID];
+        uint64 res = desc->desc;
+        pInfo->fileDescLock.Unlock();
+        return res;
+    }
+
     void NotifyNodeRead(uint64 nodeID)
     {
         IDT::DisableInterrupts();

@@ -3,6 +3,7 @@
 #include "types.h"
 #include "interrupts/IDT.h"
 #include "stl/list.h"
+#include "stl/ArrayList.h"
 #include "Mutex.h"
 
 constexpr uint64 KernelStackPages = 3;
@@ -49,10 +50,18 @@ struct ThreadInfo {
     IDT::Registers registers;
 };
 
+struct ProcessFileDescriptor {
+    uint64 id;
+    uint64 desc;
+};
+
 struct ProcessInfo {
     uint64 pid;
 
     uint64 pml4Entry;
+
+    Mutex fileDescLock;
+    ArrayList<ProcessFileDescriptor*> fileDescs;
 
     std::nlist<ThreadInfo> threads;
 };

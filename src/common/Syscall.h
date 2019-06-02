@@ -13,6 +13,13 @@ namespace Syscall
     constexpr uint64 FunctionCreateThread = 6;
     constexpr uint64 FunctionWaitForLock = 7;
 
+    constexpr uint64 FunctionCreateFile = 50;
+    constexpr uint64 FunctionCreateFolder = 51;
+    constexpr uint64 FunctionOpen = 52;
+    constexpr uint64 FunctionClose = 53;
+    constexpr uint64 FunctionRead = 54;
+    constexpr uint64 FunctionWrite = 55;
+
     /**
      * Print a message onto the screen
      **/
@@ -111,4 +118,70 @@ namespace Syscall
             : "rax", "rcx", "r8", "r9", "r10", "r11"
         );
     }
+
+    inline bool CreateFile(const char* path) {
+        bool ret;
+        __asm__ __volatile__ (
+            "syscall"
+            : "=a"(ret)
+            : "D"(FunctionCreateFile), "S"(path)
+            : "rcx", "rdx", "r8", "r9", "r10", "r11"
+        );
+        return ret;
+    }
+
+    inline bool CreateFolder(const char* path) {
+        bool ret;
+        __asm__ __volatile__ (
+            "syscall"
+            : "=a"(ret)
+            : "D"(FunctionCreateFolder), "S"(path)
+            : "rcx", "rdx", "r8", "r9", "r10", "r11"
+        );
+        return ret;
+    }
+
+    inline uint64 Open(const char* path) {
+        uint64 ret;
+        __asm__ __volatile__ (
+            "syscall"
+            : "=a"(ret)
+            : "D"(FunctionOpen), "S"(path)
+            : "rcx", "rdx", "r8", "r9", "r10", "r11"
+        );
+        return ret;
+    }
+
+    inline void Close(uint64 desc) {
+        __asm__ __volatile__ (
+            "syscall"
+            : : "D"(FunctionClose), "S"(desc)
+            : "rax", "rcx", "rdx", "r8", "r9", "r10", "r11"
+        );
+    }
+
+    inline uint64 Read(uint64 desc, void* buffer, uint64 bufferSize) {
+        uint64 res;
+        register uint64 r8 asm("r8") = bufferSize;
+        __asm__ __volatile__ (
+            "syscall"
+            : "=a"(res)
+            : "D"(FunctionRead), "S"(desc), "d"(buffer), "r"(r8)
+            : "rcx", "r9", "r10", "r11"
+        );
+        return res;
+    }
+
+    inline uint64 Write(uint64 desc, const void* buffer, uint64 bufferSize) {
+        uint64 res;
+        register uint64 r8 asm("r8") = bufferSize;
+        __asm__ __volatile__ (
+            "syscall"
+            : "=a"(res)
+            : "D"(FunctionWrite), "S"(desc), "d"(buffer), "r"(r8)
+            : "rcx", "r9", "r10", "r11"
+        );
+        return res;
+    }
+    
 }

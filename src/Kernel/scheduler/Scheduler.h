@@ -74,6 +74,10 @@ namespace Scheduler {
      **/
     uint64 ThreadGetPID();
 
+    uint64 ProcessAddFileDescriptor(uint64 sysDescriptor);
+    void ProcessCloseFileDescriptor(uint64 desc);
+    uint64 ProcessGetSystemFileDescriptor(uint64 desc);
+
     /**
      * Notify the Scheduler that the given node was written to.
      * Should only be called by the FileSystem.
