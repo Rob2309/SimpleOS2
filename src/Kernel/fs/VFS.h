@@ -75,6 +75,18 @@ namespace VFS {
      **/
     void Close(uint64 desc);
 
+    struct FileList {
+        uint64 numEntries;
+        
+        struct Entry {
+            char name[50];
+        } *entries;
+    };
+    /**
+     * Lists the files in a directory
+     **/
+    bool List(const char* path, FileList* list);
+
     /**
      * Reads from the given File and increases the FileDescriptor position by the number of bytes read.
      * This function blocks until at least one byte was read, except for when it is impossible to read further (e.g. end of file).

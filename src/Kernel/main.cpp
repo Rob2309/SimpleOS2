@@ -69,6 +69,9 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     uint64 initrdSubID = ramDriver->AddDevice((char*)info->ramdiskImage.buffer, info->ramdiskImage.numPages * 4096);
     VFS::CreateDeviceFile("/dev/ram0", ramDriver->GetDriverID(), initrdSubID);
 
+    PseudoDeviceDriver* pseudoDriver = new PseudoDeviceDriver();
+    VFS::CreateDeviceFile("/dev/zero", pseudoDriver->GetDriverID(), PseudoDeviceDriver::DeviceZero);
+
     VFS::RamdiskFS* ramFS = new VFS::RamdiskFS("/dev/ram0");
     VFS::CreateFolder("/initrd");
     VFS::Mount("/initrd", ramFS);

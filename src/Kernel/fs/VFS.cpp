@@ -524,6 +524,32 @@ namespace VFS {
         }
     }
 
+    bool List(const char* path, FileList* list) {
+        char cleanBuffer[255];
+        if(!CleanPath(path, cleanBuffer))
+            return false;
+
+        MountPoint* mp = AcquireMountPoint(cleanBuffer);
+        path = AdvancePath(cleanBuffer, mp->path);
+
+        CachedNode* node = AcquirePath(mp, path);
+        if(node == nullptr)
+            return false;
+        if(node->node.type != Node::TYPE_DIRECTORY) {
+            ReleaseNode(mp, node);
+            return false;
+        }
+        
+        Directory* dir = GetDir(&node->node);
+        list->numEntries = dir->numEntries;
+        list->entries = new FileList::Entry[list->numEntries];
+        for(uint64 i = 0; i < list->numEntries; i++)
+            strcpy(list->entries[i].name, dir->entries[i].name);
+
+        ReleaseNode(mp, node);
+        return true;
+    }
+
     static uint64 _Read(Node* node, uint64 pos, void* buffer, uint64 bufferSize) {
         uint64 res;
         if(node->type == Node::TYPE_DEVICE) {

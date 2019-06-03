@@ -11,7 +11,6 @@ namespace VFS {
             printf("Failed to open %s\n", dev);
 
         VFS::Read(m_Dev, &m_Header, sizeof(m_Header));
-        printf("Ramdisk contains %i files\n", m_Header.numFiles);
 
         m_Files = new RamdiskFile[m_Header.numFiles];
         VFS::Read(m_Dev, m_Files, m_Header.numFiles * sizeof(RamdiskFile));
