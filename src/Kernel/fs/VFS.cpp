@@ -524,7 +524,7 @@ namespace VFS {
         }
     }
 
-    bool List(const char* path, FileList* list) {
+    bool List(const char* path, FileList* list, bool getTypes) {
         char cleanBuffer[255];
         if(!CleanPath(path, cleanBuffer))
             return false;
@@ -543,8 +543,14 @@ namespace VFS {
         Directory* dir = GetDir(&node->node);
         list->numEntries = dir->numEntries;
         list->entries = new FileList::Entry[list->numEntries];
-        for(uint64 i = 0; i < list->numEntries; i++)
+        for(uint64 i = 0; i < list->numEntries; i++) {
             strcpy(list->entries[i].name, dir->entries[i].name);
+            if(getTypes) {
+                CachedNode* entryNode = AcquireNode(mp, dir->entries[i].nodeID);
+                list->entries[i].type = entryNode->node.type;
+                ReleaseNode(mp, entryNode);
+            }
+        }
 
         ReleaseNode(mp, node);
         return true;

@@ -80,12 +80,13 @@ namespace VFS {
         
         struct Entry {
             char name[50];
+            Node::Type type;
         } *entries;
     };
     /**
      * Lists the files in a directory
      **/
-    bool List(const char* path, FileList* list);
+    bool List(const char* path, FileList* list, bool getTypes);
 
     /**
      * Reads from the given File and increases the FileDescriptor position by the number of bytes read.
