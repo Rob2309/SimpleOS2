@@ -15,10 +15,13 @@ namespace Syscall
 
     constexpr uint64 FunctionCreateFile = 50;
     constexpr uint64 FunctionCreateFolder = 51;
-    constexpr uint64 FunctionOpen = 52;
-    constexpr uint64 FunctionClose = 53;
-    constexpr uint64 FunctionRead = 54;
-    constexpr uint64 FunctionWrite = 55;
+    constexpr uint64 FunctionCreateDeviceFile = 52;
+    constexpr uint64 FunctionDelete = 53;
+    constexpr uint64 FunctionOpen = 54;
+    constexpr uint64 FunctionClose = 55;
+    constexpr uint64 FunctionList = 56;
+    constexpr uint64 FunctionRead = 57;
+    constexpr uint64 FunctionWrite = 58;
 
     /**
      * Print a message onto the screen
@@ -136,6 +139,29 @@ namespace Syscall
             "syscall"
             : "=a"(ret)
             : "D"(FunctionCreateFolder), "S"(path)
+            : "rcx", "rdx", "r8", "r9", "r10", "r11"
+        );
+        return ret;
+    }
+
+    inline bool CreateDeviceFile(const char* path, uint64 driverID, uint64 subID) {
+        bool ret;
+        register uint64 r8 asm("r8") = subID;
+        __asm__ __volatile__ (
+            "syscall"
+            : "=a"(ret)
+            : "D"(FunctionCreateDeviceFile), "S"(path), "d"(driverID), "r"(r8)
+            : "rcx", "r9", "r10", "r11"
+        );
+        return ret;
+    }
+
+    inline bool Delete(const char* path) {
+        bool ret;
+        __asm__ __volatile__ (
+            "syscall"
+            : "=a"(ret)
+            : "D"(FunctionDelete), "S"(path)
             : "rcx", "rdx", "r8", "r9", "r10", "r11"
         );
         return ret;

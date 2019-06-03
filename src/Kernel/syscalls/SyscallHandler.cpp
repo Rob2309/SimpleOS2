@@ -91,6 +91,8 @@ namespace SyscallHandler {
 
         case Syscall::FunctionCreateFile: return VFS::CreateFile((const char*)arg1); break;
         case Syscall::FunctionCreateFolder: return VFS::CreateFolder((const char*)arg1); break;
+        case Syscall::FunctionCreateDeviceFile: return VFS::CreateDeviceFile((const char*)arg1, arg2, arg3); break;
+        case Syscall::FunctionDelete: return VFS::Delete((const char*)arg1); break;
         case Syscall::FunctionOpen: {
                 uint64 sysDesc = VFS::Open((const char*)arg1);
                 if(sysDesc == 0)
@@ -99,8 +101,8 @@ namespace SyscallHandler {
                 return desc;
             } break;
         case Syscall::FunctionClose: Scheduler::ProcessCloseFileDescriptor(arg1); break;
-        case Syscall::FunctionRead: return VFS::Read(arg1, (void*)arg2, arg3); break;
-        case Syscall::FunctionWrite: return VFS::Write(arg1, (const void*)arg2, arg3); break;
+        case Syscall::FunctionRead: return VFS::Read(Scheduler::ProcessGetSystemFileDescriptor(arg1), (void*)arg2, arg3); break;
+        case Syscall::FunctionWrite: return VFS::Write(Scheduler::ProcessGetSystemFileDescriptor(arg1), (const void*)arg2, arg3); break;
         }
 
         return 0;
