@@ -15,8 +15,8 @@
 
 #include "fs/VFS.h"
 #include "fs/RamdiskFS.h"
-#include "devices/RamDevice.h"
-#include "devices/ZeroDevice.h"
+#include "devices/PseudoDeviceDriver.h"
+#include "devices/RamDeviceDriver.h"
 
 #include "syscalls/SyscallHandler.h"
 
@@ -63,13 +63,15 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     SyscallHandler::Init();
 
     VFS::Init(new TestFS());
+    VFS::CreateFolder("/dev");
 
-    RamDevice* ramDev = new RamDevice("ram0", info->ramdiskImage.buffer, info->ramdiskImage.numPages * 4096);
+    RamDeviceDriver* ramDriver = new RamDeviceDriver();
+    uint64 initrdSubID = ramDriver->AddDevice((char*)info->ramdiskImage.buffer, info->ramdiskImage.numPages * 4096);
+    VFS::CreateDeviceFile("/dev/ram0", ramDriver->GetDriverID(), initrdSubID);
+
     VFS::RamdiskFS* ramFS = new VFS::RamdiskFS("/dev/ram0");
     VFS::CreateFolder("/initrd");
     VFS::Mount("/initrd", ramFS);
-
-    new ZeroDevice("zero");
 
     APIC::Init();
 

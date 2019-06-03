@@ -13,8 +13,11 @@ public:
     public:
         Iterator(T* data, uint64 pos) : m_Data(data), m_Pos(pos) { }
 
-        Iterator& operator++() { m_Pos++; }
-        Iterator& operator--() { m_Pos--; }
+        Iterator& operator++() { m_Pos++; return *this; }
+        Iterator& operator--() { m_Pos--; return *this; }
+
+        Iterator& operator+=(uint64 num) { m_Pos += num; return *this; }
+        Iterator& operator-=(uint64 num) { m_Pos -= num; return *this; }
 
         T& operator* () { return m_Data[m_Pos]; }
         T* operator-> () { return &m_Data[m_Pos]; }
@@ -74,6 +77,9 @@ public:
     }
 
     T& operator[] (uint64 index) {
+        return m_Data[index];
+    }
+    const T& operator[] (uint64 index) const {
         return m_Data[index];
     }
 

@@ -18,7 +18,7 @@ namespace VFS {
             TYPE_FILE,      // Normal File
             TYPE_DIRECTORY, // Directory, containing other nodes
             TYPE_DEVICE,    // Device File
-            TYPE_PIPE,      // Pipe File
+            TYPE_PIPE,      // (Named) Pipe
         } type;
 
         FileSystem* fs;     // The FileSystem instance this node belongs to
@@ -26,6 +26,10 @@ namespace VFS {
         union {
             Directory* dir;
             uint64 fileSize;
+            struct {
+                uint64 driverID;
+                uint64 subID;
+            } device;
         };
 
         uint64 id;
@@ -41,7 +45,7 @@ namespace VFS {
     bool CreateFile(const char* path);
     bool CreateFolder(const char* path);
 
-    bool CreateDeviceFile(const char* name, uint64 devID);
+    bool CreateDeviceFile(const char* path, uint64 driverID, uint64 subID);
     bool CreatePipe(uint64* readDesc, uint64* writeDesc);
 
     /**

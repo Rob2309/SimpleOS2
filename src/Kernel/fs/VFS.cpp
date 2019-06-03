@@ -4,8 +4,7 @@
 #include "stdlib/string.h"
 #include "memory/memutil.h"
 #include "terminal/conio.h"
-
-#include "DeviceFS.h"
+#include "devices/DeviceDriver.h"
 
 namespace VFS {
 
@@ -278,9 +277,6 @@ namespace VFS {
         rootFS->GetSuperBlock(&mp->sb);
         strcpy(mp->path, "/");
         g_RootMount = mp;
-
-        CreateFolder("/dev");
-        Mount("/dev", new DeviceFS());
     }
 
     bool CreateFile(const char* path) {
@@ -358,30 +354,40 @@ namespace VFS {
         return true;
     }
 
-    bool CreateDeviceFile(const char* name, uint64 devID) {
-        MountPoint* mp = AcquireMountPoint("/dev");
-        CachedNode* devNode = AcquireNode(mp, mp->sb.rootNode);
+    bool CreateDeviceFile(const char* path, uint64 driverID, uint64 subID) {
+        char cleanBuffer[255];
+        if(!CleanPath(path, cleanBuffer))
+            return false;
 
-        GetDir(&devNode->node);
+        const char* folderPath;
+        const char* fileName;
+        SplitFolderAndFile(cleanBuffer, &folderPath, &fileName);
+
+        MountPoint* mp = AcquireMountPoint(folderPath);
+        folderPath = AdvancePath(folderPath, mp->path);
+
+        CachedNode* folderNode = AcquirePath(mp, folderPath);
+        if(folderNode == nullptr)
+            return false;
+        if(folderNode->node.type != Node::TYPE_DIRECTORY) {
+            ReleaseNode(mp, folderNode);
+            return false;
+        }
+
+        GetDir(&folderNode->node);
         DirectoryEntry* newEntry;
-        Directory::AddEntry(&devNode->node.dir, &newEntry);
+        Directory::AddEntry(&folderNode->node.dir, &newEntry);
 
-        CachedNode* newNode = new CachedNode();
-        newNode->node.dir = (Directory*)devID;
-        mp->fs->CreateNode(&newNode->node);
-        newNode->nodeID = newNode->node.id;
-        newNode->softRefCount = 1;
-        newNode->node.lock.SpinLock();
-        newNode->node.type = Node::TYPE_DEVICE;
+        CachedNode* newNode = CreateNode(mp);
         newNode->node.linkRefCount = 1;
-        mp->nodeCacheLock.SpinLock();
-        mp->nodeCache.push_back(newNode);
-        mp->nodeCacheLock.Unlock();
+        newNode->node.type = Node::TYPE_DEVICE;
+        newNode->node.device.driverID = driverID;
+        newNode->node.device.subID = subID;
         
         newEntry->nodeID = newNode->nodeID;
-        strcpy(newEntry->name, name);
+        strcpy(newEntry->name, fileName);
 
-        ReleaseNode(mp, devNode);
+        ReleaseNode(mp, folderNode);
         ReleaseNode(mp, newNode);
 
         return true;
@@ -518,32 +524,60 @@ namespace VFS {
         }
     }
 
+    static uint64 _Read(Node* node, uint64 pos, void* buffer, uint64 bufferSize) {
+        uint64 res;
+        if(node->type == Node::TYPE_DEVICE) {
+            DeviceDriver* driver = DeviceDriverRegistry::GetDriver(node->device.driverID);
+            if(driver == nullptr)
+                return 0;
+            res = driver->Read(node->device.subID, pos, buffer, bufferSize);
+        } else {
+            res = node->fs->ReadNodeData(node, pos, buffer, bufferSize);
+        }
+        return res;
+    }
+
     uint64 Read(uint64 descID, void* buffer, uint64 bufferSize) {
         FileDescriptor* desc = (FileDescriptor*)descID;
-
-        uint64 res = desc->mp->fs->ReadNodeData(&desc->node->node, desc->pos, buffer, bufferSize);
+        
+        uint64 res = _Read(&desc->node->node, desc->pos, buffer, bufferSize);
         desc->pos += res;
+
         return res;
     }
 
     uint64 Read(uint64 descID, uint64 pos, void* buffer, uint64 bufferSize) {
         FileDescriptor* desc = (FileDescriptor*)descID;
 
-        return desc->mp->fs->ReadNodeData(&desc->node->node, pos, buffer, bufferSize);
+        return _Read(&desc->node->node, pos, buffer, bufferSize);
+    }
+
+    static uint64 _Write(Node* node, uint64 pos, const void* buffer, uint64 bufferSize) {
+        uint64 res;
+        if(node->type == Node::TYPE_DEVICE) {
+            DeviceDriver* driver = DeviceDriverRegistry::GetDriver(node->device.driverID);
+            if(driver == nullptr)
+                return 0;
+            res = driver->Write(node->device.subID, pos, buffer, bufferSize);
+        } else {
+            res = node->fs->WriteNodeData(node, pos, buffer, bufferSize);
+        }
+        return res;
     }
 
     uint64 Write(uint64 descID, const void* buffer, uint64 bufferSize) {
         FileDescriptor* desc = (FileDescriptor*)descID;
-
-        uint64 res = desc->mp->fs->WriteNodeData(&desc->node->node, desc->pos, buffer, bufferSize);
+        
+        uint64 res = _Write(&desc->node->node, desc->pos, buffer, bufferSize);
         desc->pos += res;
+
         return res;
     }
 
     uint64 Write(uint64 descID, uint64 pos, const void* buffer, uint64 bufferSize) {
         FileDescriptor* desc = (FileDescriptor*)descID;
 
-        return desc->mp->fs->WriteNodeData(&desc->node->node, pos, buffer, bufferSize);
+        return _Write(&desc->node->node, pos, buffer, bufferSize);
     }
 
     void Stat(uint64 descID, NodeStats* stats) {
