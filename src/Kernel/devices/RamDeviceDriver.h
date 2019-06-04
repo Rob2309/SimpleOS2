@@ -9,6 +9,10 @@
  **/
 class RamDeviceDriver : public CharDeviceDriver {
 public:
+    /**
+     * Register a Ramdisk to the driver.
+     * @returns the SubID with which the given ramdisk can be accessed.
+     **/
     uint64 AddDevice(char* buffer, uint64 size);
 
     uint64 Read(uint64 subID, uint64 pos, void* buffer, uint64 bufferSize) override;

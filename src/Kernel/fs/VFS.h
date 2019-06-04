@@ -40,12 +40,33 @@ namespace VFS {
         uint64 size;
     };
 
+    /**
+     * Initializes the VFS and mounts rootFS to /
+     **/
     void Init(FileSystem* rootFS);
     
+    /**
+     * Creates a regular file at the given path. 
+     * All directories up to the given path have to exist.
+     **/
     bool CreateFile(const char* path);
+    /**
+     * Creates an empty directory.
+     * All directories up to the given path have to exist.
+     **/
     bool CreateFolder(const char* path);
-
+    /**
+     * Creates a special device file.
+     * All directories up to the given path have to exist.
+     * @param driverID The ID of the driver the device is handled by.
+     * @param subID The ID of the device within the driver.
+     **/
     bool CreateDeviceFile(const char* path, uint64 driverID, uint64 subID);
+    /**
+     * Creates an unnamed pipe.
+     * @param readDesc Filled with a FileDescriptor that can be used to read from the Pipe.
+     * @param writeDesc Filled with a FileDescriptor that can be used to write to the Pipe.
+     **/
     bool CreatePipe(uint64* readDesc, uint64* writeDesc);
 
     /**
@@ -84,7 +105,7 @@ namespace VFS {
         } *entries;
     };
     /**
-     * Lists the files in a directory
+     * Lists the files in a directory, fails if the given path is not a directory.
      **/
     bool List(const char* path, FileList* list, bool getTypes);
 

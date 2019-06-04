@@ -2,8 +2,15 @@
 
 #include "DeviceDriver.h"
 
+/**
+ * This driver implements many of the kernel-provided pseudo devices.
+ **/
 class PseudoDeviceDriver : public CharDeviceDriver {
 public:
+    /**
+     * SubID of the Zero device. 
+     * This device returns endless zeroes when read from and discards any data when written to.
+     **/
     static constexpr uint64 DeviceZero = 0;
 
 public:
