@@ -2,7 +2,7 @@
 
 #include "memory/memutil.h"
 
-uint64 PseudoDeviceDriver::Read(uint64 subID, uint64 pos, void* buffer, uint64 bufferSize) {
+uint64 PseudoDeviceDriver::Read(uint64 subID, void* buffer, uint64 bufferSize) {
     if(subID == DeviceZero) {
         memset(buffer, 0, bufferSize);
         return bufferSize;
@@ -11,7 +11,7 @@ uint64 PseudoDeviceDriver::Read(uint64 subID, uint64 pos, void* buffer, uint64 b
     }
 }
 
-uint64 PseudoDeviceDriver::Write(uint64 subID, uint64 pos, const void* buffer, uint64 bufferSize) {
+uint64 PseudoDeviceDriver::Write(uint64 subID, const void* buffer, uint64 bufferSize) {
     if(subID == DeviceZero) {
         return bufferSize;
     } else {

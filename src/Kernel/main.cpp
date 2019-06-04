@@ -66,7 +66,7 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     VFS::CreateFolder("/dev");
 
     RamDeviceDriver* ramDriver = new RamDeviceDriver();
-    uint64 initrdSubID = ramDriver->AddDevice((char*)info->ramdiskImage.buffer, info->ramdiskImage.numPages * 4096);
+    uint64 initrdSubID = ramDriver->AddDevice((char*)info->ramdiskImage.buffer, 512, info->ramdiskImage.numPages * 8);
     VFS::CreateDeviceFile("/dev/ram0", ramDriver->GetDriverID(), initrdSubID);
 
     PseudoDeviceDriver* pseudoDriver = new PseudoDeviceDriver();

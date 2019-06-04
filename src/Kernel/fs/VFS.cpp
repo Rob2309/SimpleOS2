@@ -378,9 +378,11 @@ namespace VFS {
         DirectoryEntry* newEntry;
         Directory::AddEntry(&folderNode->node.dir, &newEntry);
 
+        DeviceDriver* driver = DeviceDriverRegistry::GetDriver(driverID);
+
         CachedNode* newNode = CreateNode(mp);
         newNode->node.linkRefCount = 1;
-        newNode->node.type = Node::TYPE_DEVICE;
+        newNode->node.type = driver->GetType() == DeviceDriver::TYPE_CHAR ? Node::TYPE_DEVICE_CHAR : Node::TYPE_DEVICE_BLOCK;
         newNode->node.device.driverID = driverID;
         newNode->node.device.subID = subID;
         
@@ -558,11 +560,13 @@ namespace VFS {
 
     static uint64 _Read(Node* node, uint64 pos, void* buffer, uint64 bufferSize) {
         uint64 res;
-        if(node->type == Node::TYPE_DEVICE) {
-            DeviceDriver* driver = DeviceDriverRegistry::GetDriver(node->device.driverID);
+        if(node->type == Node::TYPE_DEVICE_CHAR) {
+            CharDeviceDriver* driver = (CharDeviceDriver*)DeviceDriverRegistry::GetDriver(node->device.driverID);
             if(driver == nullptr)
                 return 0;
-            res = driver->Read(node->device.subID, pos, buffer, bufferSize);
+            res = driver->Read(node->device.subID, buffer, bufferSize);
+        } else if(node->type == Node::TYPE_DEVICE_BLOCK) {
+            return 0;
         } else {
             res = node->fs->ReadNodeData(node, pos, buffer, bufferSize);
         }
@@ -586,11 +590,13 @@ namespace VFS {
 
     static uint64 _Write(Node* node, uint64 pos, const void* buffer, uint64 bufferSize) {
         uint64 res;
-        if(node->type == Node::TYPE_DEVICE) {
-            DeviceDriver* driver = DeviceDriverRegistry::GetDriver(node->device.driverID);
+        if(node->type == Node::TYPE_DEVICE_CHAR) {
+            CharDeviceDriver* driver = (CharDeviceDriver*)DeviceDriverRegistry::GetDriver(node->device.driverID);
             if(driver == nullptr)
                 return 0;
-            res = driver->Write(node->device.subID, pos, buffer, bufferSize);
+            res = driver->Write(node->device.subID, buffer, bufferSize);
+        } else if(node->type == Node::TYPE_DEVICE_BLOCK) {
+            return 0;
         } else {
             res = node->fs->WriteNodeData(node, pos, buffer, bufferSize);
         }

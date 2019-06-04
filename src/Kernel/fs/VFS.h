@@ -15,10 +15,11 @@ namespace VFS {
         Mutex lock;
 
         enum Type {
-            TYPE_FILE,      // Normal File
-            TYPE_DIRECTORY, // Directory, containing other nodes
-            TYPE_DEVICE,    // Device File
-            TYPE_PIPE,      // (Named) Pipe
+            TYPE_FILE,              // Normal File
+            TYPE_DIRECTORY,         // Directory, containing other nodes
+            TYPE_DEVICE_CHAR,       // Character Device File
+            TYPE_DEVICE_BLOCK,      // Block Device File
+            TYPE_PIPE,              // (Named) Pipe
         } type;
 
         FileSystem* fs;     // The FileSystem instance this node belongs to

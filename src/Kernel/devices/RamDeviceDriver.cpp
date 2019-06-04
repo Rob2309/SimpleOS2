@@ -2,30 +2,23 @@
 
 #include "memory/memutil.h"
 
-uint64 RamDeviceDriver::AddDevice(char* buffer, uint64 size) {
+uint64 RamDeviceDriver::AddDevice(char* buffer, uint64 blockSize, uint64 numBlocks) {
     uint64 res = m_Devices.size();
-    m_Devices.push_back({ buffer, size });
+    m_Devices.push_back({ buffer, blockSize, numBlocks });
     return res;
 }
 
-uint64 RamDeviceDriver::Read(uint64 subID, uint64 pos, void* buffer, uint64 bufferSize) {
-    const DevInfo& info = m_Devices[subID];
-
-    uint64 rem = info.size - pos;
-    if(rem < bufferSize)
-        bufferSize = rem;
-
-    memcpy(buffer, info.buffer + pos, bufferSize);
-    return bufferSize;
+uint64 RamDeviceDriver::GetBlockSize(uint64 subID) const {
+    return m_Devices[subID].blockSize;
 }
 
-uint64 RamDeviceDriver::Write(uint64 subID, uint64 pos, const void* buffer, uint64 bufferSize) {
-    const DevInfo& info = m_Devices[subID];
+void RamDeviceDriver::ReadBlock(uint64 subID, uint64 startBlock, uint64 numBlocks, void* buffer) {
+    const DevInfo& dev = m_Devices[subID];
 
-    uint64 rem = info.size - pos;
-    if(rem < bufferSize)
-        bufferSize = rem;
+    memcpy(buffer, &dev.buffer[startBlock * dev.blockSize], numBlocks * dev.blockSize);
+}
+void RamDeviceDriver::WriteBlock(uint64 subID, uint64 startBlock, uint64 numBlocks, const void* buffer) {
+    const DevInfo& dev = m_Devices[subID];
 
-    memcpy(info.buffer + pos, buffer, bufferSize);
-    return bufferSize;
+    memcpy(&dev.buffer[startBlock * dev.blockSize], buffer, numBlocks * dev.blockSize);
 }
