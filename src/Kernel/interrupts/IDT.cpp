@@ -1,7 +1,7 @@
 #include "IDT.h"
 
 #include "types.h"
-#include "terminal/conio.h"
+#include "klib/stdio.h"
 #include "arch/GDT.h"
 
 #define ISRSTUB(vectno) extern "C" void ISRSTUB_##vectno();
@@ -37,7 +37,7 @@ namespace IDT {
     extern "C" void ISRCommonHandler(Registers* regs)
     {
         if(g_Handlers[regs->intNumber] == nullptr)
-            printf("INVALID INTERRUPT: %i\n", regs->intNumber);
+            kprintf("INVALID INTERRUPT: %i\n", regs->intNumber);
         else
             g_Handlers[regs->intNumber](regs);
     }
@@ -56,27 +56,27 @@ namespace IDT {
     {
         switch (regs->intNumber)
         {
-        case ISRNumbers::ExceptionDiv0: printf("%i.%i: Divide by zero error\n", Scheduler::ThreadGetPID(), Scheduler::ThreadGetTID()); break;
-        case ISRNumbers::ExceptionDebug: printf("Debug trap\n"); break;
-        case ISRNumbers::ExceptionNMI: printf("Non maskable interrupt\n"); break;
-        case ISRNumbers::ExceptionBreakpoint: printf("Breakpoint\n"); break;
-        case ISRNumbers::ExceptionOverflow: printf("Overflow\n"); break;
-        case ISRNumbers::ExceptionBoundRangeExceeded: printf("Bound Range exceeded\n"); break;
-        case ISRNumbers::ExceptionInvalidOpcode: printf("%i.%i: Invalid opcode\n", Scheduler::ThreadGetPID(), Scheduler::ThreadGetTID()); break;
-        case ISRNumbers::ExceptionDeviceUnavailable: printf("Device unavailable\n"); break;
-        case ISRNumbers::ExceptionDoubleFault: printf("Double fault\n"); break;
-        case ISRNumbers::ExceptionCoprocesssorSegmentOverrun: printf("Coprocessor error\n"); break;
-        case ISRNumbers::ExceptionInvalidTSS: printf("Invalid TSS\n"); break;
-        case ISRNumbers::ExceptionSegmentNotPresent: printf("Segment not present\n"); break;
-        case ISRNumbers::ExceptionStackSegmentNotPresent: printf("Stack segment not present\n"); break;
-        case ISRNumbers::ExceptionGPFault: printf("%i.%i: General protection fault\n", Scheduler::ThreadGetPID(), Scheduler::ThreadGetTID()); break;
-        case ISRNumbers::ExceptionPageFault: printf("%i.%i: Page fault\n", Scheduler::ThreadGetPID(), Scheduler::ThreadGetTID()); break;
-        case ISRNumbers::ExceptionFPException: printf("Floating point exception\n"); break;
-        case ISRNumbers::ExceptionAlignmentCheck: printf("Alignment check\n"); break;
-        case ISRNumbers::ExceptionMachineCheck: printf("Machine check\n"); break;
-        case ISRNumbers::ExceptionSIMDFP: printf("SIMD floating point exception\n"); break;
-        case ISRNumbers::ExceptionVirtualization: printf("Virtualization exception\n"); break;
-        case ISRNumbers::ExceptionSecurity: printf("Security exception\n"); break;
+        case ISRNumbers::ExceptionDiv0: kprintf("%i.%i: Divide by zero error\n", Scheduler::ThreadGetPID(), Scheduler::ThreadGetTID()); break;
+        case ISRNumbers::ExceptionDebug: kprintf("Debug trap\n"); break;
+        case ISRNumbers::ExceptionNMI: kprintf("Non maskable interrupt\n"); break;
+        case ISRNumbers::ExceptionBreakpoint: kprintf("Breakpoint\n"); break;
+        case ISRNumbers::ExceptionOverflow: kprintf("Overflow\n"); break;
+        case ISRNumbers::ExceptionBoundRangeExceeded: kprintf("Bound Range exceeded\n"); break;
+        case ISRNumbers::ExceptionInvalidOpcode: kprintf("%i.%i: Invalid opcode\n", Scheduler::ThreadGetPID(), Scheduler::ThreadGetTID()); break;
+        case ISRNumbers::ExceptionDeviceUnavailable: kprintf("Device unavailable\n"); break;
+        case ISRNumbers::ExceptionDoubleFault: kprintf("Double fault\n"); break;
+        case ISRNumbers::ExceptionCoprocesssorSegmentOverrun: kprintf("Coprocessor error\n"); break;
+        case ISRNumbers::ExceptionInvalidTSS: kprintf("Invalid TSS\n"); break;
+        case ISRNumbers::ExceptionSegmentNotPresent: kprintf("Segment not present\n"); break;
+        case ISRNumbers::ExceptionStackSegmentNotPresent: kprintf("Stack segment not present\n"); break;
+        case ISRNumbers::ExceptionGPFault: kprintf("%i.%i: General protection fault\n", Scheduler::ThreadGetPID(), Scheduler::ThreadGetTID()); break;
+        case ISRNumbers::ExceptionPageFault: kprintf("%i.%i: Page fault\n", Scheduler::ThreadGetPID(), Scheduler::ThreadGetTID()); break;
+        case ISRNumbers::ExceptionFPException: kprintf("Floating point exception\n"); break;
+        case ISRNumbers::ExceptionAlignmentCheck: kprintf("Alignment check\n"); break;
+        case ISRNumbers::ExceptionMachineCheck: kprintf("Machine check\n"); break;
+        case ISRNumbers::ExceptionSIMDFP: kprintf("SIMD floating point exception\n"); break;
+        case ISRNumbers::ExceptionVirtualization: kprintf("Virtualization exception\n"); break;
+        case ISRNumbers::ExceptionSecurity: kprintf("Security exception\n"); break;
         }
 
         uint64 cr2;
@@ -84,10 +84,10 @@ namespace IDT {
             "movq %%cr2, %0"
             : "=r"(cr2)
         );
-        printf("CR2: 0x%x\n", cr2);
-        printf("Error: 0x%X\n", regs->errorCode);
-        printf("RIP: 0x%x\n", regs->rip);
-        printf("PID: %i.%i\n", Scheduler::ThreadGetPID(), Scheduler::ThreadGetTID());
+        kprintf("CR2: 0x%x\n", cr2);
+        kprintf("Error: 0x%X\n", regs->errorCode);
+        kprintf("RIP: 0x%x\n", regs->rip);
+        kprintf("PID: %i.%i\n", Scheduler::ThreadGetPID(), Scheduler::ThreadGetTID());
         while(true);
     }
 

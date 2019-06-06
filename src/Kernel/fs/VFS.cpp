@@ -1,8 +1,7 @@
 #include "VFS.h"
 
-#include "stl/ArrayList.h"
-#include "stdlib/string.h"
-#include "terminal/conio.h"
+#include "ktl/vector.h"
+#include "klib/string.h"
 #include "devices/Device.h"
 #include "FloatingFileSystem.h"
 #include "scheduler/Scheduler.h"
@@ -10,7 +9,7 @@
 namespace VFS {
 
     static Mutex g_NodesLock;
-    static ArrayList<Node*> g_Nodes;
+    static ktl::vector<Node*> g_Nodes;
     static uint64 g_FirstFreeNode;
 
     void Init()
@@ -36,7 +35,7 @@ namespace VFS {
 
         for(int i = 0; i < folder->directory.numFiles; i++) {
             Node* n = AcquireNode(folder->directory.files[i]);
-            if(strcmp(name, n->name) == 0)
+            if(kstrcmp(name, n->name) == 0)
                 return n;
             ReleaseNode(n);
         }
@@ -101,14 +100,14 @@ namespace VFS {
         Node* newNode = CreateNode();
         newNode->type = Node::TYPE_FILE;
         newNode->file.size = 0;
-        memcpy(newNode->name, name, strlen(name) + 1);
+        kmemcpy(newNode->name, name, kstrlen(name) + 1);
         newNode->fs = f->fs;
         newNode->fs->CreateNode(*newNode);
 
         newNode->refCount++; // ref of folder entry
 
         uint64* files = new uint64[f->directory.numFiles + 1];
-        memcpy(files, f->directory.files, f->directory.numFiles * sizeof(uint64));
+        kmemcpy(files, f->directory.files, f->directory.numFiles * sizeof(uint64));
         files[f->directory.numFiles] = newNode->id;
         delete[] f->directory.files;
         f->directory.files = files;
@@ -134,14 +133,14 @@ namespace VFS {
         newNode->type = Node::TYPE_DIRECTORY;
         newNode->directory.numFiles = 0;
         newNode->directory.files = nullptr;
-        memcpy(newNode->name, name, strlen(name) + 1);
+        kmemcpy(newNode->name, name, kstrlen(name) + 1);
         newNode->fs = f->fs;
         newNode->fs->CreateNode(*newNode);
 
         newNode->refCount++;
 
         uint64* files = new uint64[f->directory.numFiles + 1];
-        memcpy(files, f->directory.files, f->directory.numFiles * sizeof(uint64));
+        kmemcpy(files, f->directory.files, f->directory.numFiles * sizeof(uint64));
         files[f->directory.numFiles] = newNode->id;
         delete[] f->directory.files;
         f->directory.files = files;
@@ -166,14 +165,14 @@ namespace VFS {
         Node* newNode = CreateNode();
         newNode->type = Node::TYPE_DEVICE;
         newNode->device.devID = devID;
-        memcpy(newNode->name, name, strlen(name) + 1);
+        kmemcpy(newNode->name, name, kstrlen(name) + 1);
         newNode->fs = f->fs;
         newNode->fs->CreateNode(*newNode);
 
         newNode->refCount++;
 
         uint64* files = new uint64[f->directory.numFiles + 1];
-        memcpy(files, f->directory.files, f->directory.numFiles * sizeof(uint64));
+        kmemcpy(files, f->directory.files, f->directory.numFiles * sizeof(uint64));
         files[f->directory.numFiles] = newNode->id;
         delete[] f->directory.files;
         f->directory.files = files;

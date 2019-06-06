@@ -1,14 +1,13 @@
 #include "Scheduler.h"
 
 #include "Process.h"
-#include "stl/list.h"
-#include "memory/memutil.h"
+#include "ktl/list.h"
+#include "klib/memory.h"
 #include "interrupts/IDT.h"
 #include "arch/GDT.h"
 #include "memory/MemoryManager.h"
 #include "arch/MSR.h"
 #include "arch/APIC.h"
-#include "terminal/conio.h"
 #include "arch/CPU.h"
 #include "fs/VFS.h"
 
@@ -16,8 +15,8 @@ namespace Scheduler {
 
     extern "C" void IdleThread();
 
-    static std::nlist<ThreadInfo> g_ThreadList;
-    static std::nlist<ThreadInfo> g_DeadThreads;
+    static ktl::nlist<ThreadInfo> g_ThreadList;
+    static ktl::nlist<ThreadInfo> g_DeadThreads;
 
     static uint64 g_PIDCounter = 1;
     static uint64 g_TIDCounter = 1;
@@ -85,7 +84,7 @@ namespace Scheduler {
         ThreadInfo* tInfo = CreateThreadStruct();
 
         IDT::Registers regs;
-        memset(&regs, 0, sizeof(IDT::Registers));
+        kmemset(&regs, 0, sizeof(IDT::Registers));
         regs.cs = GDT::KernelCode;
         regs.ds = GDT::KernelData;
         regs.ss = GDT::KernelData;
@@ -217,7 +216,7 @@ namespace Scheduler {
 
         // Init idle process
         ThreadInfo* p = new ThreadInfo();
-        memset(p, 0, sizeof(ThreadInfo));
+        kmemset(p, 0, sizeof(ThreadInfo));
         p->tid = 0;
         p->blockEvent.type = ThreadBlockEvent::TYPE_NONE;
         p->process = nullptr;

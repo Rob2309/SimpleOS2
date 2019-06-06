@@ -2,9 +2,7 @@
 
 #include "MemoryManager.h"
 
-#include "terminal/conio.h"
-
-#include "stl/FreeList.h"
+#include "ktl/FreeList.h"
 #include "Mutex.h"
 
 namespace KernelHeap {
@@ -12,7 +10,7 @@ namespace KernelHeap {
     constexpr uint64 HeapBase = ((uint64)510 << 39) | 0xFFFF000000000000;
 
     static Mutex g_Lock;
-    static FreeList g_FreeList;
+    static ktl::FreeList g_FreeList;
     static uint64 g_HeapPos = HeapBase;
 
     static void ReserveNew(uint64 size) 

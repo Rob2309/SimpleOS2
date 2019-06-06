@@ -1,6 +1,6 @@
 #include "RamDevice.h"
 
-#include "memory/memutil.h"
+#include "klib/memory.h"
 
 RamDevice::RamDevice(const char* name, void* buf, uint64 size)
     : Device(name), m_Buffer((char*)buf), m_Size(size)
@@ -14,7 +14,7 @@ uint64 RamDevice::Read(uint64 pos, void* buffer, uint64 bufferSize) {
     if(bufferSize < rem)
         rem = bufferSize;
 
-    memcpy(buffer, m_Buffer + pos, rem);
+    kmemcpy(buffer, m_Buffer + pos, rem);
     return rem;
 }
 
@@ -26,6 +26,6 @@ uint64 RamDevice::Write(uint64 pos, void* buffer, uint64 bufferSize) {
     if(bufferSize < rem)
         rem = bufferSize;
 
-    memcpy(m_Buffer + pos, buffer, rem);
+    kmemcpy(m_Buffer + pos, buffer, rem);
     return rem;
 }

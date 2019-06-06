@@ -2,14 +2,14 @@
 
 #include "arch/MSR.h"
 #include "arch/GDT.h"
-#include "terminal/conio.h"
+#include "klib/stdio.h"
 #include "terminal/terminal.h"
 
 #include "Syscall.h"
 #include "interrupts/IDT.h"
 #include "scheduler/Scheduler.h"
 #include "memory/MemoryManager.h"
-#include "memory/memutil.h"
+#include "klib/memory.h"
 
 #include "scheduler/Process.h"
 
@@ -49,7 +49,7 @@ namespace SyscallHandler {
     static uint64 DoFork(State* state)
     {
         IDT::Registers childRegs;
-        memset(&childRegs, 0, sizeof(IDT::Registers));
+        kmemset(&childRegs, 0, sizeof(IDT::Registers));
         childRegs.rip = state->userrip;
         childRegs.userrsp = state->userrsp;
         childRegs.rbp = state->userrbp;
@@ -71,18 +71,18 @@ namespace SyscallHandler {
     {
         switch(func) {
         case Syscall::FunctionPrint:
-            SetTerminalColor(200, 50, 50);
-            printf("[%i.%i] ", Scheduler::ThreadGetPID(), Scheduler::ThreadGetTID());
-            SetTerminalColor(255, 255, 255);
-            printf((const char*)arg1); 
+            kprintf_setcolor(200, 50, 50);
+            kprintf("[%i.%i] ", Scheduler::ThreadGetPID(), Scheduler::ThreadGetTID());
+            kprintf_setcolor(255, 255, 255);
+            kprintf((const char*)arg1); 
             break;
         case Syscall::FunctionWait: Scheduler::ThreadWait(arg1); break;
         case Syscall::FunctionGetPID: return Scheduler::ThreadGetPID(); break;
         case Syscall::FunctionExit: 
-            SetTerminalColor(200, 50, 50);
-            printf("[%i.%i] ", Scheduler::ThreadGetPID(), Scheduler::ThreadGetTID());
-            SetTerminalColor(255, 255, 255);
-            printf("Exiting with code %i\n", arg1);
+            kprintf_setcolor(200, 50, 50);
+            kprintf("[%i.%i] ", Scheduler::ThreadGetPID(), Scheduler::ThreadGetTID());
+            kprintf_setcolor(255, 255, 255);
+            kprintf("Exiting with code %i\n", arg1);
             Scheduler::ThreadExit(arg1); 
             break;
         case Syscall::FunctionFork: return DoFork(state); break;
@@ -90,7 +90,7 @@ namespace SyscallHandler {
             {
                 uint64 file = VFS::OpenNode((const char*)arg1);
                 if(file == 0) {
-                    printf("exec: failed to open %s\n", arg1);
+                    kprintf("exec: failed to open %s\n", arg1);
                     return 0;
                 }
                 uint64 fileSize = VFS::GetSize(file);
@@ -101,7 +101,7 @@ namespace SyscallHandler {
                 uint64 pml4Entry;
                 IDT::Registers regs;
                 if(!PrepareELF(fileBuffer, pml4Entry, regs)) {
-                    printf("exec: failed to exec %s\n", arg1);
+                    kprintf("exec: failed to exec %s\n", arg1);
                     return 0;
                 }
 

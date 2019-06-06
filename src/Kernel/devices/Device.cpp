@@ -1,10 +1,10 @@
 #include "Device.h"
 
-#include "stl/ArrayList.h"
+#include "ktl/vector.h"
 #include "fs/VFS.h"
-#include "terminal/conio.h"
+#include "klib/stdio.h"
 
-static ArrayList<Device*> g_Devices;
+static ktl::vector<Device*> g_Devices;
 
 Device* Device::GetByID(uint64 id) {
     return g_Devices[id];
@@ -15,5 +15,5 @@ Device::Device(const char* name) {
     g_Devices.push_back(this);
 
     if(!VFS::CreateDeviceFile("/dev", name, m_DevID))
-        printf("Failed to create device file for %s\n", name);
+        kprintf("Failed to create device file for %s\n", name);
 }

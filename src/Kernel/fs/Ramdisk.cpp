@@ -2,14 +2,14 @@
 
 #include "RamdiskStructs.h"
 #include "VFS.h"
-#include "terminal/conio.h"
-#include "memory/memutil.h"
+#include "klib/stdio.h"
+#include "klib/memory.h"
 
 RamdiskFS::RamdiskFS(const char* dev)
 {
     m_DevFile = VFS::OpenNode(dev);
     if(m_DevFile == 0) {
-        printf("Ramdisk device file not found (%s)\n", dev);
+        kprintf("Ramdisk device file not found (%s)\n", dev);
         return;
     }
 
@@ -32,7 +32,7 @@ void RamdiskFS::Mount(VFS::Node& mountPoint)
         VFS::Node* n = VFS::CreateNode();
         n->type = VFS::Node::TYPE_FILE;
         n->file.size = files[i].size;
-        memcpy(n->name, files[i].name, 50);
+        kmemcpy(n->name, files[i].name, 50);
         n->fs = this;
         n->fsNodeID = files[i].dataOffset;
         n->refCount++;

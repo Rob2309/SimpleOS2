@@ -1,6 +1,4 @@
-#include "KernelHeap.h"
-
-typedef long unsigned int size_t;
+#include "memory/KernelHeap.h"
 
 void* operator new(long unsigned int size)
 {

@@ -1,8 +1,8 @@
 #include "MemoryManager.h"
 
-#include "terminal/conio.h"
-#include "memutil.h"
-#include "stl/FreeList.h"
+#include "klib/stdio.h"
+#include "klib/memory.h"
+#include "ktl/FreeList.h"
 #include "Mutex.h"
 
 #define PML_GET_NX(entry)           ((entry) & 0x8000000000000000)
@@ -41,7 +41,7 @@
 namespace MemoryManager {
 
     static Mutex g_Lock;
-    static FreeList g_FreeList;
+    static ktl::FreeList g_FreeList;
 
     static uint64 g_HighMemBase;
 
@@ -49,7 +49,7 @@ namespace MemoryManager {
 
     void Init(KernelHeader* header)
     {
-        g_FreeList = FreeList(header->physMapStart);
+        g_FreeList = ktl::FreeList(header->physMapStart);
         g_HighMemBase = header->highMemoryBase;
         g_PML4 = header->pageBuffer;
 
@@ -66,8 +66,8 @@ namespace MemoryManager {
             heapPML3[i] = 0;
         g_PML4[510] = PML_SET_ADDR((uint64)KernelToPhysPtr((uint64*)heapPML3)) | PML_SET_P(1) | PML_SET_RW(1);
 
-        printf("Available memory: %i MB\n", availableMemory / 1024 / 1024);
-        printf("Memory manager initialized\n");
+        kprintf("Available memory: %i MB\n", availableMemory / 1024 / 1024);
+        kprintf("Memory manager initialized\n");
     }
 
     static void* _AllocatePages(uint64 numPages) {
@@ -169,7 +169,7 @@ namespace MemoryManager {
 
                                 volatile uint64* dest = (uint64*)PhysToKernelPtr(AllocatePages(1));
                                 volatile uint64* src = (uint64*)PhysToKernelPtr((void*)PML_GET_ADDR(pml1Entry));
-                                memcpy((uint64*)dest, (uint64*)src, 4096);
+                                kmemcpy((uint64*)dest, (uint64*)src, 4096);
                                 MapProcessPage(newPML4Entry, KernelToPhysPtr((uint64*)dest), virt, false);
                             }
                         }

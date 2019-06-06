@@ -2,7 +2,7 @@
 
 #include "types.h"
 #include "interrupts/IDT.h"
-#include "stl/list.h"
+#include "ktl/list.h"
 #include "Mutex.h"
 
 constexpr uint64 KernelStackPages = 3;
@@ -66,7 +66,7 @@ struct ProcessInfo {
 
     Mutex fileDescLock;
     uint64 fileDescIDCounter;
-    std::nlist<FileDescriptor> fileDescriptors;
+    ktl::nlist<FileDescriptor> fileDescriptors;
 
-    std::nlist<ThreadInfo> threads;
+    ktl::nlist<ThreadInfo> threads;
 };

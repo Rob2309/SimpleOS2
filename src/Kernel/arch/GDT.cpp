@@ -1,8 +1,8 @@
 #include "GDT.h"
 
 #include "types.h"
-#include "terminal/conio.h"
-#include "memory/memutil.h"
+#include "klib/stdio.h"
+#include "klib/memory.h"
 
 namespace GDT
 {
@@ -58,10 +58,10 @@ namespace GDT
 
     void Init(KernelHeader* header)
     {
-        printf("Initializing GDT\n");
+        kprintf("Initializing GDT\n");
 
         // null descriptor
-        memset((void*)&g_GDT[0], 0, sizeof(GDTEntry));
+        kmemset((void*)&g_GDT[0], 0, sizeof(GDTEntry));
 
         // kernel code
         g_GDT[1].limit1 = 0xFFFF;
@@ -96,7 +96,7 @@ namespace GDT
         g_GDT[4].base3 = 0x00;
 
         // TSS, needed for inter priviledge level interrupts
-        memset((void*)&g_TSS, 0, sizeof(TSS));
+        kmemset((void*)&g_TSS, 0, sizeof(TSS));
         g_TSS.iopbOffset = sizeof(TSS);
         // this is the stack pointer that will be loaded when an interrupt CHANGES the priviledge level to 0
         // if an interrupt is fired in kernel mode, this stack pointer won't be used
@@ -106,7 +106,7 @@ namespace GDT
         g_TSS.ist1 = (uint64)header->stack + header->stackPages * 4096;
 
         volatile TSSDesc* tssDesc = (volatile TSSDesc*)&g_GDT[5];
-        memset((void*)tssDesc, 0, sizeof(TSSDesc));
+        kmemset((void*)tssDesc, 0, sizeof(TSSDesc));
         tssDesc->limit1 = (sizeof(TSS) - 1) & 0xFFFF;
         tssDesc->limit2flags = ((sizeof(TSS) - 1) >> 16) & 0xF;
         tssDesc->base1 = (uint64)&g_TSS & 0xFFFF;

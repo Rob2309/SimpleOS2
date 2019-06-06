@@ -1,7 +1,6 @@
-#include "conio.h"
+#include "stdio.h"
 
-#include "terminal.h"
-#include "types.h"
+#include "terminal/terminal.h"
 
 static uint32 g_TerminalColor = 0xFFFFFF;
 
@@ -84,7 +83,7 @@ static void PrintString(const char* str) {
     }
 }
 
-void printf(const char* format, ...)
+void kprintf(const char* format, ...)
 {
     __builtin_va_list arg;
     __builtin_va_start(arg, format);
@@ -122,12 +121,12 @@ void printf(const char* format, ...)
     __builtin_va_end(arg);
 }
 
-void SetTerminalColor(uint32 color)
+void kprintf_setcolor(uint32 color)
 {
     g_TerminalColor = color;
 }
 
-void SetTerminalColor(uint8 r, uint8 g, uint8 b)
+void kprintf_setcolor(uint8 r, uint8 g, uint8 b)
 {
-    SetTerminalColor((r << 16) | (g << 8) | b);
+    kprintf_setcolor((r << 16) | (g << 8) | b);
 }

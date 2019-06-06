@@ -1,6 +1,6 @@
 #include "ZeroDevice.h"
 
-#include "memory/memutil.h"
+#include "klib/memory.h"
 
 ZeroDevice::ZeroDevice(const char* name)
     : Device(name)
@@ -8,7 +8,7 @@ ZeroDevice::ZeroDevice(const char* name)
 
 uint64 ZeroDevice::Read(uint64 pos, void* buffer, uint64 bufferSize)
 {
-    memset(buffer, 0, bufferSize);
+    kmemset(buffer, 0, bufferSize);
     return bufferSize;
 }
 

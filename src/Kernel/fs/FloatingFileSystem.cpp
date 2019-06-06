@@ -1,6 +1,6 @@
 #include "FloatingFileSystem.h"
 
-#include "stl/ArrayList.h"
+#include "klib/memory.h"
 
 namespace VFS {
 
@@ -42,7 +42,7 @@ namespace VFS {
         if(rem > bufferSize)
             rem = bufferSize;
 
-        memcpy(buffer, ((INode*)node.fsNodeID)->data + pos, rem);
+        kmemcpy(buffer, ((INode*)node.fsNodeID)->data + pos, rem);
         return rem;
     }
     uint64 FloatingFileSystem::WriteNode(Node& node, uint64 pos, void* buffer, uint64 bufferSize)
@@ -52,13 +52,13 @@ namespace VFS {
 
         if(neededSize > node.file.size) {
             char* n = new char[neededSize];
-            memcpy(n, inode->data, node.file.size);
+            kmemcpy(n, inode->data, node.file.size);
             delete[] inode->data;
             inode->data = n;
             node.file.size = neededSize;
         }
 
-        memcpy(&inode->data[pos], buffer, bufferSize);
+        kmemcpy(&inode->data[pos], buffer, bufferSize);
         return bufferSize;
     }
 
