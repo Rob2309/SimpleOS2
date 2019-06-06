@@ -7,8 +7,6 @@
 #include "devices/DeviceDriver.h"
 
 namespace VFS {
-
-    static uint64 g_FirstFreeNode;
     
     struct CachedNode {
         CachedNode* next;
