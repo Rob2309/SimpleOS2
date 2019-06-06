@@ -1,13 +1,15 @@
 #include "VFS.h"
 
-#include "stl/list.h"
-#include "stdlib/string.h"
-#include "memory/memutil.h"
-#include "terminal/conio.h"
+#include "ktl/list.h"
+#include "klib/string.h"
+#include "klib/memory.h"
+#include "klib/stdio.h"
 #include "devices/DeviceDriver.h"
 
 namespace VFS {
 
+    static uint64 g_FirstFreeNode;
+    
     struct CachedNode {
         CachedNode* next;
         CachedNode* prev;
@@ -28,10 +30,10 @@ namespace VFS {
         SuperBlock sb;
 
         Mutex childMountLock;
-        std::nlist<MountPoint> childMounts;
+        ktl::nlist<MountPoint> childMounts;
 
         Mutex nodeCacheLock;
-        std::nlist<CachedNode> nodeCache;
+        ktl::nlist<CachedNode> nodeCache;
     };
 
     struct FileDescriptor {
@@ -49,10 +51,10 @@ namespace VFS {
     static MountPoint* g_RootMount = nullptr;
 
     static Mutex g_FileDescLock;
-    static std::nlist<FileDescriptor> g_FileDescs;
+    static ktl::nlist<FileDescriptor> g_FileDescs;
 
     static bool CleanPath(const char* path, char* cleanBuffer) {
-        int length = strlen(path);
+        int length = kstrlen(path);
         if(length >= 255)
             return false;
         
@@ -275,7 +277,7 @@ namespace VFS {
         MountPoint* mp = new MountPoint();
         mp->fs = rootFS;
         rootFS->GetSuperBlock(&mp->sb);
-        strcpy(mp->path, "/");
+        kstrcpy(mp->path, "/");
         g_RootMount = mp;
     }
 
@@ -308,7 +310,7 @@ namespace VFS {
         newNode->node.type = Node::TYPE_FILE;
         
         newEntry->nodeID = newNode->nodeID;
-        strcpy(newEntry->name, fileName);
+        kstrcpy(newEntry->name, fileName);
 
         ReleaseNode(mp, folderNode);
         ReleaseNode(mp, newNode);
@@ -346,7 +348,7 @@ namespace VFS {
         newNode->node.dir = Directory::Create(10);
         
         newEntry->nodeID = newNode->nodeID;
-        strcpy(newEntry->name, fileName);
+        kstrcpy(newEntry->name, fileName);
 
         ReleaseNode(mp, folderNode);
         ReleaseNode(mp, newNode);
@@ -387,7 +389,7 @@ namespace VFS {
         newNode->node.device.subID = subID;
         
         newEntry->nodeID = newNode->nodeID;
-        strcpy(newEntry->name, fileName);
+        kstrcpy(newEntry->name, fileName);
 
         ReleaseNode(mp, folderNode);
         ReleaseNode(mp, newNode);
@@ -422,7 +424,7 @@ namespace VFS {
 
         Directory* dir = GetDir(&folderNode->node);
         for(uint64 i = 0; i < dir->numEntries; i++) {
-            if(strcmp(fileName, dir->entries[i].name) == 0) {
+            if(kstrcmp(fileName, dir->entries[i].name) == 0) {
                 uint64 nodeID = dir->entries[i].nodeID;
                 CachedNode* fileNode = AcquireNode(mp, nodeID);
 
@@ -473,7 +475,7 @@ namespace VFS {
         }
 
         MountPoint* newMP = new MountPoint();
-        strcpy(newMP->path, cleanBuffer);
+        kstrcpy(newMP->path, cleanBuffer);
         newMP->fs = fs;
         fs->GetSuperBlock(&newMP->sb);
         
@@ -546,7 +548,7 @@ namespace VFS {
         list->numEntries = dir->numEntries;
         list->entries = new FileList::Entry[list->numEntries];
         for(uint64 i = 0; i < list->numEntries; i++) {
-            strcpy(list->entries[i].name, dir->entries[i].name);
+            kstrcpy(list->entries[i].name, dir->entries[i].name);
             if(getTypes) {
                 CachedNode* entryNode = AcquireNode(mp, dir->entries[i].nodeID);
                 list->entries[i].type = entryNode->node.type;

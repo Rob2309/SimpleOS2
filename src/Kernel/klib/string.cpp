@@ -1,6 +1,6 @@
 #include "string.h"
 
-int strcmp(const char* a, const char* b)
+int kstrcmp(const char* a, const char* b)
 {
     int i = 0;
     while(a[i] == b[i]) {
@@ -11,7 +11,7 @@ int strcmp(const char* a, const char* b)
     return 1;
 }
 
-int strcmp(const char* a, int aStart, int aEnd, const char* b)
+int kstrcmp(const char* a, int aStart, int aEnd, const char* b)
 {
     int length = aEnd - aStart;
     for(int i = 0; i < length; i++) {
@@ -21,7 +21,7 @@ int strcmp(const char* a, int aStart, int aEnd, const char* b)
     return 0;
 }
 
-int strlen(const char* a)
+int kstrlen(const char* a)
 {
     int l = 0;
     while(a[l] != '\0')
@@ -29,7 +29,7 @@ int strlen(const char* a)
     return l;
 }
 
-void strcpy(char* dest, const char* src)
+void kstrcpy(char* dest, const char* src)
 {
     int i = 0;
     while(src[i] != '\0') {
@@ -39,7 +39,7 @@ void strcpy(char* dest, const char* src)
     dest[i] = '\0';
 }
 
-void strconcat(char* dest, const char* a, const char* b)
+void kstrconcat(char* dest, const char* a, const char* b)
 {
     while(*a != '\0') {
         *dest = *a;

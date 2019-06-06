@@ -4,7 +4,6 @@
 #include "interrupts/IDT.h"
 #include "Scheduler.h"
 #include "arch/GDT.h"
-#include "terminal/conio.h"
 
 bool PrepareELF(const uint8* diskImg, uint64& outPML4Entry, IDT::Registers& outRegs)
 {

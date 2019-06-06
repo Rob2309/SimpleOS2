@@ -9,13 +9,13 @@
  * %x: Hexadecimal 64-Bit Integer, zero extended
  * %s: String
  **/ 
-void printf(const char* format, ...);
+void kprintf(const char* format, ...);
 
 /**
  * Set the color in which text is printed by printf
  **/
-void SetTerminalColor(uint32 color);
+void kprintf_setcolor(uint32 color);
 /**
  * Set the color in which text is printed by printf
  **/
-void SetTerminalColor(uint8 r, uint8 g, uint8 b);
+void kprintf_setcolor(uint8 r, uint8 g, uint8 b);

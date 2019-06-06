@@ -1,7 +1,7 @@
 #include <KernelHeader.h>
 
 #include "terminal/terminal.h"
-#include "terminal/conio.h"
+#include "klib/stdio.h"
 #include "memory/MemoryManager.h"
 #include "arch/GDT.h"
 #include "interrupts/IDT.h"
@@ -20,8 +20,6 @@
 
 #include "syscalls/SyscallHandler.h"
 
-#include "memory/memutil.h"
-
 #include "scheduler/Process.h"
 
 #include "arch/CPU.h"
@@ -32,7 +30,7 @@ static void SetupTestProcess(uint8* loadBase)
 {
     uint64 file = VFS::Open("/initrd/test.elf");
     if(file == 0) {
-        printf("Failed to find test.elf\n");
+        kprintf("Failed to find test.elf\n");
         return;
     }
 
@@ -43,7 +41,7 @@ static void SetupTestProcess(uint8* loadBase)
     VFS::Close(file);
 
     if(!RunELF(fileBuffer)) {
-        printf("Failed to setup process\n");
+        kprintf("Failed to setup process\n");
         return;
     }
 
@@ -54,7 +52,7 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     Terminal::Init(info->screenBuffer, info->screenWidth, info->screenHeight, info->screenScanlineWidth, info->screenColorsInverted);
     Terminal::Clear();
 
-    printf("Kernel at 0x%x\n", info->kernelImage.buffer);
+    kprintf("Kernel at 0x%x\n", info->kernelImage.buffer);
     
     MemoryManager::Init(info);
 

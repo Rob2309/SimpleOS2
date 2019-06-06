@@ -1,10 +1,10 @@
 #include "PseudoDeviceDriver.h"
 
-#include "memory/memutil.h"
+#include "klib/memory.h"
 
 uint64 PseudoDeviceDriver::Read(uint64 subID, void* buffer, uint64 bufferSize) {
     if(subID == DeviceZero) {
-        memset(buffer, 0, bufferSize);
+        kmemset(buffer, 0, bufferSize);
         return bufferSize;
     } else {
         return 0;

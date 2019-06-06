@@ -1,6 +1,6 @@
 #include "TestFS.h"
 
-#include "memory/memutil.h"
+#include "klib/memory.h"
 
 using namespace VFS;
 
@@ -69,7 +69,7 @@ uint64 TestFS::ReadNodeData(Node* node, uint64 pos, void* buffer, uint64 bufferS
     if(rem > bufferSize)
         rem = bufferSize;
 
-    memcpy(buffer, refNode->fileData + pos, rem);
+    kmemcpy(buffer, refNode->fileData + pos, rem);
     return rem;
 }
 uint64 TestFS::WriteNodeData(Node* node, uint64 pos, const void* buffer, uint64 bufferSize) {
@@ -78,13 +78,13 @@ uint64 TestFS::WriteNodeData(Node* node, uint64 pos, const void* buffer, uint64 
     uint64 cap = refNode->fileSize - pos;
     if(cap < bufferSize) {
         char* newData = new char[pos + bufferSize];
-        memcpy(newData, refNode->fileData, refNode->fileSize);
+        kmemcpy(newData, refNode->fileData, refNode->fileSize);
         delete[] refNode->fileData;
         refNode->fileData = newData;
         refNode->fileSize = pos + bufferSize;
     }
 
-    memcpy(refNode->fileData + pos, buffer, bufferSize);
+    kmemcpy(refNode->fileData + pos, buffer, bufferSize);
     return bufferSize;
 }
 

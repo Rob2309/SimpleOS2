@@ -2,7 +2,7 @@
 
 #include "DeviceDriver.h"
 #include "Mutex.h"
-#include "stl/ArrayList.h"
+#include "ktl/vector.h"
 
 /**
  * This device driver is used for devices that reside directly in RAM (e.g. the initial ramdisk)
@@ -27,5 +27,5 @@ private:
         uint64 numBlocks;
     };
 
-    ArrayList<DevInfo> m_Devices;
+    ktl::vector<DevInfo> m_Devices;
 };

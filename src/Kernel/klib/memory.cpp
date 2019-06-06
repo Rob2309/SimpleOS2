@@ -1,12 +1,12 @@
-#include "memutil.h"
+#include "memory.h"
 
-void memset(void* dest, int value, uint64 size)
+void kmemset(void* dest, int value, uint64 size)
 {
     for(uint64 i = 0; i < size; i++)
         ((char*)dest)[i] = value;
 }
 
-void memcpy(void* dest, const void* src, uint64 size)
+void kmemcpy(void* dest, const void* src, uint64 size)
 {
     for(uint64 i = 0; i < size; i++)
         ((char*)dest)[i] = ((char*)src)[i];

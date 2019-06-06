@@ -1,6 +1,5 @@
 #include "terminal.h"
 
-#include "conio.h"
 #include "terminalfont.h"
 
 namespace Terminal {

@@ -1,6 +1,6 @@
 #pragma once
 
-namespace std {
+namespace ktl {
 
     template<typename T>
     class list

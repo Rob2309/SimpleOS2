@@ -2,8 +2,8 @@
 
 #include "types.h"
 #include "interrupts/IDT.h"
-#include "stl/list.h"
-#include "stl/ArrayList.h"
+#include "ktl/list.h"
+#include "ktl/vector.h"
 #include "Mutex.h"
 
 constexpr uint64 KernelStackPages = 3;
@@ -61,7 +61,7 @@ struct ProcessInfo {
     uint64 pml4Entry;
 
     Mutex fileDescLock;
-    ArrayList<ProcessFileDescriptor*> fileDescs;
+    ktl::vector<ProcessFileDescriptor*> fileDescs;
 
-    std::nlist<ThreadInfo> threads;
+    ktl::nlist<ThreadInfo> threads;
 };

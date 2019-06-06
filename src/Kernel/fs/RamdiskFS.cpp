@@ -1,14 +1,14 @@
 #include "RamdiskFS.h"
 
-#include "terminal/conio.h"
-#include "stdlib/string.h"
+#include "klib/stdio.h"
+#include "klib/string.h"
 
 namespace VFS {
 
     RamdiskFS::RamdiskFS(const char* dev) {
         m_Dev = VFS::Open(dev);
         if(m_Dev == 0)
-            printf("Failed to open %s\n", dev);
+            kprintf("Failed to open %s\n", dev);
 
         VFS::Read(m_Dev, &m_Header, sizeof(m_Header));
 
@@ -37,7 +37,7 @@ namespace VFS {
                 DirectoryEntry* entry;
                 Directory::AddEntry(&node->dir, &entry);
 
-                strcpy(entry->name, m_Files[i].name);
+                kstrcpy(entry->name, m_Files[i].name);
                 entry->nodeID = i;
             }
         } else {

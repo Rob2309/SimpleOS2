@@ -1,7 +1,7 @@
 #include "DeviceDriver.h"
 
 #include "Mutex.h"
-#include "stl/ArrayList.h"
+#include "ktl/vector.h"
 
 DeviceDriver::DeviceDriver(Type type) 
     : m_Type(type)
@@ -21,7 +21,7 @@ BlockDeviceDriver::BlockDeviceDriver()
 
 
 static Mutex g_DriverLock;
-static ArrayList<DeviceDriver*> g_Drivers;
+static ktl::vector<DeviceDriver*> g_Drivers;
 
 uint64 DeviceDriverRegistry::RegisterDriver(DeviceDriver* driver) {
     g_DriverLock.SpinLock();
