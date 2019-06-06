@@ -5,7 +5,8 @@ export NASM := nasm
 export config := Debug
 
 export out_dir := $(shell pwd)
-export bin_dir := $(out_dir)/bin/$(config)
+export bin_dir_rel := bin/$(config)
+export bin_dir := $(out_dir)/$(bin_dir_rel)
 export int_dir := $(out_dir)/int/$(config)
 export RD_BUILDER = $(bin_dir)/tools/RamdiskBuilder
 
@@ -18,7 +19,7 @@ depcheck: FORCE
 
 run: $(bin_dir)/partition.img FORCE
 	qemu-system-x86_64 -m 1024 -cpu qemu64 -net none -drive if=pflash,unit=0,format=raw,file=dep/ovmf/x64/OVMF_CODE.fd,readonly=on -drive if=pflash,unit=1,format=raw,file=dep/ovmf/x64/OVMF_VARS.fd,readonly=on -drive file=$<,if=ide
-runvbox: $(bin_dir)../partition.vdi FORCE
+runvbox: $(bin_dir)/../partition.vdi FORCE
 	VBoxManage startvm SimpleOS2
 
 debug: $(bin_dir)/partition.img FORCE
@@ -31,7 +32,7 @@ $(bin_dir)/../partition.vdi: $(bin_dir)/partition.vdi
 
 $(bin_dir)/partition.vdi: $(bin_dir)/partition.img
 	rm -rf $@
-	VBoxManage convertfromraw $< $@ --format VDI --uuid 430eee2a-0fdf-4d2a-88f0-5b99ea8cffca
+	VBoxManage convertfromraw $(bin_dir_rel)/partition.img $(bin_dir_rel)/partition.vdi --format VDI --uuid 430eee2a-0fdf-4d2a-88f0-5b99ea8cffca
 
 $(bin_dir)/partition.img: $(root_partition_img_deps) $(bin_dir)/initrd
 	dd if=/dev/zero of=$@ bs=512 count=102400
