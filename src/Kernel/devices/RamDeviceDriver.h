@@ -17,8 +17,7 @@ public:
 
     uint64 GetBlockSize(uint64 subID) const override;
 
-    void ReadBlock(uint64 subID, uint64 startBlock, uint64 numBlocks, void* buffer) override;
-    void WriteBlock(uint64 subID, uint64 startBlock, uint64 numBlocks, const void* buffer) override;
+    void ScheduleOperation(uint64 subID, uint64 startBlock, uint64 numBlocks, bool write, void* buffer, Atomic<uint64>* finishFlag) override;
 
 private:
     struct DevInfo {

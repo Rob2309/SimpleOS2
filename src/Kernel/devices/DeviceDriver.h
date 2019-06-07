@@ -1,6 +1,7 @@
 #pragma once
 
 #include "types.h"
+#include "atomic/Atomics.h"
 
 class DeviceDriver {
 public:
@@ -37,8 +38,7 @@ public:
 
     virtual uint64 GetBlockSize(uint64 subID) const = 0;
 
-    virtual void ReadBlock(uint64 subID, uint64 startBlock, uint64 numBlocks, void* buffer) = 0;
-    virtual void WriteBlock(uint64 subID, uint64 startBlock, uint64 numBlocks, const void* buffer) = 0;
+    virtual void ScheduleOperation(uint64 subID, uint64 startBlock, uint64 numBlocks, bool write, void* buffer, Atomic<uint64>* finishFlag) = 0;
 };
 
 class DeviceDriverRegistry {

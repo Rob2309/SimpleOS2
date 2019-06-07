@@ -12,13 +12,14 @@ uint64 RamDeviceDriver::GetBlockSize(uint64 subID) const {
     return m_Devices[subID].blockSize;
 }
 
-void RamDeviceDriver::ReadBlock(uint64 subID, uint64 startBlock, uint64 numBlocks, void* buffer) {
+void RamDeviceDriver::ScheduleOperation(uint64 subID, uint64 startBlock, uint64 numBlocks, bool write, void* buffer, Atomic<uint64>* finishFlag) {
     const DevInfo& dev = m_Devices[subID];
 
-    kmemcpy(buffer, &dev.buffer[startBlock * dev.blockSize], numBlocks * dev.blockSize);
-}
-void RamDeviceDriver::WriteBlock(uint64 subID, uint64 startBlock, uint64 numBlocks, const void* buffer) {
-    const DevInfo& dev = m_Devices[subID];
+    if(write) {
+        kmemcpy(dev.buffer + startBlock * GetBlockSize(subID), buffer, GetBlockSize(subID) * numBlocks);
+    } else {
+        kmemcpy(buffer, dev.buffer + startBlock * GetBlockSize(subID), GetBlockSize(subID) * numBlocks);
+    }
 
-    kmemcpy(&dev.buffer[startBlock * dev.blockSize], buffer, numBlocks * dev.blockSize);
+    finishFlag->Write(1);
 }
