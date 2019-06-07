@@ -70,7 +70,7 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     PseudoDeviceDriver* pseudoDriver = new PseudoDeviceDriver();
     VFS::CreateDeviceFile("/dev/zero", pseudoDriver->GetDriverID(), PseudoDeviceDriver::DeviceZero);
 
-    VFS::ext2driver* ramFS = new VFS::ext2driver("/dev/ram0");
+    Ext2::Ext2Driver* ramFS = new Ext2::Ext2Driver("/dev/ram0");
     VFS::CreateFolder("/initrd");
     VFS::Mount("/initrd", ramFS);
 
