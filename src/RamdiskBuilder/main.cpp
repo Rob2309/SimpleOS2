@@ -5,7 +5,7 @@
 #include <string>
 #include <cstring>
 
-#include "RamdiskStructs.h"
+#include <types.h>
 
 struct File 
 {
@@ -20,7 +20,7 @@ int main(int argc, char** argv)
     std::string outFile = argv[1];
 
     system(("dd if=/dev/zero of=" + outFile + " bs=512 count=20000").c_str());
-    system(("mkfs.ext2 " + outFile).c_str());
+    system(("mkfs.ext2 " + outFile + " -L SimpleOS2").c_str());
 
     system(("echo >> " + outFile + ".cmd").c_str());
 
