@@ -92,6 +92,12 @@ namespace SyscallHandler {
         case Syscall::FunctionCreateFile: return VFS::CreateFile((const char*)arg1); break;
         case Syscall::FunctionCreateFolder: return VFS::CreateFolder((const char*)arg1); break;
         case Syscall::FunctionCreateDeviceFile: return VFS::CreateDeviceFile((const char*)arg1, arg2, arg3); break;
+        case Syscall::FunctionCreatePipe: {
+                uint64 sysRead, sysWrite;
+                VFS::CreatePipe(&sysRead, &sysWrite);
+                *(uint64*)arg1 = Scheduler::ProcessAddFileDescriptor(sysRead);
+                *(uint64*)arg2 = Scheduler::ProcessAddFileDescriptor(sysWrite);
+            } break;
         case Syscall::FunctionDelete: return VFS::Delete((const char*)arg1); break;
         case Syscall::FunctionOpen: {
                 uint64 sysDesc = VFS::Open((const char*)arg1);

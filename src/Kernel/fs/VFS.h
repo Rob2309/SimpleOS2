@@ -96,6 +96,10 @@ namespace VFS {
      * Closes the given FileDescriptor
      **/
     void Close(uint64 desc);
+    /**
+     * Increments the refCount of the given filedescriptor
+     */
+    void AddRef(uint64 desc);
 
     struct FileList {
         uint64 numEntries;

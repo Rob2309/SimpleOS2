@@ -114,6 +114,19 @@ namespace Scheduler {
         ProcessInfo* pInfo = new ProcessInfo();
         pInfo->pid = g_PIDCounter++;
         pInfo->pml4Entry = pml4Entry;
+        
+        oldPInfo->fileDescLock.SpinLock();
+        for(ProcessFileDescriptor* fd : oldPInfo->fileDescs) {
+            if(fd->desc == 0)
+                continue;
+
+            ProcessFileDescriptor* newFD = new ProcessFileDescriptor();
+            newFD->desc = fd->desc;
+            newFD->id = pInfo->fileDescs.size();
+            pInfo->fileDescs.push_back(newFD);
+            VFS::AddRef(newFD->desc);
+        }
+        oldPInfo->fileDescLock.Unlock();
 
         ThreadInfo* tInfo = CreateThreadStruct();
         tInfo->tid = g_TIDCounter++;
@@ -234,10 +247,20 @@ namespace Scheduler {
         IDT::Registers* myRegs = &g_CPUData.currentThread->registers;
 
         ThreadInfo* nextThread = FindNextThread();
+        if(nextThread == g_CPUData.currentThread) {
+            return;
+        } else {
+            IDT::Registers nextRegs;
+            SetContext(nextThread, &nextRegs);
+            ContextSwitchAndReturn(myRegs, &nextRegs);
+        }
+    }
 
-        IDT::Registers nextRegs;
-        SetContext(nextThread, &nextRegs);
-        ContextSwitchAndReturn(myRegs, &nextRegs);
+    void ThreadYield()
+    {
+        IDT::DisableInterrupts();
+        Yield();
+        IDT::EnableInterrupts();
     }
 
     void ThreadWait(uint64 ms)
@@ -384,25 +407,6 @@ namespace Scheduler {
         uint64 res = desc->desc;
         pInfo->fileDescLock.Unlock();
         return res;
-    }
-
-    void NotifyNodeRead(uint64 nodeID)
-    {
-        IDT::DisableInterrupts();
-        for(auto t : g_ThreadList) {
-            if(t->blockEvent.type == ThreadBlockEvent::TYPE_NODE_READ && t->blockEvent.node.nodeID == nodeID)
-                t->blockEvent.type = ThreadBlockEvent::TYPE_NONE;
-        }
-        IDT::EnableInterrupts();
-    }
-    void NotifyNodeWrite(uint64 nodeID)
-    {
-        IDT::DisableInterrupts();
-        for(auto t : g_ThreadList) {
-            if(t->blockEvent.type == ThreadBlockEvent::TYPE_NODE_WRITE && t->blockEvent.node.nodeID == nodeID)
-                t->blockEvent.type = ThreadBlockEvent::TYPE_NONE;
-        }
-        IDT::EnableInterrupts();
     }
 
     void ProcessExec(uint64 pml4Entry, IDT::Registers* regs)

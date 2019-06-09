@@ -16,12 +16,13 @@ namespace Syscall
     constexpr uint64 FunctionCreateFile = 50;
     constexpr uint64 FunctionCreateFolder = 51;
     constexpr uint64 FunctionCreateDeviceFile = 52;
-    constexpr uint64 FunctionDelete = 53;
-    constexpr uint64 FunctionOpen = 54;
-    constexpr uint64 FunctionClose = 55;
-    constexpr uint64 FunctionList = 56;
-    constexpr uint64 FunctionRead = 57;
-    constexpr uint64 FunctionWrite = 58;
+    constexpr uint64 FunctionCreatePipe = 53;
+    constexpr uint64 FunctionDelete = 54;
+    constexpr uint64 FunctionOpen = 55;
+    constexpr uint64 FunctionClose = 56;
+    constexpr uint64 FunctionList = 57;
+    constexpr uint64 FunctionRead = 58;
+    constexpr uint64 FunctionWrite = 59;
 
     /**
      * Print a message onto the screen
@@ -154,6 +155,14 @@ namespace Syscall
             : "rcx", "r9", "r10", "r11"
         );
         return ret;
+    }
+
+    inline void CreatePipe(uint64* readDesc, uint64* writeDesc) {
+        __asm__ __volatile__ (
+            "syscall"
+            : : "D"(FunctionCreatePipe), "S"(readDesc), "d"(writeDesc)
+            : "rcx", "r8", "r9", "r10", "r11"
+        );
     }
 
     inline bool Delete(const char* path) {
