@@ -13,21 +13,23 @@ public:
     }
     void Unlock()
     {
+        uint64 val = 0;
+        volatile uint64* loc = &m_Value;
         __asm__ __volatile__ (
-            "lock xchgq %%rax, (%0)"
-            : : "r"(&m_Value), "a"(0)
+            "lock xchgq %0, (%1)"
+            : "+r"(val), "+r"(loc)
         );
     }
 
     bool TryLock()
     {
-        uint64 res;
+        uint64 val = 1;
+        volatile uint64* loc = &m_Value;
         __asm__ __volatile__ (
-            "lock xchgq %%rax, (%1)"
-            : "=a"(res)
-            : "r"(&m_Value), "a"(1)
+            "lock xchgq %0, (%1)"
+            : "+r"(val), "+r"(loc)
         );
-        return res == 0;
+        return val == 0;
     }
 private:
     volatile uint64 m_Value;
