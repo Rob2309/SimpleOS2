@@ -13,81 +13,16 @@ namespace Syscall
     constexpr uint64 FunctionCreateThread = 6;
     constexpr uint64 FunctionWaitForLock = 7;
 
-    constexpr uint64 FunctionOpen = 10;
-    constexpr uint64 FunctionClose = 11;
-    constexpr uint64 FunctionRead = 12;
-    constexpr uint64 FunctionWrite = 13;
-    constexpr uint64 FunctionPipe = 14;
-
-    /**
-     * Open the FileSystem Node with the given path
-     * @returns the FileDescriptorID of the opened node, 0 on error
-     **/
-    inline uint64 Open(const char* path)
-    {
-        uint64 fileDesc;
-        __asm__ __volatile__ (
-            "syscall"
-            : "=a"(fileDesc) 
-            : "D"(FunctionOpen), "S"(path)
-            : "rcx", "rdx", "r8", "r9", "r10", "r11"
-        );
-        return fileDesc;
-    }
-    /**
-     * Close the given FileDescriptor
-     **/
-    inline void Close(uint64 desc)
-    {
-        __asm__ __volatile__ (
-            "syscall"
-            : : "D"(FunctionClose), "S"(desc)
-            : "rax", "rcx", "rdx", "r8", "r9", "r10", "r11"
-        );
-    }
-    /**
-     * Read from the given FileDescriptor
-     **/
-    inline uint64 Read(uint64 desc, uint64 pos, void* buffer, uint64 bufferSize) 
-    {
-        uint64 ret;
-        register uint64 r8 __asm__("r8") = (uint64)buffer;
-        register uint64 r9 __asm__("r9") = bufferSize;
-        __asm__ __volatile__ (
-            "syscall"
-            : "=a"(ret)
-            : "D"(FunctionRead), "S"(desc), "d"(pos), "r"(r8), "r"(r9)
-            : "rcx", "r10", "r11"
-        );
-        return ret;
-    }
-    /**
-     * Write to the given FileDescriptor
-     **/
-    inline uint64 Write(uint64 desc, uint64 pos, const void* buffer, uint64 bufferSize)
-    {
-        uint64 ret;
-        register const void* r8 __asm__("r8") = buffer;
-        register uint64 r9 __asm__("r9") = bufferSize;
-        __asm__ __volatile__ (
-            "syscall"
-            : "=a"(ret)
-            : "D"(FunctionWrite), "S"(desc), "d"(pos), "r"(r8), "r"(r9)
-            : "rcx", "r10", "r11"
-        );
-        return ret;
-    }
-
-    /**
-     * Create a pipe and write the two FileDescriptors associated with it into descs
-     **/
-    inline void Pipe(uint64* descs) {
-        __asm__ __volatile__ (
-            "syscall"
-            : : "D"(FunctionPipe), "S"(descs)
-            : "rax", "rcx", "rdx", "r8", "r9", "r10", "r11"
-        );
-    }
+    constexpr uint64 FunctionCreateFile = 50;
+    constexpr uint64 FunctionCreateFolder = 51;
+    constexpr uint64 FunctionCreateDeviceFile = 52;
+    constexpr uint64 FunctionCreatePipe = 53;
+    constexpr uint64 FunctionDelete = 54;
+    constexpr uint64 FunctionOpen = 55;
+    constexpr uint64 FunctionClose = 56;
+    constexpr uint64 FunctionList = 57;
+    constexpr uint64 FunctionRead = 58;
+    constexpr uint64 FunctionWrite = 59;
 
     /**
      * Print a message onto the screen
@@ -187,4 +122,101 @@ namespace Syscall
             : "rax", "rcx", "r8", "r9", "r10", "r11"
         );
     }
+
+    inline bool CreateFile(const char* path) {
+        bool ret;
+        __asm__ __volatile__ (
+            "syscall"
+            : "=a"(ret)
+            : "D"(FunctionCreateFile), "S"(path)
+            : "rcx", "rdx", "r8", "r9", "r10", "r11"
+        );
+        return ret;
+    }
+
+    inline bool CreateFolder(const char* path) {
+        bool ret;
+        __asm__ __volatile__ (
+            "syscall"
+            : "=a"(ret)
+            : "D"(FunctionCreateFolder), "S"(path)
+            : "rcx", "rdx", "r8", "r9", "r10", "r11"
+        );
+        return ret;
+    }
+
+    inline bool CreateDeviceFile(const char* path, uint64 driverID, uint64 subID) {
+        bool ret;
+        register uint64 r8 asm("r8") = subID;
+        __asm__ __volatile__ (
+            "syscall"
+            : "=a"(ret)
+            : "D"(FunctionCreateDeviceFile), "S"(path), "d"(driverID), "r"(r8)
+            : "rcx", "r9", "r10", "r11"
+        );
+        return ret;
+    }
+
+    inline void CreatePipe(uint64* readDesc, uint64* writeDesc) {
+        __asm__ __volatile__ (
+            "syscall"
+            : : "D"(FunctionCreatePipe), "S"(readDesc), "d"(writeDesc)
+            : "rcx", "r8", "r9", "r10", "r11"
+        );
+    }
+
+    inline bool Delete(const char* path) {
+        bool ret;
+        __asm__ __volatile__ (
+            "syscall"
+            : "=a"(ret)
+            : "D"(FunctionDelete), "S"(path)
+            : "rcx", "rdx", "r8", "r9", "r10", "r11"
+        );
+        return ret;
+    }
+
+    inline uint64 Open(const char* path) {
+        uint64 ret;
+        __asm__ __volatile__ (
+            "syscall"
+            : "=a"(ret)
+            : "D"(FunctionOpen), "S"(path)
+            : "rcx", "rdx", "r8", "r9", "r10", "r11"
+        );
+        return ret;
+    }
+
+    inline void Close(uint64 desc) {
+        __asm__ __volatile__ (
+            "syscall"
+            : : "D"(FunctionClose), "S"(desc)
+            : "rax", "rcx", "rdx", "r8", "r9", "r10", "r11"
+        );
+    }
+
+    inline uint64 Read(uint64 desc, void* buffer, uint64 bufferSize) {
+        uint64 res;
+        register uint64 r8 asm("r8") = bufferSize;
+        __asm__ __volatile__ (
+            "syscall"
+            : "=a"(res)
+            : "D"(FunctionRead), "S"(desc), "d"(buffer), "r"(r8)
+            : "rcx", "r9", "r10", "r11"
+        );
+        return res;
+    }
+
+    inline uint64 Write(uint64 desc, const void* buffer, uint64 bufferSize) {
+        uint64 res;
+        register uint64 r8 asm("r8") = bufferSize;
+        __asm__ __volatile__ (
+            "syscall"
+            : "=a"(res)
+            : "D"(FunctionWrite), "S"(desc), "d"(buffer), "r"(r8)
+            : "rcx", "r9", "r10", "r11"
+        );
+        return res;
+    }
+    
 }

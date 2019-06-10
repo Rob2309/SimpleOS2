@@ -36,6 +36,11 @@ namespace Scheduler {
     void Tick(IDT::Registers* regs);
 
     /**
+     * Gives the processor to another thread.
+     * Can be called from a KernelThread
+     **/
+    void ThreadYield();
+    /**
      * Suspends the active thread for *at least* [ms] milliseconds.
      * Can be called from a KernelThread
      **/
@@ -74,29 +79,9 @@ namespace Scheduler {
      **/
     uint64 ThreadGetPID();
 
-    /**
-     * Notify the Scheduler that the given node was written to.
-     * Should only be called by the FileSystem.
-     **/
-    void NotifyNodeRead(uint64 nodeID);
-    /**
-     * Notify the Scheduler that the given node was read from
-     * Should only be called by the FileSystem.
-     **/
-    void NotifyNodeWrite(uint64 nodeID);
-
-    /**
-     * Add a FileDescriptor to the currently active Process
-     **/
-    uint64 ProcessAddFileDescriptor(uint64 nodeID, bool read, bool write);
-    /**
-     * Remove a FileDescriptor from the currently active Process
-     **/
-    void ProcessRemoveFileDescriptor(uint64 id);
-    /**
-     * Get the FileSystem Node associated with the given FileDescriptor
-     **/
-    uint64 ProcessGetFileDescriptorNode(uint64 id);
+    uint64 ProcessAddFileDescriptor(uint64 sysDescriptor);
+    void ProcessCloseFileDescriptor(uint64 desc);
+    uint64 ProcessGetSystemFileDescriptor(uint64 desc);
 
     void ProcessExec(uint64 pml4Entry, IDT::Registers* regs);
 

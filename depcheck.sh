@@ -24,6 +24,8 @@ check_cmd ${NASM} "SimpleOS2 requires nasm to be installed"
 check_cmd mmd "SimpleOS2 requires mtools to be installed"
 check_cmd mcopy "SimpleOS2 requires mtools to be installed"
 
+check_cmd debugfs "SimpleOS2 requires debugfs in order to create its ramdisk"
+
 if [ $code = 1 ]; then
     echo -e "${red}Not all dependencies are fullfilled${reset}"
 else

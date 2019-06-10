@@ -1,26 +1,23 @@
 #include "Syscall.h"
 #include "Mutex.h"
 
-static uint64 g_Descs[2];
+static char g_Buffer[4096];
 
 extern "C" void main()
 {
-    Syscall::Pipe(g_Descs);
+    uint64 readDesc, writeDesc;
+    Syscall::CreatePipe(&readDesc, &writeDesc);
 
     if(Syscall::Fork()) {
-        Syscall::Print("Parent process alive\n");
+        Syscall::Wait(2000);
 
-        static char s_Buffer[128] = { 0 };
-
-        while(true) {
-            Syscall::Read(2, 0, s_Buffer, sizeof(s_Buffer));
-            Syscall::Print(s_Buffer);
-        }
+        const char msg[] = "Hello World\n";
+        Syscall::Write(writeDesc, msg, sizeof(msg));
+        Syscall::Print("Written to pipe\n");
     } else {
-        Syscall::Print("Executing test2...\n");
-        Syscall::Exec("/initrd/test2.elf");
-        Syscall::Print("Failed to exec!\n");
-        Syscall::Exit(1);
+        char buffer[128];
+        Syscall::Read(readDesc, buffer, sizeof(buffer));
+        Syscall::Print(buffer);
     }
 
     Syscall::Exit(0);

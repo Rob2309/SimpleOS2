@@ -3,6 +3,7 @@
 #include "types.h"
 #include "interrupts/IDT.h"
 #include "ktl/list.h"
+#include "ktl/vector.h"
 #include "Mutex.h"
 
 constexpr uint64 KernelStackPages = 3;
@@ -32,16 +33,6 @@ struct ThreadBlockEvent {
     };
 };
 
-struct FileDescriptor {
-    FileDescriptor* next;
-    FileDescriptor* prev;
-
-    uint64 id;
-    uint64 nodeID;
-    bool readable;
-    bool writable;
-};
-
 struct ProcessInfo;
 
 struct ThreadInfo {
@@ -59,14 +50,18 @@ struct ThreadInfo {
     IDT::Registers registers;
 };
 
+struct ProcessFileDescriptor {
+    uint64 id;
+    uint64 desc;
+};
+
 struct ProcessInfo {
     uint64 pid;
 
     uint64 pml4Entry;
 
     Mutex fileDescLock;
-    uint64 fileDescIDCounter;
-    ktl::nlist<FileDescriptor> fileDescriptors;
+    ktl::vector<ProcessFileDescriptor*> fileDescs;
 
     ktl::nlist<ThreadInfo> threads;
 };

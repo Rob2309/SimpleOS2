@@ -78,6 +78,9 @@ namespace ktl {
         T& operator[] (uint64 index) {
             return m_Data[index];
         }
+        const T& operator[] (uint64 index) const {
+            return m_Data[index];
+        }
 
         uint64 size() const { return m_Size; }
 

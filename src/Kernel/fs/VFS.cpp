@@ -1,388 +1,667 @@
 #include "VFS.h"
 
-#include "ktl/vector.h"
+#include "ktl/list.h"
 #include "klib/string.h"
-#include "devices/Device.h"
-#include "FloatingFileSystem.h"
-#include "scheduler/Scheduler.h"
+#include "klib/memory.h"
+#include "klib/stdio.h"
+#include "devices/DeviceDriver.h"
+#include "PipeFS.h"
 
 namespace VFS {
+    
+    struct CachedNode {
+        CachedNode* next;
+        CachedNode* prev;
 
-    static Mutex g_NodesLock;
-    static ktl::vector<Node*> g_Nodes;
-    static uint64 g_FirstFreeNode;
+        uint64 softRefCount;
 
-    void Init()
-    {
-        Node* root = new Node();
-        root->id = 1;
-        root->type = Node::TYPE_DIRECTORY;
-        root->directory.numFiles = 0;
-        root->directory.files = nullptr;
-        root->fs = new FloatingFileSystem();
-        root->refCount = 1;
-        root->fs->Mount(*root);
-        root->lock.Unlock();
-        g_Nodes.push_back(root);
+        uint64 nodeID; // ID of the contained node
 
-        g_FirstFreeNode = 0;
-    }
+        Node node;
+    };
 
-    static Node* FindFolderEntry(Node* folder, const char* name)
-    {
-        if(folder->type != Node::TYPE_DIRECTORY)
-            return nullptr;
+    struct MountPoint {
+        MountPoint* next;
+        MountPoint* prev;
 
-        for(int i = 0; i < folder->directory.numFiles; i++) {
-            Node* n = AcquireNode(folder->directory.files[i]);
-            if(kstrcmp(name, n->name) == 0)
-                return n;
-            ReleaseNode(n);
-        }
+        char path[255];
+        FileSystem* fs;
+        SuperBlock sb;
 
-        return nullptr;
-    }
+        Mutex childMountLock;
+        ktl::nlist<MountPoint> childMounts;
 
-    static Node* AcquirePath(const char* path, Node** containingFolder)
-    {
-        static char nameBuffer[50] = { 0 };
+        Mutex nodeCacheLock;
+        ktl::nlist<CachedNode> nodeCache;
+    };
 
-        uint64 pathPos = 1;
-        Node* node = AcquireNode(1);
+    struct FileDescriptor {
+        FileDescriptor* next;
+        FileDescriptor* prev;
 
-        if(path[pathPos] == '\0')
-            return node;
+        uint64 refCount;
 
-        uint64 bufferPos = 0;
+        MountPoint* mp;
+        CachedNode* node;
 
-        while(true) {
-            char c = path[pathPos];
-            pathPos++;
-            if(c == '/') {
-                nameBuffer[bufferPos] = '\0';
+        uint64 pos;
+    };
 
-                Node* nextNode = FindFolderEntry(node, nameBuffer);
-                ReleaseNode(node);
-                node = nextNode;
-                if(node == nullptr)
-                    return nullptr;
-                if(node->type != Node::TYPE_DIRECTORY) {
-                    ReleaseNode(node);
-                    return nullptr;
-                }
+    static MountPoint* g_RootMount = nullptr;
+    static MountPoint* g_PipeMount = nullptr;
 
-                bufferPos = 0;
-            } else if(c == '\0') {
-                nameBuffer[bufferPos] = '\0';
-                Node* res = FindFolderEntry(node, nameBuffer);
-                if(res != nullptr && containingFolder != nullptr)
-                    *containingFolder = node;
-                else
-                    ReleaseNode(node);
-                return res;
+    static Mutex g_FileDescLock;
+    static ktl::nlist<FileDescriptor> g_FileDescs;
+
+    static bool CleanPath(const char* path, char* cleanBuffer) {
+        int length = kstrlen(path);
+        if(length >= 255)
+            return false;
+        
+        if(path[0] != '/')
+            return false;
+        cleanBuffer[0] = '/';
+
+        int bufferPos = 1;
+        for(int i = 1; i < length; i++) {
+            char c = path[i];
+            if(c == '/' && cleanBuffer[bufferPos - 1] == '/') {
             } else {
-                nameBuffer[bufferPos] = c;
+                cleanBuffer[bufferPos] = c;
                 bufferPos++;
             }
         }
-    }
 
-    bool CreateFile(const char* folder, const char* name) 
-    {
-        Node* f = AcquirePath(folder, nullptr);
-        if(f == nullptr)
-            return false;
-        if(f->type != Node::TYPE_DIRECTORY) {
-            ReleaseNode(f);
-            return false;
-        }
-
-        Node* newNode = CreateNode();
-        newNode->type = Node::TYPE_FILE;
-        newNode->file.size = 0;
-        kmemcpy(newNode->name, name, kstrlen(name) + 1);
-        newNode->fs = f->fs;
-        newNode->fs->CreateNode(*newNode);
-
-        newNode->refCount++; // ref of folder entry
-
-        uint64* files = new uint64[f->directory.numFiles + 1];
-        kmemcpy(files, f->directory.files, f->directory.numFiles * sizeof(uint64));
-        files[f->directory.numFiles] = newNode->id;
-        delete[] f->directory.files;
-        f->directory.files = files;
-        f->directory.numFiles++;
-
-        ReleaseNode(newNode);
-        ReleaseNode(f);
+        if(cleanBuffer[bufferPos-1] == '/')
+            cleanBuffer[bufferPos - 1] = '\0';
+        else
+            cleanBuffer[bufferPos] = '\0';
 
         return true;
     }
 
-    bool CreateFolder(const char* folder, const char* name) 
-    {
-        Node* f = AcquirePath(folder, nullptr);
-        if(f == nullptr)
+    static void SplitFolderAndFile(char* path, const char** folder, const char** file) {
+        int lastSep = 0;
+
+        int index = 0;
+        while(path[index] != '\0') {
+            if(path[index] == '/')
+                lastSep = index;
+            index++;
+        }
+
+        if(lastSep == 0) {
+            path[253] = '/';
+            path[254] = '\0';
+
+            *folder = &path[253];
+            *file = &path[1];
+        } else {
+            path[lastSep] = '\0';
+            *folder = path;
+            *file = &path[lastSep+1];
+        }
+    }
+
+    static bool MountCmp(const char* path, const char* mount) {
+        while(true) {
+            if(*mount == '\0')
+                return *path == '\0' || *path == '/';
+
+            if(*mount != *path)
+                return false;
+
+            mount++;
+            path++;
+        }
+    }
+
+    static MountPoint* AcquireMountPoint(const char* path) {
+        MountPoint* current = g_RootMount;
+        current->childMountLock.SpinLock();
+
+        while(true) {
+            MountPoint* next = nullptr;
+            for(MountPoint* mp : current->childMounts) {
+                if(MountCmp(path, mp->path)) {
+                    next = mp;
+                    break;
+                }
+            }
+
+            if(next != nullptr) {
+                current->childMountLock.Unlock();
+                next->childMountLock.SpinLock();
+                current = next;
+            } else {
+                current->childMountLock.Unlock();
+                return current;
+            }
+        }
+    }
+
+    static const char* AdvancePath(const char* path, const char* mp) {
+        while(*mp != '\0') {
+            path++;
+            mp++;
+        }
+
+        if(*path == '/')
+            path++;
+
+        return path;
+    }
+
+    static CachedNode* AcquireNode(MountPoint* mp, uint64 nodeID) {
+        mp->nodeCacheLock.SpinLock();
+        for(CachedNode* n : mp->nodeCache) {
+            if(n->nodeID == nodeID) {
+                n->softRefCount++;
+                mp->nodeCacheLock.Unlock();
+                n->node.lock.SpinLock();
+                return n;
+            }
+        }
+
+        CachedNode* newNode = new CachedNode();
+        newNode->nodeID = nodeID;
+        newNode->softRefCount = 1;
+        newNode->node.lock.SpinLock();
+        mp->nodeCache.push_back(newNode);
+        mp->nodeCacheLock.Unlock();
+
+        mp->fs->ReadNode(nodeID, &newNode->node);
+        return newNode;
+    }
+
+    static void ReleaseNode(MountPoint* mp, CachedNode* node, bool decrement = true) {
+        mp->nodeCacheLock.SpinLock();
+
+        if(decrement)
+            node->softRefCount--;
+
+        if(node->node.linkRefCount == 0 && node->softRefCount == 0) {
+            mp->nodeCache.erase(node);
+            mp->nodeCacheLock.Unlock();
+
+            mp->fs->DestroyNode(&node->node);
+            if(node->node.type == Node::TYPE_DIRECTORY && node->node.dir != nullptr)
+                Directory::Destroy(node->node.dir);
+            delete node;
+        } else {
+            node->node.lock.Unlock();
+            mp->nodeCacheLock.Unlock();
+        }
+    }
+
+    static Directory* GetDir(Node* node) {
+        if(node->dir == nullptr)
+            node->dir = node->fs->ReadDirEntries(node);
+
+        return node->dir;
+    }
+
+    static bool PathWalk(const char** pathPtr, const char* entry) {
+        const char* path = *pathPtr;
+
+        while(true) {
+            if(*entry == '\0') {
+                if(*path == '/') {
+                    path++;
+                    *pathPtr = path;
+                    return true;
+                } else if(*path == '\0') {
+                    *pathPtr = path;
+                    return true;
+                } else {
+                    return false;
+                }
+            }
+
+            if(*entry != *path)
+                return false;
+
+            entry++;
+            path++;
+        }
+    }
+
+    static CachedNode* AcquirePath(MountPoint* mp, const char* path) {
+        CachedNode* current = AcquireNode(mp, mp->sb.rootNode);
+
+        if(*path == '\0')
+            return current;
+
+        while(true) {
+            if(current->node.type != Node::TYPE_DIRECTORY) {
+                ReleaseNode(mp, current);
+                return nullptr;
+            }
+
+            Directory* dir = GetDir(&current->node);
+            CachedNode* next = nullptr;
+            for(uint64 i = 0; i < dir->numEntries; i++) {
+                if(PathWalk(&path, dir->entries[i].name)) {
+                    next = AcquireNode(mp, dir->entries[i].nodeID);
+                    ReleaseNode(mp, current);
+
+                    if(*path == '\0')
+                        return next;
+                }
+            }
+
+            if(next == nullptr) {
+                ReleaseNode(mp, current);
+                return nullptr;
+            } else {
+                current = next;
+            }
+        }
+    }
+
+    static CachedNode* CreateNode(MountPoint* mp, uint64 softRefs = 1) {
+        CachedNode* newNode = new CachedNode();
+        mp->fs->CreateNode(&newNode->node);
+        newNode->nodeID = newNode->node.id;
+        newNode->softRefCount = softRefs;
+        newNode->node.lock.SpinLock();
+
+        mp->nodeCacheLock.SpinLock();
+        mp->nodeCache.push_back(newNode);
+        mp->nodeCacheLock.Unlock();
+
+        return newNode;
+    }
+
+    void Init(FileSystem* rootFS) {
+        MountPoint* mp = new MountPoint();
+        mp->fs = rootFS;
+        rootFS->GetSuperBlock(&mp->sb);
+        kstrcpy(mp->path, "/");
+        g_RootMount = mp;
+
+        g_PipeMount = new MountPoint();
+        g_PipeMount->fs = new PipeFS();
+    }
+
+    bool CreateFile(const char* path) {
+        char cleanBuffer[255];
+        if(!CleanPath(path, cleanBuffer))
             return false;
-        if(f->type != Node::TYPE_DIRECTORY) {
-            ReleaseNode(f);
+
+        const char* folderPath;
+        const char* fileName;
+        SplitFolderAndFile(cleanBuffer, &folderPath, &fileName);
+
+        MountPoint* mp = AcquireMountPoint(folderPath);
+        folderPath = AdvancePath(folderPath, mp->path);
+
+        CachedNode* folderNode = AcquirePath(mp, folderPath);
+        if(folderNode == nullptr)
+            return false;
+        if(folderNode->node.type != Node::TYPE_DIRECTORY) {
+            ReleaseNode(mp, folderNode);
             return false;
         }
 
-        Node* newNode = CreateNode();
-        newNode->type = Node::TYPE_DIRECTORY;
-        newNode->directory.numFiles = 0;
-        newNode->directory.files = nullptr;
-        kmemcpy(newNode->name, name, kstrlen(name) + 1);
-        newNode->fs = f->fs;
-        newNode->fs->CreateNode(*newNode);
+        GetDir(&folderNode->node);
+        DirectoryEntry* newEntry;
+        Directory::AddEntry(&folderNode->node.dir, &newEntry);
 
-        newNode->refCount++;
-
-        uint64* files = new uint64[f->directory.numFiles + 1];
-        kmemcpy(files, f->directory.files, f->directory.numFiles * sizeof(uint64));
-        files[f->directory.numFiles] = newNode->id;
-        delete[] f->directory.files;
-        f->directory.files = files;
-        f->directory.numFiles++;
-
-        ReleaseNode(newNode);
-        ReleaseNode(f);
+        CachedNode* newNode = CreateNode(mp);
+        newNode->node.linkRefCount = 1;
+        newNode->node.type = Node::TYPE_FILE;
         
+        newEntry->nodeID = newNode->nodeID;
+        kstrcpy(newEntry->name, fileName);
+
+        ReleaseNode(mp, folderNode);
+        ReleaseNode(mp, newNode);
+
         return true;
     }
 
-    bool CreateDeviceFile(const char* folder, const char* name, uint64 devID) 
-    {
-        Node* f = AcquirePath(folder, nullptr);
-        if(f == nullptr)
+    bool CreateFolder(const char* path) {
+        char cleanBuffer[255];
+        if(!CleanPath(path, cleanBuffer))
             return false;
-        if(f->type != Node::TYPE_DIRECTORY) {
-            ReleaseNode(f);
+
+        const char* folderPath;
+        const char* fileName;
+        SplitFolderAndFile(cleanBuffer, &folderPath, &fileName);
+
+        MountPoint* mp = AcquireMountPoint(folderPath);
+        folderPath = AdvancePath(folderPath, mp->path);
+
+        CachedNode* folderNode = AcquirePath(mp, folderPath);
+        if(folderNode == nullptr)
+            return false;
+        if(folderNode->node.type != Node::TYPE_DIRECTORY) {
+            ReleaseNode(mp, folderNode);
             return false;
         }
 
-        Node* newNode = CreateNode();
-        newNode->type = Node::TYPE_DEVICE;
-        newNode->device.devID = devID;
-        kmemcpy(newNode->name, name, kstrlen(name) + 1);
-        newNode->fs = f->fs;
-        newNode->fs->CreateNode(*newNode);
+        GetDir(&folderNode->node);
+        DirectoryEntry* newEntry;
+        Directory::AddEntry(&folderNode->node.dir, &newEntry);
 
-        newNode->refCount++;
+        CachedNode* newNode = CreateNode(mp);
+        newNode->node.linkRefCount = 1;
+        newNode->node.type = Node::TYPE_DIRECTORY;
+        newNode->node.dir = Directory::Create(10);
+        
+        newEntry->nodeID = newNode->nodeID;
+        kstrcpy(newEntry->name, fileName);
 
-        uint64* files = new uint64[f->directory.numFiles + 1];
-        kmemcpy(files, f->directory.files, f->directory.numFiles * sizeof(uint64));
-        files[f->directory.numFiles] = newNode->id;
-        delete[] f->directory.files;
-        f->directory.files = files;
-        f->directory.numFiles++;
-
-        ReleaseNode(newNode);
-        ReleaseNode(f);
+        ReleaseNode(mp, folderNode);
+        ReleaseNode(mp, newNode);
 
         return true;
     }
 
-    uint64 CreatePipe()
-    {
-        Node* node = CreateNode();
+    bool CreateDeviceFile(const char* path, uint64 driverID, uint64 subID) {
+        char cleanBuffer[255];
+        if(!CleanPath(path, cleanBuffer))
+            return false;
 
-        node->type = Node::TYPE_PIPE;
-        node->pipe.head = 0;
-        node->pipe.tail = 0;
-        node->pipe.buffer = new char[PipeBufferSize];
+        const char* folderPath;
+        const char* fileName;
+        SplitFolderAndFile(cleanBuffer, &folderPath, &fileName);
 
-        node->fs = nullptr;
+        MountPoint* mp = AcquireMountPoint(folderPath);
+        folderPath = AdvancePath(folderPath, mp->path);
+
+        CachedNode* folderNode = AcquirePath(mp, folderPath);
+        if(folderNode == nullptr)
+            return false;
+        if(folderNode->node.type != Node::TYPE_DIRECTORY) {
+            ReleaseNode(mp, folderNode);
+            return false;
+        }
+
+        GetDir(&folderNode->node);
+        DirectoryEntry* newEntry;
+        Directory::AddEntry(&folderNode->node.dir, &newEntry);
+
+        DeviceDriver* driver = DeviceDriverRegistry::GetDriver(driverID);
+
+        CachedNode* newNode = CreateNode(mp);
+        newNode->node.linkRefCount = 1;
+        newNode->node.type = driver->GetType() == DeviceDriver::TYPE_CHAR ? Node::TYPE_DEVICE_CHAR : Node::TYPE_DEVICE_BLOCK;
+        newNode->node.device.driverID = driverID;
+        newNode->node.device.subID = subID;
         
-        node->refCount += 2;
+        newEntry->nodeID = newNode->nodeID;
+        kstrcpy(newEntry->name, fileName);
 
-        uint64 ret = node->id;
-        ReleaseNode(node);
-        return ret;
+        ReleaseNode(mp, folderNode);
+        ReleaseNode(mp, newNode);
+
+        return true;
+    }
+    bool CreatePipe(uint64* readDesc, uint64* writeDesc) {
+        CachedNode* pipeNode = CreateNode(g_PipeMount, 2);
+        pipeNode->node.type = Node::TYPE_PIPE;
+        ReleaseNode(g_PipeMount, pipeNode, false);
+
+        FileDescriptor* descRead = new FileDescriptor();
+        descRead->mp = g_PipeMount;
+        descRead->node = pipeNode;
+        descRead->pos = 0;
+        descRead->refCount = 1;
+
+        FileDescriptor* descWrite = new FileDescriptor();
+        descWrite->mp = g_PipeMount;
+        descWrite->node = pipeNode;
+        descWrite->pos = 0;
+        descWrite->refCount = 1;
+
+        *readDesc = (uint64)descRead;
+        *writeDesc = (uint64)descWrite;
     }
 
-    bool DeleteFile(const char* file) 
-    {
-        Node* folder;
-        Node* node = AcquirePath(file, &folder);
+    bool Delete(const char* path) {
+        char cleanBuffer[255];
+        if(!CleanPath(path, cleanBuffer))
+            return false;
+
+        MountPoint* mp = AcquireMountPoint(cleanBuffer);
+        char* relPath = (char*)AdvancePath(cleanBuffer, mp->path);
+        if(*relPath == '\0') // trying to delete a mountpoint
+            return false;
+        
+        const char* folderPath;
+        const char* fileName;
+        SplitFolderAndFile(relPath, &folderPath, &fileName);
+
+        CachedNode* folderNode = AcquirePath(mp, folderPath);
+        if(folderNode == nullptr)
+            return false;
+        if(folderNode->node.type != Node::TYPE_DIRECTORY) {
+            ReleaseNode(mp, folderNode);
+            return false;
+        }
+
+        Directory* dir = GetDir(&folderNode->node);
+        for(uint64 i = 0; i < dir->numEntries; i++) {
+            if(kstrcmp(fileName, dir->entries[i].name) == 0) {
+                uint64 nodeID = dir->entries[i].nodeID;
+                CachedNode* fileNode = AcquireNode(mp, nodeID);
+
+                if(fileNode->node.type == Node::TYPE_DIRECTORY) {
+                    Directory* dir = GetDir(&fileNode->node);
+                    if(dir->numEntries != 0) {
+                        ReleaseNode(mp, fileNode);
+                        ReleaseNode(mp, folderNode);
+                        return false;
+                    }
+                }
+
+                Directory::RemoveEntry(&folderNode->node.dir, i);
+                fileNode->node.linkRefCount--;
+
+                ReleaseNode(mp, fileNode);
+                ReleaseNode(mp, folderNode);
+                return true;
+            }
+        }
+
+        ReleaseNode(mp, folderNode);
+        return false;
+    }
+
+    bool Mount(const char* mountPoint, FileSystem* fs) {
+        char cleanBuffer[255];
+        if(!CleanPath(mountPoint, cleanBuffer))
+            return false;
+
+        MountPoint* mp = AcquireMountPoint(cleanBuffer);
+        const char* folderPath = AdvancePath(cleanBuffer, mp->path);
+        if(*folderPath == '\0') // Trying to mount onto mountpoint
+            return false;
+
+        CachedNode* folderNode = AcquirePath(mp, folderPath);
+        if(folderNode == nullptr)
+            return false;
+        if(folderNode->node.type != Node::TYPE_DIRECTORY) {
+            ReleaseNode(mp, folderNode);
+            return false;
+        }
+        
+        Directory* dir = GetDir(&folderNode->node);
+        if(dir->numEntries != 0) {
+            ReleaseNode(mp, folderNode);
+            return false;
+        }
+
+        MountPoint* newMP = new MountPoint();
+        kstrcpy(newMP->path, cleanBuffer);
+        newMP->fs = fs;
+        fs->GetSuperBlock(&newMP->sb);
+        
+        mp->childMountLock.SpinLock();
+        mp->childMounts.push_back(newMP);
+        mp->childMountLock.Unlock();
+    }
+
+    bool Unmount(const char* mountPoint) {
+        return false;
+    }
+
+    uint64 Open(const char* path) {
+        char cleanBuffer[255];
+        if(!CleanPath(path, cleanBuffer))
+            return false;
+
+        MountPoint* mp = AcquireMountPoint(cleanBuffer);
+        path = AdvancePath(cleanBuffer, mp->path);
+
+        CachedNode* node = AcquirePath(mp, path);
+        if(node == nullptr)
+            return 0;
+        if(node->node.type == Node::TYPE_DIRECTORY) {
+            ReleaseNode(mp, node);
+            return 0;
+        }
+        
+        ReleaseNode(mp, node, false);
+
+        FileDescriptor* desc = new FileDescriptor();
+        desc->mp = mp;
+        desc->node = node;
+        desc->pos = 0;
+        desc->refCount = 1;
+
+        return (uint64)desc;
+    }
+
+    void Close(uint64 descID) {
+        FileDescriptor* desc = (FileDescriptor*)descID;
+
+        desc->refCount--;
+        if(desc->refCount == 0) {
+            CachedNode* node = desc->node;
+            node->node.lock.SpinLock();
+            ReleaseNode(desc->mp, node);
+
+            delete desc;
+        }
+    }
+
+    void AddRef(uint64 descID) {
+        FileDescriptor* desc = (FileDescriptor*)descID;
+
+        desc->refCount++;
+    }
+
+    bool List(const char* path, FileList* list, bool getTypes) {
+        char cleanBuffer[255];
+        if(!CleanPath(path, cleanBuffer))
+            return false;
+
+        MountPoint* mp = AcquireMountPoint(cleanBuffer);
+        path = AdvancePath(cleanBuffer, mp->path);
+
+        CachedNode* node = AcquirePath(mp, path);
         if(node == nullptr)
             return false;
-
-        uint64* files = new uint64[folder->directory.numFiles - 1];
-        int index = 0;
-        for(int i = 0; i < folder->directory.numFiles; i++) {
-            uint64 f = folder->directory.files[i];
-            if(f != node->id) {
-                files[index++] = f;
+        if(node->node.type != Node::TYPE_DIRECTORY) {
+            ReleaseNode(mp, node);
+            return false;
+        }
+        
+        Directory* dir = GetDir(&node->node);
+        list->numEntries = dir->numEntries;
+        list->entries = new FileList::Entry[list->numEntries];
+        for(uint64 i = 0; i < list->numEntries; i++) {
+            kstrcpy(list->entries[i].name, dir->entries[i].name);
+            if(getTypes) {
+                CachedNode* entryNode = AcquireNode(mp, dir->entries[i].nodeID);
+                list->entries[i].type = entryNode->node.type;
+                ReleaseNode(mp, entryNode);
             }
         }
 
-        delete[] folder->directory.files;
-        folder->directory.numFiles--;
-        folder->directory.files = files;
-
-        node->refCount--;
-
-        ReleaseNode(folder);
-        ReleaseNode(node);
-
+        ReleaseNode(mp, node);
         return true;
     }
 
-    void Mount(const char* mountPoint, FileSystem* fs)
-    {
-        Node* f = AcquirePath(mountPoint, nullptr);
-        if(f == nullptr)
-            return;
-        if(f->type != Node::TYPE_DIRECTORY || f->directory.numFiles != 0) {
-            ReleaseNode(f);
-            return;
-        }
-
-        f->fs = fs;
-        f->fs->Mount(*f);
-        ReleaseNode(f);
-    }
-
-    uint64 OpenNode(const char* path)
-    {
-        Node* n = AcquirePath(path, nullptr);
-        if(n == nullptr)
-            return 0;
-        if(n->type == Node::TYPE_DIRECTORY) {
-            ReleaseNode(n);
-            return 0;
-        }
-
-        n->refCount++;
-        uint64 res = n->id;
-        ReleaseNode(n);
-        return res;
-    }
-    uint64 CloseNode(uint64 node)
-    {
-        Node* n = AcquireNode(node);
-        n->refCount--;
-        ReleaseNode(n);
-    }
-
-    uint64 GetSize(uint64 node)
-    {
-        Node* n = AcquireNode(node);
-        uint64 res = n->file.size;
-        ReleaseNode(n);
-        return res;
-    }
-
-    uint64 ReadNode(uint64 node, uint64 pos, void* buffer, uint64 bufferSize)
-    {
-        Node* n = AcquireNode(node);
-
-        if(n->type == Node::TYPE_DEVICE) {
-            Device* dev = Device::GetByID(n->device.devID);
-            ReleaseNode(n);
-            uint64 ret = dev->Read(pos, buffer, bufferSize);
-            return ret;
-        } else if(n->type == Node::TYPE_PIPE) {
-            uint64 end = n->pipe.tail;
-            if(n->pipe.tail < n->pipe.head)
-                n->pipe.tail += PipeBufferSize;
-            uint64 size = end - n->pipe.head;
-            if(size > bufferSize)
-                size = bufferSize;
-            for(int i = 0; i < size; i++) {
-                ((char*)buffer)[i] = n->pipe.buffer[(n->pipe.head + i) % PipeBufferSize];
-            }
-            n->pipe.head += size;
-            n->pipe.head %= PipeBufferSize;
+    static uint64 _Read(Node* node, uint64 pos, void* buffer, uint64 bufferSize) {
+        uint64 res;
+        if(node->type == Node::TYPE_DEVICE_CHAR) {
+            CharDeviceDriver* driver = (CharDeviceDriver*)DeviceDriverRegistry::GetDriver(node->device.driverID);
+            if(driver == nullptr)
+                return 0;
+            res = driver->Read(node->device.subID, buffer, bufferSize);
+        } else if(node->type == Node::TYPE_DEVICE_BLOCK) {
+            BlockDeviceDriver* driver = (BlockDeviceDriver*)DeviceDriverRegistry::GetDriver(node->device.driverID);
+            if(driver == nullptr)
+                return 0;
             
-            if(size > 0)
-                Scheduler::NotifyNodeRead(n->id);
-
-            ReleaseNode(n);
-            return size;
+            uint64 devID = node->device.subID;
+            driver->GetData(devID, pos, buffer, bufferSize);
+            res = bufferSize;
         } else {
-            uint64 ret = n->fs->ReadNode(*n, pos, buffer, bufferSize);
-            ReleaseNode(n);
-            return ret;
+            res = node->fs->ReadNodeData(node, pos, buffer, bufferSize);
         }
-    }
-
-    uint64 WriteNode(uint64 node, uint64 pos, void* buffer, uint64 bufferSize)
-    {
-        Node* n = AcquireNode(node);
-
-        if(n->type == Node::TYPE_DEVICE) {
-            Device* dev = Device::GetByID(n->device.devID);
-            ReleaseNode(n);
-            return dev->Write(pos, buffer, bufferSize);
-        } else if(n->type == Node::TYPE_PIPE) {
-            uint64 end = n->pipe.tail;
-            if(n->pipe.tail < n->pipe.head)
-                n->pipe.tail += PipeBufferSize;
-            uint64 size = PipeBufferSize - (end - n->pipe.head);
-            if(size > bufferSize)
-                size = bufferSize;
-            for(int i = 0; i < size; i++) {
-                n->pipe.buffer[(n->pipe.tail + i) % PipeBufferSize] = ((char*)buffer)[i];
-            }
-            n->pipe.tail += size;
-            n->pipe.tail %= PipeBufferSize;
-
-            if(size > 0)
-                Scheduler::NotifyNodeWrite(n->id);
-
-            ReleaseNode(n);
-            return size;
-        } else {
-            uint64 res = n->fs->WriteNode(*n, pos, buffer, bufferSize);
-            ReleaseNode(n);
-            return res;
-        }
-    }
-
-    Node* AcquireNode(uint64 id) {
-        g_NodesLock.SpinLock();
-        Node* res = g_Nodes[id - 1];
-        res->lock.SpinLock();
-        res->refCount++;
-        g_NodesLock.Unlock();
         return res;
     }
 
-    Node* CreateNode()
-    {
-        g_NodesLock.SpinLock();
-        if(g_FirstFreeNode != 0) {
-            Node* ret = g_Nodes[g_FirstFreeNode - 1];
-            ret->lock.SpinLock();
-            g_FirstFreeNode = ret->refCount;
-            ret->refCount = 1;
-            g_NodesLock.Unlock();
-            return ret;
-        } else {
-            Node* n = new Node();
-            n->id = g_Nodes.size() + 1;
-            n->refCount = 1;
-            n->lock.SpinLock();
-            g_Nodes.push_back(n);
-            g_NodesLock.Unlock();
-            return n;
-        }
+    uint64 Read(uint64 descID, void* buffer, uint64 bufferSize) {
+        FileDescriptor* desc = (FileDescriptor*)descID;
+        
+        uint64 res = _Read(&desc->node->node, desc->pos, buffer, bufferSize);
+        desc->pos += res;
+
+        return res;
     }
 
-    void ReleaseNode(Node* node) {
-        node->refCount--;
-        if(node->refCount == 0) {
-            if(node->fs != nullptr)
-                node->fs->DestroyNode(*node);
-            g_NodesLock.SpinLock();
-            node->refCount = g_FirstFreeNode;
-            g_FirstFreeNode = node->id;
-            g_NodesLock.Unlock();
+    uint64 Read(uint64 descID, uint64 pos, void* buffer, uint64 bufferSize) {
+        FileDescriptor* desc = (FileDescriptor*)descID;
+
+        return _Read(&desc->node->node, pos, buffer, bufferSize);
+    }
+
+    static uint64 _Write(Node* node, uint64 pos, const void* buffer, uint64 bufferSize) {
+        uint64 res;
+        if(node->type == Node::TYPE_DEVICE_CHAR) {
+            CharDeviceDriver* driver = (CharDeviceDriver*)DeviceDriverRegistry::GetDriver(node->device.driverID);
+            if(driver == nullptr)
+                return 0;
+            res = driver->Write(node->device.subID, buffer, bufferSize);
+        } else if(node->type == Node::TYPE_DEVICE_BLOCK) {
+            BlockDeviceDriver* driver = (BlockDeviceDriver*)DeviceDriverRegistry::GetDriver(node->device.driverID);
+            if(driver == nullptr)
+                return 0;
+
+            uint64 devID = node->device.subID;
+            driver->SetData(devID, pos, buffer, bufferSize);
+            res = bufferSize;
+        } else {
+            res = node->fs->WriteNodeData(node, pos, buffer, bufferSize);
         }
-        node->lock.Unlock();
+        return res;
+    }
+
+    uint64 Write(uint64 descID, const void* buffer, uint64 bufferSize) {
+        FileDescriptor* desc = (FileDescriptor*)descID;
+        
+        uint64 res = _Write(&desc->node->node, desc->pos, buffer, bufferSize);
+        desc->pos += res;
+
+        return res;
+    }
+
+    uint64 Write(uint64 descID, uint64 pos, const void* buffer, uint64 bufferSize) {
+        FileDescriptor* desc = (FileDescriptor*)descID;
+
+        return _Write(&desc->node->node, pos, buffer, bufferSize);
+    }
+
+    void Stat(uint64 descID, NodeStats* stats) {
+        FileDescriptor* desc = (FileDescriptor*)descID;
+
+        stats->size = desc->node->node.fileSize;
     }
 
 }

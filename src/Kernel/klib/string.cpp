@@ -28,3 +28,28 @@ int kstrlen(const char* a)
         l++;
     return l;
 }
+
+void kstrcpy(char* dest, const char* src)
+{
+    int i = 0;
+    while(src[i] != '\0') {
+        dest[i] = src[i];
+        i++;
+    }
+    dest[i] = '\0';
+}
+
+void kstrconcat(char* dest, const char* a, const char* b)
+{
+    while(*a != '\0') {
+        *dest = *a;
+        dest++;
+        a++;
+    }
+    while(*b != '\0') {
+        *dest = *b;
+        dest++;
+        b++;
+    }
+    *dest = '\0';
+}

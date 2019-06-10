@@ -5,7 +5,7 @@
 #include <string>
 #include <cstring>
 
-#include "RamdiskStructs.h"
+#include <types.h>
 
 struct File 
 {
@@ -17,7 +17,12 @@ struct File
 
 int main(int argc, char** argv) 
 {
-    std::vector<File> files;
+    std::string outFile = argv[1];
+
+    system(("dd if=/dev/zero of=" + outFile + " bs=512 count=20000").c_str());
+    system(("mkfs.ext2 " + outFile + " -L SimpleOS2").c_str());
+
+    system(("echo >> " + outFile + ".cmd").c_str());
 
     for(int i = 2; i < argc; i += 2) {
         std::string srcFile = argv[i];
@@ -25,47 +30,10 @@ int main(int argc, char** argv)
 
         std::cout << "Adding file " << srcFile << " as " << destFile << std::endl;
 
-        FILE* file = fopen(srcFile.c_str(), "rb");
-        if(file == nullptr) {
-            std::cout << "Failed to read file " << srcFile << std::endl;
-            return 1;
-        }
-        fseek(file, 0, SEEK_END);
-        long size = ftell(file);
-        fseek(file, 0, SEEK_SET);
-
-        uint8* data = new uint8[size];
-        fread(data, 1, size, file);
-        fclose(file);
-
-        File f;
-        f.name = destFile;
-        f.dataSize = size;
-        f.data = data;
-        files.push_back(f);
+        system(("echo write " + srcFile + " " + destFile + " >> " + outFile + ".cmd").c_str());
     }
 
-    FILE* out = fopen(argv[1], "wb");
+    system(("echo q >> " + outFile + ".cmd").c_str());
 
-    RamdiskHeader header;
-    header.numFiles = files.size();
-    fwrite(&header, 1, sizeof(RamdiskHeader), out);
-
-    uint64 offset = sizeof(RamdiskHeader) + files.size() * sizeof(RamdiskFile);
-    for(File& f : files) {
-        RamdiskFile fileHeader;
-        memset(fileHeader.name, 0, sizeof(fileHeader.name));
-        memcpy(fileHeader.name, f.name.c_str(), f.name.length());
-        fileHeader.size = f.dataSize;
-        fileHeader.dataOffset = offset;
-        offset += f.dataSize;
-
-        fwrite(&fileHeader, 1, sizeof(RamdiskFile), out);
-    }
-
-    for(File& f : files) {
-        fwrite(f.data, 1, f.dataSize, out);
-    }
-
-    fclose(out);
+    system(("debugfs -w " + outFile + " -f " + outFile + ".cmd").c_str());
 }

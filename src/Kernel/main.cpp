@@ -11,13 +11,12 @@
 
 #include "scheduler/ELF.h"
 
-#include "fs/Ramdisk.h"
-
 #include "memory/KernelHeap.h"
 
 #include "fs/VFS.h"
-#include "devices/RamDevice.h"
-#include "devices/ZeroDevice.h"
+#include "fs/ext2/ext2.h"
+#include "devices/PseudoDeviceDriver.h"
+#include "devices/RamDeviceDriver.h"
 
 #include "syscalls/SyscallHandler.h"
 
@@ -25,18 +24,21 @@
 
 #include "arch/CPU.h"
 
+#include "fs/TestFS.h"
+
 static void SetupTestProcess(uint8* loadBase)
 {
-    uint64 file = VFS::OpenNode("/initrd/test.elf");
+    uint64 file = VFS::Open("/initrd/test.elf");
     if(file == 0) {
         kprintf("Failed to find test.elf\n");
         return;
     }
 
-    uint64 fileSize = VFS::GetSize(file);
-    uint8* fileBuffer = new uint8[fileSize];
-    VFS::ReadNode(file, 0, fileBuffer, fileSize);
-    VFS::CloseNode(file);
+    VFS::NodeStats stats;
+    VFS::Stat(file, &stats);
+    uint8* fileBuffer = new uint8[stats.size];
+    VFS::Read(file, 0, fileBuffer, stats.size);
+    VFS::Close(file);
 
     if(!RunELF(fileBuffer)) {
         kprintf("Failed to setup process\n");
@@ -58,25 +60,23 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     IDT::Init();
     SyscallHandler::Init();
 
-    VFS::Init();
+    VFS::Init(new TestFS());
+    VFS::CreateFolder("/dev");
 
-    if(!VFS::CreateFolder("/", "dev"))
-        kprintf("Failed to create /dev folder\n");
-    if(!VFS::CreateFolder("/", "initrd"))
-        kprintf("Failed to create /initrd folder\n");
+    RamDeviceDriver* ramDriver = new RamDeviceDriver();
+    uint64 initrdSubID = ramDriver->AddDevice((char*)info->ramdiskImage.buffer, 512, info->ramdiskImage.numPages * 8);
+    VFS::CreateDeviceFile("/dev/ram0", ramDriver->GetDriverID(), initrdSubID);
 
-    new RamDevice("ram0", info->ramdiskImage.buffer, info->ramdiskImage.numPages * 4096);
-    RamdiskFS* ramfs = new RamdiskFS("/dev/ram0");
-    VFS::Mount("/initrd", ramfs);
+    PseudoDeviceDriver* pseudoDriver = new PseudoDeviceDriver();
+    VFS::CreateDeviceFile("/dev/zero", pseudoDriver->GetDriverID(), PseudoDeviceDriver::DeviceZero);
 
-    new ZeroDevice("zero");
+    Ext2::Ext2Driver* ramFS = new Ext2::Ext2Driver("/dev/ram0");
+    VFS::CreateFolder("/initrd");
+    VFS::Mount("/initrd", ramFS);
 
     APIC::Init();
 
-    VFS::CreateFile("/", "test.txt");
-
     SetupTestProcess((uint8*)0x16000);
-    //SetupTestProcess((uint8*)0x16000);
     APIC::StartTimer(10);
     Scheduler::Start();
 
