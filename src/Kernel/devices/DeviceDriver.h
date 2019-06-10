@@ -2,6 +2,8 @@
 
 #include "types.h"
 #include "atomic/Atomics.h"
+#include "ktl/vector.h"
+#include "Mutex.h"
 
 class DeviceDriver {
 public:
@@ -32,13 +34,23 @@ public:
     virtual uint64 Write(uint64 subID, const void* buffer, uint64 bufferSize) = 0;
 };
 
+struct CachedBlock;
+
 class BlockDeviceDriver : public DeviceDriver {
 public:
     BlockDeviceDriver();
 
+    void GetData(uint64 subID, uint64 pos, void* buffer, uint64 bufferSize);
+    void SetData(uint64 subID, uint64 pos, const void* buffer, uint64 bufferSize);
+
     virtual uint64 GetBlockSize(uint64 subID) const = 0;
 
+protected:
     virtual void ScheduleOperation(uint64 subID, uint64 startBlock, uint64 numBlocks, bool write, void* buffer, Atomic<uint64>* finishFlag) = 0;
+
+private:
+    Mutex m_CacheLock;
+    ktl::vector<CachedBlock*> m_Cache;
 };
 
 class DeviceDriverRegistry {

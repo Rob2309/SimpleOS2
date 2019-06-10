@@ -571,22 +571,8 @@ namespace VFS {
                 return 0;
             
             uint64 devID = node->device.subID;
-            uint64 blockSize = driver->GetBlockSize(devID);
-            uint64 startBlock = pos / blockSize;
-            uint64 endBlock = (pos + bufferSize) / blockSize;
-            uint64 numBlocks = endBlock - startBlock + 1;
-            uint64 offset = pos - startBlock * blockSize;
-
-            char* tempBuffer = new char[numBlocks * blockSize];
-            Atomic<uint64> res;
-            res.Write(0);
-            driver->ScheduleOperation(devID, startBlock, numBlocks, false, tempBuffer, &res);
-            while(res.Read() != 1) ;
-
-            kmemcpy(buffer, tempBuffer + offset, bufferSize);
-            delete[] tempBuffer;
-
-            return bufferSize;
+            driver->GetData(devID, pos, buffer, bufferSize);
+            res = bufferSize;
         } else {
             res = node->fs->ReadNodeData(node, pos, buffer, bufferSize);
         }
@@ -616,7 +602,13 @@ namespace VFS {
                 return 0;
             res = driver->Write(node->device.subID, buffer, bufferSize);
         } else if(node->type == Node::TYPE_DEVICE_BLOCK) {
-            return 0;
+            BlockDeviceDriver* driver = (BlockDeviceDriver*)DeviceDriverRegistry::GetDriver(node->device.driverID);
+            if(driver == nullptr)
+                return 0;
+
+            uint64 devID = node->device.subID;
+            driver->SetData(devID, pos, buffer, bufferSize);
+            res = bufferSize;
         } else {
             res = node->fs->WriteNodeData(node, pos, buffer, bufferSize);
         }

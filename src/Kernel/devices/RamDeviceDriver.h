@@ -17,6 +17,7 @@ public:
 
     uint64 GetBlockSize(uint64 subID) const override;
 
+protected:
     void ScheduleOperation(uint64 subID, uint64 startBlock, uint64 numBlocks, bool write, void* buffer, Atomic<uint64>* finishFlag) override;
 
 private:
