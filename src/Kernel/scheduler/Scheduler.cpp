@@ -246,14 +246,18 @@ namespace Scheduler {
     {
         IDT::Registers* myRegs = &g_CPUData.currentThread->registers;
 
-        ThreadInfo* nextThread = FindNextThread();
+        // TODO: Find out why this breaks in release mode
+        /*ThreadInfo* nextThread = FindNextThread();
         if(nextThread == g_CPUData.currentThread) {
             return;
         } else {
             IDT::Registers nextRegs;
             SetContext(nextThread, &nextRegs);
             ContextSwitchAndReturn(myRegs, &nextRegs);
-        }
+        }*/
+        IDT::Registers nextRegs;
+        SetContext(g_CPUData.idleThread, &nextRegs);
+        ContextSwitchAndReturn(myRegs, &nextRegs);
     }
 
     void ThreadYield()
