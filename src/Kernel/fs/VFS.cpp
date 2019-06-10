@@ -5,6 +5,7 @@
 #include "klib/memory.h"
 #include "klib/stdio.h"
 #include "devices/DeviceDriver.h"
+#include "PipeFS.h"
 
 namespace VFS {
     
@@ -47,6 +48,7 @@ namespace VFS {
     };
 
     static MountPoint* g_RootMount = nullptr;
+    static MountPoint* g_PipeMount = nullptr;
 
     static Mutex g_FileDescLock;
     static ktl::nlist<FileDescriptor> g_FileDescs;
@@ -257,11 +259,11 @@ namespace VFS {
         }
     }
 
-    static CachedNode* CreateNode(MountPoint* mp) {
+    static CachedNode* CreateNode(MountPoint* mp, uint64 softRefs = 1) {
         CachedNode* newNode = new CachedNode();
         mp->fs->CreateNode(&newNode->node);
         newNode->nodeID = newNode->node.id;
-        newNode->softRefCount = 1;
+        newNode->softRefCount = softRefs;
         newNode->node.lock.SpinLock();
 
         mp->nodeCacheLock.SpinLock();
@@ -277,6 +279,9 @@ namespace VFS {
         rootFS->GetSuperBlock(&mp->sb);
         kstrcpy(mp->path, "/");
         g_RootMount = mp;
+
+        g_PipeMount = new MountPoint();
+        g_PipeMount->fs = new PipeFS();
     }
 
     bool CreateFile(const char* path) {
@@ -395,7 +400,24 @@ namespace VFS {
         return true;
     }
     bool CreatePipe(uint64* readDesc, uint64* writeDesc) {
-        return false;   
+        CachedNode* pipeNode = CreateNode(g_PipeMount, 2);
+        pipeNode->node.type = Node::TYPE_PIPE;
+        ReleaseNode(g_PipeMount, pipeNode, false);
+
+        FileDescriptor* descRead = new FileDescriptor();
+        descRead->mp = g_PipeMount;
+        descRead->node = pipeNode;
+        descRead->pos = 0;
+        descRead->refCount = 1;
+
+        FileDescriptor* descWrite = new FileDescriptor();
+        descWrite->mp = g_PipeMount;
+        descWrite->node = pipeNode;
+        descWrite->pos = 0;
+        descWrite->refCount = 1;
+
+        *readDesc = (uint64)descRead;
+        *writeDesc = (uint64)descWrite;
     }
 
     bool Delete(const char* path) {
@@ -524,6 +546,12 @@ namespace VFS {
 
             delete desc;
         }
+    }
+
+    void AddRef(uint64 descID) {
+        FileDescriptor* desc = (FileDescriptor*)descID;
+
+        desc->refCount++;
     }
 
     bool List(const char* path, FileList* list, bool getTypes) {
