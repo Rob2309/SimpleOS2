@@ -14,7 +14,7 @@
 #include "memory/KernelHeap.h"
 
 #include "fs/VFS.h"
-#include "fs/RamdiskFS.h"
+#include "fs/ext2/ext2.h"
 #include "devices/PseudoDeviceDriver.h"
 #include "devices/RamDeviceDriver.h"
 
@@ -70,7 +70,7 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     PseudoDeviceDriver* pseudoDriver = new PseudoDeviceDriver();
     VFS::CreateDeviceFile("/dev/zero", pseudoDriver->GetDriverID(), PseudoDeviceDriver::DeviceZero);
 
-    VFS::RamdiskFS* ramFS = new VFS::RamdiskFS("/dev/ram0");
+    Ext2::Ext2Driver* ramFS = new Ext2::Ext2Driver("/dev/ram0");
     VFS::CreateFolder("/initrd");
     VFS::Mount("/initrd", ramFS);
 

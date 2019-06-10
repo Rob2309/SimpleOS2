@@ -23,7 +23,8 @@ namespace VFS {
         } type;
 
         FileSystem* fs;     // The FileSystem instance this node belongs to
-        
+        void* fsData;
+
         union {
             Directory* dir;
             uint64 fileSize;
