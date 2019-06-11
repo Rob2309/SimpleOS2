@@ -25,6 +25,9 @@ namespace Syscall
     constexpr uint64 FunctionWrite = 59;
     constexpr uint64 FunctionMount = 60;
 
+    constexpr uint64 FunctionAllocPages = 100;
+    constexpr uint64 FunctionFreePages = 101;
+
     /**
      * Print a message onto the screen
      **/
@@ -229,6 +232,24 @@ namespace Syscall
             : "rcx", "r8", "r9", "r10", "r11"
         );
         return res;
+    }
+
+    inline bool AllocPages(void* address, uint64 numPages) {
+        bool res;
+        __asm__ __volatile__ (
+            "syscall"
+            : "=a"(res)
+            : "D"(FunctionAllocPages), "S"(address), "d"(numPages)
+            : "rcx", "r8", "r9", "r10", "r11"
+        );
+        return res;
+    }
+    inline void FreePages(void* address, uint64 numPages) {
+        __asm__ __volatile__ (
+            "syscall"
+            : : "D"(FunctionFreePages), "S"(address), "d"(numPages)
+            : "rax", "rcx", "r8", "r9", "r10", "r11"
+        );
     }
     
 }
