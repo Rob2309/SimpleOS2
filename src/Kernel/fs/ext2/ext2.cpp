@@ -124,4 +124,12 @@ namespace Ext2 {
 
     }
 
+    static FileSystem* Ext2Factory(const char* dev) {
+        return new Ext2Driver(dev);
+    }
+
+    void Init() {
+        FileSystemRegistry::RegisterFileSystem("ext2", Ext2Factory);
+    }
+
 }

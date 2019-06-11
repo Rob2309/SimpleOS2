@@ -82,6 +82,8 @@ namespace VFS {
      * MountPoint has to be an empty folder.
      **/
     bool Mount(const char* mountPoint, FileSystem* fs);
+    bool Mount(const char* mountPoint, const char* fsID);
+    bool Mount(const char* mountPoint, const char* fsID, const char* dev);
 
     /**
      * Unmounts the given path

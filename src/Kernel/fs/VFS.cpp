@@ -503,6 +503,20 @@ namespace VFS {
         mp->childMounts.push_back(newMP);
         mp->childMountLock.Unlock();
     }
+    bool Mount(const char* mountPoint, const char* fsID) {
+        FileSystem* fs = FileSystemRegistry::CreateFileSystem(fsID);
+        if(fs == nullptr)
+            return false;
+
+        return Mount(mountPoint, fs);
+    }
+    bool Mount(const char* mountPoint, const char* fsID, const char* dev) {
+        FileSystem* fs = FileSystemRegistry::CreateFileSystem(fsID, dev);
+        if(fs == nullptr)
+            return false;
+
+        return Mount(mountPoint, fs);
+    }
 
     bool Unmount(const char* mountPoint) {
         return false;

@@ -60,6 +60,8 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     IDT::Init();
     SyscallHandler::Init();
 
+    Ext2::Init();
+
     VFS::Init(new TestFS());
     VFS::CreateFolder("/dev");
 
@@ -70,9 +72,8 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     PseudoDeviceDriver* pseudoDriver = new PseudoDeviceDriver();
     VFS::CreateDeviceFile("/dev/zero", pseudoDriver->GetDriverID(), PseudoDeviceDriver::DeviceZero);
 
-    Ext2::Ext2Driver* ramFS = new Ext2::Ext2Driver("/dev/ram0");
     VFS::CreateFolder("/initrd");
-    VFS::Mount("/initrd", ramFS);
+    VFS::Mount("/initrd", "ext2", "/dev/ram0");
 
     APIC::Init();
 
