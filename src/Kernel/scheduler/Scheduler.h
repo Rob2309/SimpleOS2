@@ -85,4 +85,10 @@ namespace Scheduler {
 
     void ProcessExec(uint64 pml4Entry, IDT::Registers* regs);
 
+    /**
+     * Runs the signal handler with the current thread.
+     * Can only be called from an atomic context.
+     */
+    void ThreadReturnToSignalHandler(uint64 signal);
+
 }
