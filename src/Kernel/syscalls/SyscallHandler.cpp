@@ -128,6 +128,7 @@ namespace SyscallHandler {
         case Syscall::FunctionRead: return VFS::Read(Scheduler::ProcessGetSystemFileDescriptor(arg1), (void*)arg2, arg3); break;
         case Syscall::FunctionWrite: return VFS::Write(Scheduler::ProcessGetSystemFileDescriptor(arg1), (const void*)arg2, arg3); break;
         case Syscall::FunctionMount: return VFS::Mount((const char*)arg1, (const char*)arg2); break;
+        case Syscall::FunctionMountDev: return VFS::Mount((const char*)arg1, (const char*)arg2, (const char*)arg3); break;
 
         case Syscall::FunctionAllocPages: {
                 for(uint64 i = 0; i < arg2; i++) {
