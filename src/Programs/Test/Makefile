@@ -3,7 +3,7 @@ bin_dir := $(bin_dir)/Programs/Test
 
 include_flags := -I. -I../../common
 
-c_headers := $(shell find . -type f -name "*.h" -printf "%p ") $(shell find ../common -type f -name "*.h" -printf "%p ")
+c_headers := $(shell find . -type f -name "*.h" -printf "%p ") $(shell find ../../common -type f -name "*.h" -printf "%p ")
 cross_headers := $(shell find . -type f -name "*.inc" -printf "%p ")
 
 c_sources := $(shell find . -type f -name "*.c" -printf "%p ")
