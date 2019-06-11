@@ -66,8 +66,8 @@ namespace MemoryManager {
             heapPML3[i] = 0;
         g_PML4[510] = PML_SET_ADDR((uint64)KernelToPhysPtr((uint64*)heapPML3)) | PML_SET_P(1) | PML_SET_RW(1);
 
-        kprintf("Available memory: %i MB\n", availableMemory / 1024 / 1024);
-        kprintf("Memory manager initialized\n");
+        klog_info("Memory", "Available memory: %i MB", availableMemory / 1024 / 1024);
+        klog_info("Memory", "Memory manager initialized");
     }
 
     static void* _AllocatePages(uint64 numPages) {

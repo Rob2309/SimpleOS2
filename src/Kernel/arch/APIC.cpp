@@ -63,7 +63,7 @@ namespace APIC
         uint32 apicTimerRemaining = *(volatile uint32*)(g_APICBase + RegTimerCurrentCount);
         uint32 elapsed = 0xFFFFFFFF - apicTimerRemaining;
         g_TimerTicksPerMS = elapsed / 33;
-        kprintf("APIC Timer runs at %i kHz\n", g_TimerTicksPerMS);
+        klog_info("APIC", "APIC Timer runs at %i kHz", g_TimerTicksPerMS);
     }
 
     void SetTimerEvent(TimerEvent evt)
@@ -76,7 +76,7 @@ namespace APIC
         uint64 lapicBase = MSR::Read(MSR::RegLAPICBase);    // Physical address of LAPIC memory space
 
         g_APICBase = (uint64)MemoryManager::PhysToKernelPtr((void*)(lapicBase & 0xFFFFFFFFFFFFF000));
-        kprintf("APIC Base: 0x%x\n", g_APICBase);
+        klog_info("APIC", "APIC Base: 0x%x", g_APICBase);
 
         IDT::SetISR(ISRNumbers::APICError, ISR_Error);
         IDT::SetISR(ISRNumbers::APICSpurious, ISR_Spurious);

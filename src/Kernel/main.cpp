@@ -30,7 +30,7 @@ static void SetupTestProcess(uint8* loadBase)
 {
     uint64 file = VFS::Open("/initrd/Test.elf");
     if(file == 0) {
-        kprintf("Failed to find Test.elf\n");
+        klog_error("Init", "Failed to find Test.elf");
         return;
     }
 
@@ -41,7 +41,7 @@ static void SetupTestProcess(uint8* loadBase)
     VFS::Close(file);
 
     if(!RunELF(fileBuffer)) {
-        kprintf("Failed to setup process\n");
+        klog_error("Init", "Failed to setup process");
         return;
     }
 
@@ -52,7 +52,7 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     Terminal::Init(info->screenBuffer, info->screenWidth, info->screenHeight, info->screenScanlineWidth, info->screenColorsInverted);
     Terminal::Clear();
 
-    kprintf("Kernel at 0x%x\n", info->kernelImage.buffer);
+    klog_info("Kernel", "Kernel at 0x%x", info->kernelImage.buffer);
     
     MemoryManager::Init(info);
 

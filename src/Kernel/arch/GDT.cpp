@@ -58,7 +58,7 @@ namespace GDT
 
     void Init(KernelHeader* header)
     {
-        kprintf("Initializing GDT\n");
+        klog_info("GDT", "Initializing GDT");
 
         // null descriptor
         kmemset((void*)&g_GDT[0], 0, sizeof(GDTEntry));
