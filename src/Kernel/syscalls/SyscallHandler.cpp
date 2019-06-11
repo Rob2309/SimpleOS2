@@ -127,6 +127,7 @@ namespace SyscallHandler {
         case Syscall::FunctionClose: Scheduler::ProcessCloseFileDescriptor(arg1); break;
         case Syscall::FunctionRead: return VFS::Read(Scheduler::ProcessGetSystemFileDescriptor(arg1), (void*)arg2, arg3); break;
         case Syscall::FunctionWrite: return VFS::Write(Scheduler::ProcessGetSystemFileDescriptor(arg1), (const void*)arg2, arg3); break;
+        case Syscall::FunctionMount: return VFS::Mount((const char*)arg1, (const char*)arg2); break;
         }
 
         return 0;

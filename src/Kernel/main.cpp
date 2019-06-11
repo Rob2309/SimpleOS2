@@ -48,6 +48,10 @@ static void SetupTestProcess(uint8* loadBase)
     delete[] fileBuffer;
 }
 
+static VFS::FileSystem* TestFactory() {
+    return new TestFS();
+}
+
 extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     Terminal::Init(info->screenBuffer, info->screenWidth, info->screenHeight, info->screenScanlineWidth, info->screenColorsInverted);
     Terminal::Clear();
@@ -61,6 +65,7 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     SyscallHandler::Init();
 
     Ext2::Init();
+    VFS::FileSystemRegistry::RegisterFileSystem("test", TestFactory);
 
     VFS::Init(new TestFS());
     VFS::CreateFolder("/dev");
