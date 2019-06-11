@@ -71,17 +71,13 @@ namespace SyscallHandler {
     {
         switch(func) {
         case Syscall::FunctionPrint:
-            kprintf_setcolor(200, 50, 50);
-            kprintf("[%i.%i] ", Scheduler::ThreadGetPID(), Scheduler::ThreadGetTID());
-            kprintf_setcolor(255, 255, 255);
+            kprintf_colored(200, 50, 50, "[%i.%i] ", Scheduler::ThreadGetPID(), Scheduler::ThreadGetTID());
             kprintf((const char*)arg1); 
             break;
         case Syscall::FunctionWait: Scheduler::ThreadWait(arg1); break;
         case Syscall::FunctionGetPID: return Scheduler::ThreadGetPID(); break;
         case Syscall::FunctionExit: 
-            kprintf_setcolor(200, 50, 50);
-            kprintf("[%i.%i] ", Scheduler::ThreadGetPID(), Scheduler::ThreadGetTID());
-            kprintf_setcolor(255, 255, 255);
+            kprintf_colored(200, 50, 50, "[%i.%i] ", Scheduler::ThreadGetPID(), Scheduler::ThreadGetTID());
             kprintf("Exiting with code %i\n", arg1);
             Scheduler::ThreadExit(arg1); 
             break;

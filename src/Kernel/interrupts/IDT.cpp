@@ -37,7 +37,7 @@ namespace IDT {
     extern "C" void ISRCommonHandler(Registers* regs)
     {
         if(g_Handlers[regs->intNumber] == nullptr)
-            kprintf("INVALID INTERRUPT: %i\n", regs->intNumber);
+            klog_error("IDT", "INVALID INTERRUPT: %i", regs->intNumber);
         else
             g_Handlers[regs->intNumber](regs);
     }
@@ -56,27 +56,27 @@ namespace IDT {
     {
         switch (regs->intNumber)
         {
-        case ISRNumbers::ExceptionDiv0: kprintf("%i.%i: Divide by zero error\n", Scheduler::ThreadGetPID(), Scheduler::ThreadGetTID()); break;
-        case ISRNumbers::ExceptionDebug: kprintf("Debug trap\n"); break;
-        case ISRNumbers::ExceptionNMI: kprintf("Non maskable interrupt\n"); break;
-        case ISRNumbers::ExceptionBreakpoint: kprintf("Breakpoint\n"); break;
-        case ISRNumbers::ExceptionOverflow: kprintf("Overflow\n"); break;
-        case ISRNumbers::ExceptionBoundRangeExceeded: kprintf("Bound Range exceeded\n"); break;
-        case ISRNumbers::ExceptionInvalidOpcode: kprintf("%i.%i: Invalid opcode\n", Scheduler::ThreadGetPID(), Scheduler::ThreadGetTID()); break;
-        case ISRNumbers::ExceptionDeviceUnavailable: kprintf("Device unavailable\n"); break;
-        case ISRNumbers::ExceptionDoubleFault: kprintf("Double fault\n"); break;
-        case ISRNumbers::ExceptionCoprocesssorSegmentOverrun: kprintf("Coprocessor error\n"); break;
-        case ISRNumbers::ExceptionInvalidTSS: kprintf("Invalid TSS\n"); break;
-        case ISRNumbers::ExceptionSegmentNotPresent: kprintf("Segment not present\n"); break;
-        case ISRNumbers::ExceptionStackSegmentNotPresent: kprintf("Stack segment not present\n"); break;
-        case ISRNumbers::ExceptionGPFault: kprintf("%i.%i: General protection fault\n", Scheduler::ThreadGetPID(), Scheduler::ThreadGetTID()); break;
-        case ISRNumbers::ExceptionPageFault: kprintf("%i.%i: Page fault\n", Scheduler::ThreadGetPID(), Scheduler::ThreadGetTID()); break;
-        case ISRNumbers::ExceptionFPException: kprintf("Floating point exception\n"); break;
-        case ISRNumbers::ExceptionAlignmentCheck: kprintf("Alignment check\n"); break;
-        case ISRNumbers::ExceptionMachineCheck: kprintf("Machine check\n"); break;
-        case ISRNumbers::ExceptionSIMDFP: kprintf("SIMD floating point exception\n"); break;
-        case ISRNumbers::ExceptionVirtualization: kprintf("Virtualization exception\n"); break;
-        case ISRNumbers::ExceptionSecurity: kprintf("Security exception\n"); break;
+        case ISRNumbers::ExceptionDiv0: klog_error("IDT", "%i.%i: Divide by zero error", Scheduler::ThreadGetPID(), Scheduler::ThreadGetTID()); break;
+        case ISRNumbers::ExceptionDebug: klog_error("IDT", "Debug trap"); break;
+        case ISRNumbers::ExceptionNMI: klog_error("IDT", "Non maskable interrupt"); break;
+        case ISRNumbers::ExceptionBreakpoint: klog_error("IDT", "Breakpoint"); break;
+        case ISRNumbers::ExceptionOverflow: klog_error("IDT", "Overflow"); break;
+        case ISRNumbers::ExceptionBoundRangeExceeded: klog_error("IDT", "Bound Range exceeded"); break;
+        case ISRNumbers::ExceptionInvalidOpcode: klog_error("IDT", "%i.%i: Invalid opcode", Scheduler::ThreadGetPID(), Scheduler::ThreadGetTID()); break;
+        case ISRNumbers::ExceptionDeviceUnavailable: klog_error("IDT", "Device unavailable"); break;
+        case ISRNumbers::ExceptionDoubleFault: klog_error("IDT", "Double fault"); break;
+        case ISRNumbers::ExceptionCoprocesssorSegmentOverrun: klog_error("IDT", "Coprocessor error"); break;
+        case ISRNumbers::ExceptionInvalidTSS: klog_error("IDT", "Invalid TSS"); break;
+        case ISRNumbers::ExceptionSegmentNotPresent: klog_error("IDT", "Segment not present"); break;
+        case ISRNumbers::ExceptionStackSegmentNotPresent: klog_error("IDT", "Stack segment not present"); break;
+        case ISRNumbers::ExceptionGPFault: klog_error("IDT", "%i.%i: General protection fault", Scheduler::ThreadGetPID(), Scheduler::ThreadGetTID()); break;
+        case ISRNumbers::ExceptionPageFault: klog_error("IDT", "%i.%i: Page fault", Scheduler::ThreadGetPID(), Scheduler::ThreadGetTID()); break;
+        case ISRNumbers::ExceptionFPException: klog_error("IDT", "Floating point exception"); break;
+        case ISRNumbers::ExceptionAlignmentCheck: klog_error("IDT", "Alignment check"); break;
+        case ISRNumbers::ExceptionMachineCheck: klog_error("IDT", "Machine check"); break;
+        case ISRNumbers::ExceptionSIMDFP: klog_error("IDT", "SIMD floating point exception"); break;
+        case ISRNumbers::ExceptionVirtualization: klog_error("IDT", "Virtualization exception"); break;
+        case ISRNumbers::ExceptionSecurity: klog_error("IDT", "Security exception"); break;
         }
 
         uint64 cr2;

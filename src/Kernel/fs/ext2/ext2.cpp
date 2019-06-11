@@ -10,12 +10,12 @@ namespace Ext2 {
     Ext2Driver::Ext2Driver(const char* dev) {
         m_Dev = VFS::Open(dev);
         if(m_Dev == 0)
-            kprintf("Failed to open %s\n", dev);
+            klog_error("Ext2", "Failed to open %s", dev);
 
         VFS::Read(m_Dev, 1024, &m_SB, sizeof(SuperBlock));
 
-        kprintf("Ramdisk has version %i.%i\n", m_SB.versionMajor, m_SB.versionMinor);
-        kprintf("Volume name: %s\n", m_SB.volumeName);
+        klog_info("Ext2", "Ramdisk has version %i.%i", m_SB.versionMajor, m_SB.versionMinor);
+        klog_info("Ext2", "Volume name: %s", m_SB.volumeName);
     }
 
     void Ext2Driver::GetSuperBlock(VFS::SuperBlock* sb) {
