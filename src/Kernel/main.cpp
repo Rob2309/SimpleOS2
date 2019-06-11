@@ -28,9 +28,9 @@
 
 static void SetupTestProcess(uint8* loadBase)
 {
-    uint64 file = VFS::Open("/initrd/test.elf");
+    uint64 file = VFS::Open("/initrd/Test.elf");
     if(file == 0) {
-        kprintf("Failed to find test.elf\n");
+        kprintf("Failed to find Test.elf\n");
         return;
     }
 

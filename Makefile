@@ -10,9 +10,11 @@ export bin_dir := $(out_dir)/$(bin_dir_rel)
 export int_dir := $(out_dir)/int/$(config)
 export RD_BUILDER = $(bin_dir)/tools/RamdiskBuilder
 
-root_partition_img_deps := $(bin_dir)/Kernel/Kernel.sys $(bin_dir)/Bootloader/BOOTX64.EFI
-ramdisk_files := $(bin_dir)/Programs/Test/test.elf $(bin_dir)/Programs/Test2/test2.elf
-ramdisk_command := $(bin_dir)/Programs/Test/test.elf test.elf $(bin_dir)/Programs/Test2/test2.elf test2.elf
+programs := $(subst src/Programs/,,$(shell find src/Programs -mindepth 1 -maxdepth 1 -type d -printf "%p "))
+
+root_partition_img_deps := $(bin_dir)/Kernel/Kernel.sys $(bin_dir)/Bootloader/BOOTX64.EFI $(bin_dir)/initrd
+ramdisk_files := $(foreach program,$(programs),$(bin_dir)/Programs/$(program)/$(program).elf)
+ramdisk_command := $(foreach program,$(programs),$(bin_dir)/Programs/$(program)/$(program).elf $(program).elf)
 
 depcheck: FORCE
 	@ ./depcheck.sh
@@ -40,7 +42,7 @@ $(bin_dir)/partition.vdi: $(bin_dir)/partition.img
 	@ rm -rf $@
 	@ VBoxManage convertfromraw $(bin_dir_rel)/partition.img $(bin_dir_rel)/partition.vdi --format VDI --uuid 430eee2a-0fdf-4d2a-88f0-5b99ea8cffca
 
-$(bin_dir)/partition.img: $(root_partition_img_deps) $(bin_dir)/initrd
+$(bin_dir)/partition.img: $(root_partition_img_deps)
 	@ echo "\e[32mBuilding raw partition\e[0m"
 	@ dd if=/dev/zero of=$@ bs=512 count=102400 2>/dev/null
 	@ mkfs.fat $@ >/dev/null
@@ -54,10 +56,10 @@ $(bin_dir)/initrd: $(RD_BUILDER) $(ramdisk_files)
 $(bin_dir)/Kernel/Kernel.sys: FORCE
 	@ echo "\e[32mBuilding kernel\e[0m"
 	@ make -s -C src/Kernel
-$(bin_dir)/Programs/Test/test.elf: FORCE
+$(bin_dir)/Programs/Test/Test.elf: FORCE
 	@ echo "\e[32mBuilding Test\e[0m"
 	@ make -s -C src/Programs/Test
-$(bin_dir)/Programs/Test2/test2.elf: FORCE
+$(bin_dir)/Programs/Test2/Test2.elf: FORCE
 	@ echo "\e[32mBuilding Test2\e[0m"
 	@ make -s -C src/Programs/Test2
 $(bin_dir)/Bootloader/BOOTX64.EFI: FORCE

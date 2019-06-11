@@ -9,6 +9,6 @@ includes := ../../common
 compile_flags := -g -ffreestanding -fno-stack-protector -fno-exceptions
 link_flags := -g -nostdlib -e main -static -lgcc
 
-out_file := test2.elf
+out_file := Test2.elf
 
 include ../../makeinclude/cpp.mk
