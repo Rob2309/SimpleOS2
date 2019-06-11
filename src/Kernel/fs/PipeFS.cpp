@@ -58,6 +58,8 @@ namespace VFS {
     void WriteNode(Node* node) { }
 
     static uint64 _Read(Pipe* p, void* buffer, uint64 bufferSize) {
+        char* realBuffer = (char*)buffer;
+
         p->lock.SpinLock();
 
         if(p->readPos <= p->writePos) {
@@ -65,7 +67,7 @@ namespace VFS {
             if(rem > bufferSize)
                 rem = bufferSize;
 
-            kmemcpy(buffer, p->buffer + p->readPos, rem);
+            kmemcpy(realBuffer, p->buffer + p->readPos, rem);
 
             p->readPos += rem;
             p->lock.Unlock();
@@ -80,8 +82,8 @@ namespace VFS {
                 capB = bufferSize - capA;
             }
 
-            kmemcpy(buffer, p->buffer + p->readPos, capA);
-            kmemcpy(buffer + capA, p->buffer, capB);
+            kmemcpy(realBuffer, p->buffer + p->readPos, capA);
+            kmemcpy(realBuffer + capA, p->buffer, capB);
 
             if(capB > 0) {
                 p->readPos = capB;
@@ -106,6 +108,8 @@ namespace VFS {
     }
 
     static uint64 _Write(Pipe* p, const void* buffer, uint64 bufferSize) {
+        char* realBuffer = (char*)buffer;
+
         p->lock.SpinLock();
 
         if(p->writePos < p->readPos) {
@@ -113,7 +117,7 @@ namespace VFS {
             if(rem > bufferSize)
                 rem = bufferSize;
 
-            kmemcpy(p->buffer + p->writePos, buffer, rem);
+            kmemcpy(p->buffer + p->writePos, realBuffer, rem);
 
             p->writePos += rem;
             p->lock.Unlock();
@@ -123,7 +127,7 @@ namespace VFS {
             if(rem > bufferSize)
                 rem = bufferSize;
 
-            kmemcpy(p->buffer + p->writePos, buffer, rem);
+            kmemcpy(p->buffer + p->writePos, realBuffer, rem);
             p->writePos += rem;
             p->writePos %= sizeof(p->buffer);
 
@@ -139,8 +143,8 @@ namespace VFS {
                 capB = bufferSize - capA;
             }
 
-            kmemcpy(p->buffer + p->writePos, buffer, capA);
-            kmemcpy(p->buffer, buffer + capA, capB);
+            kmemcpy(p->buffer + p->writePos, realBuffer, capA);
+            kmemcpy(p->buffer, realBuffer + capA, capB);
 
             if(capB > 0) {
                 p->writePos = capB;
@@ -154,13 +158,15 @@ namespace VFS {
         }
     }
     uint64 PipeFS::WriteNodeData(Node* node, uint64 pos, const void* buffer, uint64 bufferSize) {
+        char* realBuffer = (char*)buffer;
+
         g_PipesLock.SpinLock();
         Pipe* p = g_Pipes[node->id];
         g_PipesLock.Unlock();
 
         uint64 res = 0;
         while(true) {
-            uint64 count = _Write(p, buffer + res, bufferSize - res);
+            uint64 count = _Write(p, realBuffer + res, bufferSize - res);
             res += count;
             if(res == bufferSize)
                 break;
