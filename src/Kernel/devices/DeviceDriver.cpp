@@ -54,6 +54,8 @@ static void ReleaseCachedBlock(CachedBlock* cb, ktl::vector<CachedBlock*>& cache
 }
 
 void BlockDeviceDriver::GetData(uint64 subID, uint64 pos, void* buffer, uint64 bufferSize) {
+    char* realBuffer = (char*)buffer;
+
     uint64 startBlock = pos / GetBlockSize(subID);
     uint64 endBlock = (pos + bufferSize) / GetBlockSize(subID);
     uint64 numBlocks = endBlock - startBlock + 1;
@@ -82,18 +84,20 @@ void BlockDeviceDriver::GetData(uint64 subID, uint64 pos, void* buffer, uint64 b
         if(rem > bufferSize)
             rem = bufferSize;
 
-        kmemcpy(buffer, cb->data + offs, rem);
+        kmemcpy(realBuffer, cb->data + offs, rem);
         cb->dataLock.Unlock();
         m_CacheLock.SpinLock();
         ReleaseCachedBlock(cb, m_Cache);
         m_CacheLock.Unlock();
 
         pos += rem;
-        buffer += rem;
+        realBuffer += rem;
         bufferSize -= rem;
     }
 }
 void BlockDeviceDriver::SetData(uint64 subID, uint64 pos, const void* buffer, uint64 bufferSize) {
+    char* realBuffer = (char*)buffer;
+
     uint64 startBlock = pos / GetBlockSize(subID);
     uint64 endBlock = (pos + bufferSize) / GetBlockSize(subID);
     uint64 numBlocks = endBlock - startBlock + 1;
@@ -124,14 +128,14 @@ void BlockDeviceDriver::SetData(uint64 subID, uint64 pos, const void* buffer, ui
         if(rem > bufferSize)
             rem = bufferSize;
 
-        kmemcpy(cb->data + offs, buffer, rem);
+        kmemcpy(cb->data + offs, realBuffer, rem);
         cb->dataLock.Unlock();
         m_CacheLock.SpinLock();
         ReleaseCachedBlock(cb, m_Cache);
         m_CacheLock.Unlock();
 
         pos += rem;
-        buffer += rem;
+        realBuffer += rem;
         bufferSize -= rem;
     }
 }
