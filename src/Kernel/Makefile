@@ -27,15 +27,19 @@ ifeq ($(config),Release)
 endif
 
 $(bin_dir)/Kernel.sys: $(c_objects) $(cpp_objects) $(asm_objects)
-	@mkdir -p $(dir $@)
-	$(ELF_GCC) $(link_flags) -o $@ $^ -e main -static -lgcc
+	@ echo "\e[33mLinking Kernel executable\e[0m"
+	@ mkdir -p $(dir $@)
+	@ $(ELF_GCC) $(link_flags) -o $@ $^ -e main -static -lgcc
 
 $(int_dir)/%.c.o: ./%.c $(c_headers) $(cross_headers)
-	@mkdir -p $(dir $@)
-	$(ELF_GCC) $(compile_flags) $(include_flags) -c $< -o $@
+	@ echo "\e[33mCompiling $<\e[0m"
+	@ mkdir -p $(dir $@)
+	@ $(ELF_GCC) $(compile_flags) $(include_flags) -c $< -o $@
 $(int_dir)/%.cpp.o: ./%.cpp $(c_headers) $(cross_headers)
-	@mkdir -p $(dir $@)
-	$(ELF_GCC) $(compile_flags) $(include_flags) -c $< -o $@
+	@ echo "\e[33mCompiling $<\e[0m"
+	@ mkdir -p $(dir $@)
+	@ $(ELF_GCC) $(compile_flags) $(include_flags) -c $< -o $@
 $(int_dir)/%.asm.o: ./%.asm $(cross_headers)
-	@mkdir -p $(dir $@)
-	$(NASM) -g -f elf64 $< -o $@
+	@ echo "\e[33mCompiling $<\e[0m"
+	@ mkdir -p $(dir $@)
+	@ $(NASM) -g -f elf64 $< -o $@

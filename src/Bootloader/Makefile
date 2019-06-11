@@ -18,15 +18,19 @@ compile_flags := -ffreestanding
 link_flags := -nostdlib -Wl,-dll -shared -Wl,--subsystem,10
 
 $(bin_dir)/BOOTX64.EFI: $(c_objects) $(cpp_objects) $(asm_objects)
-	@mkdir -p $(dir $@)
-	$(PE_GCC) $(link_flags) -o $@ $^ -e efi_main
+	@ echo "\e[33mLinking executable\e[0m"
+	@ mkdir -p $(dir $@)
+	@ $(PE_GCC) $(link_flags) -o $@ $^ -e efi_main
 
 $(int_dir)/%.c.o: ./%.c $(c_headers) $(cross_headers)
-	@mkdir -p $(dir $@)
-	$(PE_GCC) $(compile_flags) $(include_flags) -c $< -o $@
+	@ echo "\e[33mCompiling $<\e[0m"
+	@ mkdir -p $(dir $@)
+	@ $(PE_GCC) $(compile_flags) $(include_flags) -c $< -o $@
 $(int_dir)/%.cpp.o: ./%.cpp $(c_headers) $(cross_headers)
-	@mkdir -p $(dir $@)
-	$(PE_GCC) $(compile_flags) $(include_flags) -c $< -o $@
+	@ echo "\e[33mCompiling $<\e[0m"
+	@ mkdir -p $(dir $@)
+	@ $(PE_GCC) $(compile_flags) $(include_flags) -c $< -o $@
 $(int_dir)/%.asm.o: ./%.asm $(cross_headers)
-	@mkdir -p $(dir $@)
-	$(NASM) -g -f elf64 $< -o $@
+	@ echo "\e[33mCompiling $<\e[0m"
+	@ mkdir -p $(dir $@)
+	@ $(NASM) -g -f elf64 $< -o $@

@@ -19,8 +19,8 @@ int main(int argc, char** argv)
 {
     std::string outFile = argv[1];
 
-    system(("dd if=/dev/zero of=" + outFile + " bs=512 count=20000").c_str());
-    system(("mkfs.ext2 " + outFile + " -L SimpleOS2").c_str());
+    system(("dd if=/dev/zero of=" + outFile + " bs=512 count=20000 2> /dev/null").c_str());
+    system(("mkfs.ext2 " + outFile + " -L SimpleOS2 > /dev/null 2>&1").c_str());
 
     system(("echo >> " + outFile + ".cmd").c_str());
 
@@ -28,12 +28,12 @@ int main(int argc, char** argv)
         std::string srcFile = argv[i];
         std::string destFile = argv[i+1];
 
-        std::cout << "Adding file " << srcFile << " as " << destFile << std::endl;
+        std::cout << "\e[33mAdding file " << srcFile << " as " << destFile << "\e[0m" << std::endl;
 
         system(("echo write " + srcFile + " " + destFile + " >> " + outFile + ".cmd").c_str());
     }
 
     system(("echo q >> " + outFile + ".cmd").c_str());
 
-    system(("debugfs -w " + outFile + " -f " + outFile + ".cmd").c_str());
+    system(("debugfs -w " + outFile + " -f " + outFile + ".cmd > /dev/null 2>&1").c_str());
 }
