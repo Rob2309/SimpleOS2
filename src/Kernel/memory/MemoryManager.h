@@ -56,10 +56,12 @@ namespace MemoryManager {
      * Map any available physical page to the given virtual page. If the virtual page is already mapped to any physical page, do nothing
      **/
     void* MapProcessPage(uint64 pml4Entry, void* virt, bool invalidate);
+    void MapProcessPage(void* virt);
     /**
      * Remove a page from the given User Memory Space
      **/
-    void UnmapProcessPage(uint64 pml4Entry, void* virt);
+    void UnmapProcessPage(uint64 pml4Entry, void* virt, bool invalidate = true);
+    void UnmapProcessPage(void* virt);
 
     /**
      * Return a kernel-usable pointer to the physical page mapped to the given virtual address. If it is not mapped, return nullptr

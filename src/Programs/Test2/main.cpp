@@ -23,9 +23,12 @@ extern "C" void main()
     Syscall::Write(file1, msg, sizeof(msg));
     Syscall::Close(file1);
 
-    char buffer[128];
+    char* buffer = (char*)0x500000;
+    Syscall::AllocPages(buffer, 1);
+
     uint64 file2 = Syscall::Open("/test/file1");
-    Syscall::Read(file2, buffer, sizeof(buffer));
+    if(Syscall::Read(file2, buffer, 4096) != sizeof(msg))
+        Syscall::Print("Error reading file...\n");
     Syscall::Close(file2);
 
     Syscall::Print(buffer);

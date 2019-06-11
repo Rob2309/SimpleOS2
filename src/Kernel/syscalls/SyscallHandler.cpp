@@ -128,6 +128,18 @@ namespace SyscallHandler {
         case Syscall::FunctionRead: return VFS::Read(Scheduler::ProcessGetSystemFileDescriptor(arg1), (void*)arg2, arg3); break;
         case Syscall::FunctionWrite: return VFS::Write(Scheduler::ProcessGetSystemFileDescriptor(arg1), (const void*)arg2, arg3); break;
         case Syscall::FunctionMount: return VFS::Mount((const char*)arg1, (const char*)arg2); break;
+
+        case Syscall::FunctionAllocPages: {
+                for(uint64 i = 0; i < arg2; i++) {
+                    MemoryManager::MapProcessPage((char*)arg1 + i * 4096);
+                }
+                return true;
+            } break;
+        case Syscall::FunctionFreePages: {
+                for(uint64 i = 0; i < arg2; i++) {
+                    MemoryManager::UnmapProcessPage((char*)arg1 + i * 4096);
+                }
+            } break;
         }
 
         return 0;

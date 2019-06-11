@@ -353,6 +353,9 @@ namespace MemoryManager {
 
         return PhysToKernelPtr(phys);
     }
+    void MapProcessPage(void* virt) {
+        MapProcessPage(g_PML4[0], virt, true);
+    }
     void UnmapProcessPage(uint64 pml4Entry, void* virt, bool invalidate)
     {
         uint64 pml3Index = GET_PML3_INDEX((uint64)virt);
@@ -375,6 +378,9 @@ namespace MemoryManager {
                 : : "r"(virt)
             );
         }
+    }
+    void UnmapProcessPage(void* virt) {
+        UnmapProcessPage(g_PML4[0], virt, true);
     }
 
     void* UserToKernelPtr(const void* virt)
