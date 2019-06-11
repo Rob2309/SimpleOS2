@@ -24,6 +24,7 @@ namespace Syscall
     constexpr uint64 FunctionRead = 58;
     constexpr uint64 FunctionWrite = 59;
     constexpr uint64 FunctionMount = 60;
+    constexpr uint64 FunctionMountDev = 61;
 
     /**
      * Print a message onto the screen
@@ -227,6 +228,18 @@ namespace Syscall
             : "=a"(res)
             : "D"(FunctionMount), "S"(mountPoint), "d"(fsID)
             : "rcx", "r8", "r9", "r10", "r11"
+        );
+        return res;
+    }
+
+    inline uint64 Mount(const char* mountPoint, const char* fsID, const char* dev) {
+        uint64 res;
+        register uint64 r8 asm("r8") = (uint64)dev;
+        __asm__ __volatile__ (
+            "syscall"
+            : "=a"(res)
+            : "D"(FunctionMountDev), "S"(mountPoint), "d"(fsID), "r"(r8)
+            : "rcx", "r9", "r10", "r11"
         );
         return res;
     }
