@@ -88,6 +88,28 @@ namespace SyscallHandler {
         case Syscall::FunctionFork: return DoFork(state); break;
         case Syscall::FunctionCreateThread: Scheduler::ThreadCreateThread(arg1, arg2); break;
         case Syscall::FunctionWaitForLock: Scheduler::ThreadWaitForLock(MemoryManager::UserToKernelPtr((void*)arg1)); break;
+        case Syscall::FunctionExec: {
+                uint64 file = VFS::Open((const char*)arg1);
+                if(file == 0)
+                    return 0;
+                
+                VFS::NodeStats stats;
+                VFS::Stat(file, &stats);
+
+                uint8* buffer = new uint8[stats.size];
+                VFS::Read(file, buffer, stats.size);
+                VFS::Close(file);
+
+                uint64 pml4Entry;
+                IDT::Registers regs;
+                if(!PrepareELF(buffer, pml4Entry, regs)) {
+                    delete[] buffer;
+                    return 0;
+                }
+
+                delete[] buffer;
+                Scheduler::ProcessExec(pml4Entry, &regs);
+            } break;
 
         case Syscall::FunctionCreateFile: return VFS::CreateFile((const char*)arg1); break;
         case Syscall::FunctionCreateFolder: return VFS::CreateFolder((const char*)arg1); break;
