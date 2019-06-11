@@ -65,4 +65,17 @@ namespace VFS {
         virtual Directory* WriteDirEntries(Node* node) = 0;
     };
 
+    typedef FileSystem* (*FileSystemFactory)();
+    typedef FileSystem* (*FileSystemFactoryDev)(const char* devFile);
+
+    class FileSystemRegistry {
+    public:
+        static void RegisterFileSystem(const char* id, FileSystemFactory factory);
+        static void RegisterFileSystem(const char* id, FileSystemFactoryDev factory);
+        static void UnregisterFileSystem(const char* id);
+
+        static FileSystem* CreateFileSystem(const char* id);
+        static FileSystem* CreateFileSystem(const char* id, const char* dev);
+    };
+
 }

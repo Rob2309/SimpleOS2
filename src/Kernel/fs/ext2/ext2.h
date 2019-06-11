@@ -145,4 +145,6 @@ namespace Ext2 {
         SuperBlock m_SB;
     };
 
+    void Init();
+
 }
