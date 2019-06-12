@@ -438,6 +438,7 @@ namespace Scheduler {
         case SignalGpFault: signalName = "GPFault"; break;
         case SignalInvOp: signalName = "InvOp"; break;
         case SignalPageFault: signalName = "PageFault"; break;
+        case SignalAbort: signalName = "Abort"; break;
         default: signalName = "UNKNOWN"; break;
         }
 
