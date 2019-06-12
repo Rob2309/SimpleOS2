@@ -455,6 +455,7 @@ namespace Scheduler {
         tInfo->registers.rflags = CPU::FLAGS_IF;
         tInfo->registers.rip = (uint64)&SignalHandler;
         tInfo->registers.userrsp = tInfo->kernelStack;
+        tInfo->registers.rdi = signal;
 
         ReturnToThread(&tInfo->registers);
     }
