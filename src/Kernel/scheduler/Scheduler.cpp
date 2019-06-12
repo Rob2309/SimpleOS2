@@ -10,6 +10,7 @@
 #include "arch/APIC.h"
 #include "arch/CPU.h"
 #include "fs/VFS.h"
+#include "klib/stdio.h"
 
 namespace Scheduler {
 
@@ -309,6 +310,7 @@ namespace Scheduler {
     static void FreeProcess(ProcessInfo* pInfo)
     {
         MemoryManager::FreeProcessMap(pInfo->pml4Entry);
+        delete pInfo;
     }
 
     void ThreadExit(uint64 code)
@@ -427,6 +429,34 @@ namespace Scheduler {
         SaveThreadInfo(regs);
         SetContext(g_CPUData.currentThread, regs);
         ReturnToThread(regs);
+    }
+
+    static void SignalHandler(uint64 signal) {
+        const char* signalName;
+        switch(signal) {
+        case SignalDiv0: signalName = "Div0"; break;
+        case SignalGpFault: signalName = "GPFault"; break;
+        case SignalInvOp: signalName = "InvOp"; break;
+        case SignalPageFault: signalName = "PageFault"; break;
+        default: signalName = "UNKNOWN"; break;
+        }
+
+        klog_error("Signal", "%i.%i Received signal %s", ThreadGetPID(), ThreadGetTID(), signalName);
+        ThreadExit(1);
+    }
+
+    void ThreadReturnToSignalHandler(uint64 signal) {
+        ThreadInfo* tInfo = g_CPUData.currentThread;
+
+        kmemset(&tInfo->registers, 0, sizeof(IDT::Registers));
+        tInfo->registers.cs = GDT::KernelCode;
+        tInfo->registers.ds = GDT::KernelData;
+        tInfo->registers.ss = GDT::KernelData;
+        tInfo->registers.rflags = CPU::FLAGS_IF;
+        tInfo->registers.rip = (uint64)&SignalHandler;
+        tInfo->registers.userrsp = tInfo->kernelStack;
+
+        ReturnToThread(&tInfo->registers);
     }
 
 }

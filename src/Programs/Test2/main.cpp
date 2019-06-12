@@ -33,5 +33,9 @@ extern "C" void main()
 
     Syscall::Print(buffer);
 
+    Syscall::Print("Let's cause a pagefault!\n");
+    char* test = nullptr;
+    test[0] = 17;
+
     Syscall::Exit(0);
 }
