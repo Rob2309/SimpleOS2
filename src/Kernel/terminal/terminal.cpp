@@ -1,11 +1,12 @@
 #include "terminal.h"
 
 #include "terminalfont.h"
+#include "klib/memory.h"
 
 namespace Terminal {
     constexpr int g_Margin = 25;
 
-    static volatile uint32* g_VideoBuffer;
+    static uint32* g_VideoBuffer;
 
     static volatile int g_CursorX, g_CursorY;
 
@@ -30,28 +31,19 @@ namespace Terminal {
         g_ScreenHeight = height;
         g_ScreenScanline = scanline;
 
-        g_VideoBuffer = videoBuffer;
+        g_VideoBuffer = (uint32*)videoBuffer;
 
         g_InvertColors = invertColors;
     }
 
-    static void Blt(volatile uint32* dest, volatile uint32* src, int srcX, int srcY, int dstX, int dstY, int width, int height, int srcScan, int dstScan)
+    static void Blt(uint32* dest, uint32* src, int srcX, int srcY, int dstX, int dstY, int width, int height, int srcScan, int dstScan)
     {
-        for(int y = 0; y < height; y++)
-            for(int x = 0; x < width; x++) {
-                dest[(dstX + x) + (dstY + y) * dstScan] = src[(srcX + x) + (srcY + y) * srcScan];
-            }
+        for(int y = 0; y < height; y++) {
+            kmemcpy(&dest[(dstY + y) * dstScan], &src[(srcY + y) * srcScan], width);
+        }
     }
 
-    static void BltColor(volatile uint32* dest, volatile uint32* src, int srcX, int srcY, int dstX, int dstY, int width, int height, int srcScan, int dstScan, uint32 color)
-    {
-        for(int y = 0; y < height; y++)
-            for(int x = 0; x < width; x++) {
-                dest[(dstX + x) + (dstY + y) * dstScan] = src[(srcX + x) + (srcY + y) * srcScan] & color;
-            }
-    }
-
-    static void Fill(volatile uint32* dest, uint32 pxl, int x, int y, int w, int h, int dstScan)
+    static void Fill(uint32* dest, uint32 pxl, int x, int y, int w, int h, int dstScan)
     {
         for(int yy = y; yy < y + h; yy++) {
             for(int xx = x; xx < x + w; xx++) {
