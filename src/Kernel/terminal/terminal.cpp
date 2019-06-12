@@ -53,7 +53,7 @@ namespace Terminal {
 
     static void Fill(volatile uint32* dest, uint32 pxl, int x, int y, int w, int h, int dstScan)
     {
-        for(int yy = y; yy < y + w; yy++) {
+        for(int yy = y; yy < y + h; yy++) {
             for(int xx = x; xx < x + w; xx++) {
                 dest[xx + yy * dstScan] = pxl;
             }
