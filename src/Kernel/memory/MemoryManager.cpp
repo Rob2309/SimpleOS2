@@ -416,4 +416,9 @@ namespace MemoryManager {
         return PhysToKernelPtr((void*)phys);
     }
 
+    bool IsUserPtr(const void* ptr) {
+        uint64 pml4Index = GET_PML4_INDEX((uint64)ptr);
+        return pml4Index == 0;
+    }
+
 }

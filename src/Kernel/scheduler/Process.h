@@ -60,6 +60,7 @@ constexpr uint64 SignalDiv0 = 0x1;
 constexpr uint64 SignalInvOp = 0x2;
 constexpr uint64 SignalGpFault = 0x4;
 constexpr uint64 SignalPageFault = 0x8;
+constexpr uint64 SignalAbort = 0x10;
 
 struct ProcessInfo {
     uint64 pid;

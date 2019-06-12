@@ -68,4 +68,6 @@ namespace MemoryManager {
      **/
     void* UserToKernelPtr(const void* ptr);
 
+    bool IsUserPtr(const void* ptr);
+
 }

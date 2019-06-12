@@ -6,10 +6,13 @@ extern "C" void main()
     if(Syscall::Fork()) {
         Syscall::Print("Parent...\n");
 
-        while(true) {
+        for(int i = 0; i < 5; i++) {
             Syscall::Wait(2000);
             Syscall::Print("Parent alive...\n");
         }
+
+        Syscall::Print("Lets allocate pages in the kernel memory space!\n");
+        Syscall::AllocPages((void*)0xFFFFFF8000123000, 10);
     } else {
         Syscall::Print("Child...\n");
 
