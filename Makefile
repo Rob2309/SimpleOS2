@@ -31,7 +31,7 @@ runvbox: $(bin_dir)/../partition.vdi FORCE
 debug: $(bin_dir)/partition.img FORCE
 	@ echo "\e[32mStarting debugging session\e[0m"
 	@ qemu-system-x86_64 -gdb tcp::26000 -m 1024 -cpu qemu64 -net none -drive if=pflash,unit=0,format=raw,file=dep/ovmf/x64/OVMF_CODE.fd,readonly=on -drive if=pflash,unit=1,format=raw,file=dep/ovmf/x64/OVMF_VARS.fd,readonly=on -drive file=$<,if=ide -S & \
-	@ gdb --command=debug.cmd
+	  gdb --command=debug.cmd
 
 $(bin_dir)/../partition.vdi: $(bin_dir)/partition.vdi
 	@ rm -f $@
