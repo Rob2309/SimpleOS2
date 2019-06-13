@@ -35,4 +35,6 @@ struct KernelHeader {
     uint64* pageBuffer;             // Buffer of the initial paging structure
     uint64 pageBufferPages;
     uint64 highMemoryBase;          // The Virtual Memory Address associated with the lowest addressable physical address
+
+    void* rsdp;
 };
