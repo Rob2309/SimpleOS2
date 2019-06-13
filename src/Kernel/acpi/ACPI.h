@@ -17,8 +17,10 @@ namespace ACPI {
         uint8 reserved[3];
     };
 
+    #define SIGNATURE(a, b, c, d) (((uint32)(d) << 24) | ((uint32)(c) << 16) | ((uint32)(b) << 8) | ((uint32)(a)))
+
     struct __attribute__((packed)) SDTHeader {
-        char signature[4];
+        uint32 signature;
         uint32 length;
         uint8 revision;
         uint8 checksum;
@@ -32,13 +34,19 @@ namespace ACPI {
     struct __attribute__((packed)) XSDT {
         SDTHeader header;
         void* tables[];
+
+        SDTHeader* FindTable(uint32 signature);
     };
+
+    struct MADTEntryHeader;
 
     struct __attribute__((packed)) MADT {
         SDTHeader header;
         uint32 lapicAddress;
         uint32 flags;
         char entries[];
+
+        MADTEntryHeader* GetNextEntry(uint64& pos);
     };
 
     struct __attribute__((packed)) MADTEntryHeader {

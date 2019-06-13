@@ -88,29 +88,19 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     ACPI::XSDT* xsdt = (ACPI::XSDT*)MemoryManager::PhysToKernelPtr((void*)rsdp->xsdtAddress);
     klog_info("ACPI", "XSDT at 0x%x", xsdt);
 
-    ACPI::MADT* madt = nullptr;
-    uint64 numEntries = (xsdt->header.length - sizeof(ACPI::XSDT)) / 8;
-    for(int i = 0; i < numEntries; i++) {
-        ACPI::SDTHeader* entry = (ACPI::SDTHeader*)MemoryManager::PhysToKernelPtr(xsdt->tables[i]);
-        if(entry->signature[0] = 'A' && entry->signature[1] == 'P' && entry->signature[2] == 'I' && entry->signature[3] == 'C') {
-            madt = (ACPI::MADT*)entry;
-            break;
-        }
-    }
+    ACPI::MADT* madt = (ACPI::MADT*)xsdt->FindTable(SIGNATURE('A', 'P', 'I', 'C'));
     if(madt == nullptr)
         klog_fatal("ACPI", "MADT not found");
     else
         klog_info("ACPI", "MADT at 0x%x", madt);
 
     uint64 pos = 0;
-    while(pos < madt->header.length - sizeof(ACPI::MADT)) {
-        ACPI::MADTEntryHeader* entry = (ACPI::MADTEntryHeader*)(&madt->entries[pos]);
+    ACPI::MADTEntryHeader* entry;
+    while((entry = madt->GetNextEntry(pos)) != nullptr) {
         if(entry->entryType == ACPI::MADTEntryHeader::TYPE_LAPIC) {
             ACPI::MADTEntryLAPIC* lapic = (ACPI::MADTEntryLAPIC*)(entry);
             kprintf("LAPIC: Proc=%i, ID=%i, Flags=%X\n", lapic->processorID, lapic->lapicID, lapic->processorEnabled);
         }
-
-        pos += entry->length;
     }
 
     SetupTestProcess((uint8*)0x16000);
