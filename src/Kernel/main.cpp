@@ -54,6 +54,11 @@ static VFS::FileSystem* TestFactory() {
     return new TestFS();
 }
 
+static volatile bool wait = true;
+static void ISR_Timer(IDT::Registers* regs) {
+    wait = false;
+}
+
 extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     Terminal::Init(info->screenBuffer, info->screenWidth, info->screenHeight, info->screenScanlineWidth, info->screenColorsInverted);
     Terminal::Clear();
@@ -84,6 +89,24 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
 
     APIC::Init();
 
+    char* interruptStack = (char*)MemoryManager::PhysToKernelPtr(MemoryManager::AllocatePages(10));
+    GDT::SetIST1(interruptStack + 10 * 4096);
+
+    volatile uint16* flag = (uint16*)MemoryManager::PhysToKernelPtr((void*)0x1234);
+    char* buffer = (char*)MemoryManager::PhysToKernelPtr(MemoryManager::AllocatePages(1));
+    buffer[0] = 0xFA;
+    buffer[1] = 0xC7;
+    buffer[2] = 0x06;
+    buffer[3] = 0x34;
+    buffer[4] = 0x12;
+    buffer[5] = 0xAD;
+    buffer[6] = 0xDE;
+    buffer[7] = 0xF4;
+    buffer[8] = 0xEB;
+    buffer[9] = 0xFD;
+
+    APIC::SetTimerEvent(ISR_Timer);
+
     ACPI::RSDPDescriptor* rsdp = (ACPI::RSDPDescriptor*)info->rsdp;
     ACPI::XSDT* xsdt = (ACPI::XSDT*)MemoryManager::PhysToKernelPtr((void*)rsdp->xsdtAddress);
     klog_info("ACPI", "XSDT at 0x%x", xsdt);
@@ -99,12 +122,26 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     while((entry = madt->GetNextEntry(pos)) != nullptr) {
         if(entry->entryType == ACPI::MADTEntryHeader::TYPE_LAPIC) {
             ACPI::MADTEntryLAPIC* lapic = (ACPI::MADTEntryLAPIC*)(entry);
-            kprintf("LAPIC: Proc=%i, ID=%i, Flags=%X\n", lapic->processorID, lapic->lapicID, lapic->processorEnabled);
+            klog_info("SMP", "LAPIC: Proc=%i, ID=%i, Flags=%X", lapic->processorID, lapic->lapicID, lapic->processorEnabled);
+
+            if(lapic->lapicID == 0)
+                continue;
+
+            wait = true;
+            *flag = 0;
+            APIC::SendInitIPI(lapic->lapicID);
+            APIC::StartTimer(10);
+            IDT::EnableInterrupts();
+            while(wait) ;
+            IDT::DisableInterrupts();
+            APIC::SendStartupIPI(lapic->lapicID, (uint64)MemoryManager::KernelToPhysPtr(buffer));
+
+            while(*flag != 0xDEAD) ;
+            klog_info("SMP", "Core %i started...", lapic->processorID);
         }
     }
 
     SetupTestProcess((uint8*)0x16000);
-    APIC::StartTimer(10);
     Scheduler::Start();
 
     // should never be reached

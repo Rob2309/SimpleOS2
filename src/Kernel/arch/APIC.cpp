@@ -19,6 +19,9 @@ namespace APIC
     constexpr uint64 RegTimerCurrentCount = 0x390;
     constexpr uint64 RegTimerInitCount = 0x380;
 
+    constexpr uint64 RegCommandLow = 0x300;
+    constexpr uint64 RegCommandHi = 0x310;
+
     static uint64 g_APICBase;
     static uint64 g_TimerTicksPerMS;
     static TimerEvent g_TimerEvent = nullptr;
@@ -108,4 +111,17 @@ namespace APIC
     {
         StartTimer(1, g_TimerTicksPerMS * ms, true);
     }
+
+    void SendInitIPI(uint8 coreID) {
+        constexpr uint32 cmd = (0b101 << 8) | (1 << 14);
+        *(volatile uint32*)(g_APICBase + RegCommandHi) = (uint32)coreID << 24;
+        *(volatile uint32*)(g_APICBase + RegCommandLow) = cmd;
+    }
+
+    void SendStartupIPI(uint8 coreID, uint64 startPage) {
+        uint32 cmd = (0b110 << 8) | (startPage >> 12);
+        *(volatile uint32*)(g_APICBase + RegCommandHi) = (uint32)coreID << 24;
+        *(volatile uint32*)(g_APICBase + RegCommandLow) = cmd;
+    }
+
 }

@@ -26,4 +26,7 @@ namespace APIC
      * Sets the function to be called when the timer fires
      **/
     void SetTimerEvent(TimerEvent evt);
+
+    void SendInitIPI(uint8 coreID);
+    void SendStartupIPI(uint8 coreID, uint64 startPage);
 }
