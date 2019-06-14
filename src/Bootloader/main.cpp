@@ -113,6 +113,12 @@ extern "C" EFI_STATUS efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
 
     Console::Print(L"Preparing kernel...\r\n");
 
+    if(AllocateBelow(0xFFFF, 2, (EFI_MEMORY_TYPE)0x80000001) == nullptr) {
+        Console::Print(L"Failed to allocate low buffer\r\nPress any key to exit...\r\n");
+        EFIUtil::WaitForKey();
+        return EFI_LOAD_ERROR;
+    }
+
     Elf64Addr kernelEntryPoint = 0;
     uint64 size = GetELFSize(kernelData.data);
     // allocate the buffer the relocated kernel image will be in

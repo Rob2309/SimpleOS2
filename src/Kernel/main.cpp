@@ -59,6 +59,8 @@ static void ISR_Timer(IDT::Registers* regs) {
     wait = false;
 }
 
+extern "C" void func_CoreStartup();
+
 extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     Terminal::Init(info->screenBuffer, info->screenWidth, info->screenHeight, info->screenScanlineWidth, info->screenColorsInverted);
     Terminal::Clear();
@@ -93,17 +95,6 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     GDT::SetIST1(interruptStack + 10 * 4096);
 
     volatile uint16* flag = (uint16*)MemoryManager::PhysToKernelPtr((void*)0x1234);
-    char* buffer = (char*)MemoryManager::PhysToKernelPtr(MemoryManager::AllocatePages(1));
-    buffer[0] = 0xFA;
-    buffer[1] = 0xC7;
-    buffer[2] = 0x06;
-    buffer[3] = 0x34;
-    buffer[4] = 0x12;
-    buffer[5] = 0xAD;
-    buffer[6] = 0xDE;
-    buffer[7] = 0xF4;
-    buffer[8] = 0xEB;
-    buffer[9] = 0xFD;
 
     APIC::SetTimerEvent(ISR_Timer);
 
@@ -134,7 +125,7 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
             IDT::EnableInterrupts();
             while(wait) ;
             IDT::DisableInterrupts();
-            APIC::SendStartupIPI(lapic->lapicID, (uint64)MemoryManager::KernelToPhysPtr(buffer));
+            APIC::SendStartupIPI(lapic->lapicID, (uint64)MemoryManager::KernelToPhysPtr((void*)&func_CoreStartup));
 
             while(*flag != 0xDEAD) ;
             klog_info("SMP", "Core %i started...", lapic->processorID);
