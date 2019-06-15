@@ -10,7 +10,7 @@ namespace GDT
     constexpr uint16 UserCode   = 0x23;
     constexpr uint16 UserData   = 0x1B;
 
-    void Init(KernelHeader* header);
+    void Init();
 
     void SetIST1(void* addr);
 }

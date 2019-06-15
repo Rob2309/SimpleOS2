@@ -4,6 +4,7 @@
 #include "klib/stdio.h"
 #include "arch/GDT.h"
 #include "scheduler/Process.h"
+#include "memory/MemoryManager.h"
 
 #define ISRSTUB(vectno) extern "C" void ISRSTUB_##vectno();
 #define ISRSTUBE(vectno) extern "C" void ISRSTUB_##vectno();
@@ -91,6 +92,9 @@ namespace IDT {
 
     void Init()
     {
+        uint8* interruptBuffer = (uint8*)MemoryManager::PhysToKernelPtr(MemoryManager::AllocatePages(4));
+        GDT::SetIST1(interruptBuffer + 4 * 4096);
+
         g_IDTDesc.limit = sizeof(g_IDT) - 1;
         g_IDTDesc.offset = (uint64)g_IDT;
 

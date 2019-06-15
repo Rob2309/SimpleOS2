@@ -56,7 +56,7 @@ namespace GDT
     static volatile GDTEntry g_GDT[7];
     static volatile TSS g_TSS;
 
-    void Init(KernelHeader* header)
+    void Init()
     {
         klog_info("GDT", "Initializing GDT");
 
@@ -104,6 +104,7 @@ namespace GDT
         // This is a stack that can be explicitly enabled for specific interrupts.
         // Those interrupts will then always use this stack, no matter in which privilege level it occured
         //g_TSS.ist1 = (uint64)header->stack + header->stackPages * 4096;
+        g_TSS.ist1 = 0;
 
         volatile TSSDesc* tssDesc = (volatile TSSDesc*)&g_GDT[5];
         kmemset((void*)tssDesc, 0, sizeof(TSSDesc));
