@@ -37,4 +37,7 @@ struct KernelHeader {
     uint64 highMemoryBase;          // The Virtual Memory Address associated with the lowest addressable physical address
 
     void* rsdp;
+
+    uint64 smpTrampolineBufferPages;
+    uint8* smpTrampolineBuffer;
 };

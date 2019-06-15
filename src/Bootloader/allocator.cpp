@@ -13,9 +13,8 @@ void Free(void* block, uint64 size)
     EFIUtil::SystemTable->BootServices->FreePages((EFI_PHYSICAL_ADDRESS)block, (size + 4095) / 4096);
 }
 
-void* AllocateBelow(uint64 address, uint64 numPages, EFI_MEMORY_TYPE type) {
-    void* res = (void*)address;
-    if(EFIUtil::SystemTable->BootServices->AllocatePages(AllocateMaxAddress, type, numPages, (EFI_PHYSICAL_ADDRESS*)&res) != EFI_SUCCESS)
-        return nullptr;
-    return res;
+bool AllocateBelow(uint8** address, uint64 numPages, EFI_MEMORY_TYPE type) {
+    if(EFIUtil::SystemTable->BootServices->AllocatePages(AllocateMaxAddress, type, numPages, (EFI_PHYSICAL_ADDRESS*)address) != EFI_SUCCESS)
+        return false;
+    return true;
 }

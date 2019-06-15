@@ -8,3 +8,6 @@ func_CoreStartup:
     .loop:
         hlt
         jmp .loop
+
+GLOBAL func_CoreStartup_End
+func_CoreStartup_End:

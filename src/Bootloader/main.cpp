@@ -113,11 +113,14 @@ extern "C" EFI_STATUS efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
 
     Console::Print(L"Preparing kernel...\r\n");
 
-    if(AllocateBelow(0xFFFF, 2, (EFI_MEMORY_TYPE)0x80000001) == nullptr) {
-        Console::Print(L"Failed to allocate low buffer\r\nPress any key to exit...\r\n");
+    header->smpTrampolineBufferPages = 5;
+    uint8* trampBuffer = (uint8*)0xFFFFF;
+    if(!AllocateBelow(&trampBuffer, header->smpTrampolineBufferPages, (EFI_MEMORY_TYPE)0x80000001)) {
+        Console::Print(L"Failed to allocate smp trampoline buffer\r\nPress any key to exit...\r\n");
         EFIUtil::WaitForKey();
         return EFI_LOAD_ERROR;
     }
+    header->smpTrampolineBuffer = (uint8*)Paging::ConvertPtr(trampBuffer);
 
     Elf64Addr kernelEntryPoint = 0;
     uint64 size = GetELFSize(kernelData.data);
