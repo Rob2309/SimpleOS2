@@ -8,8 +8,11 @@
 
 namespace SMP {
 
-    extern "C" void func_CoreStartup();
-    extern "C" void func_CoreStartup_End();
+    extern "C" int smp_Start;
+    extern "C" int smp_End;
+    extern "C" int smp_Trampoline;
+    extern "C" int smp_StartupFlag;
+    extern "C" int smp_Address;
 
     static volatile bool wait = true;
 
@@ -31,11 +34,15 @@ namespace SMP {
             klog_info("ACPI", "MADT at 0x%x", madt);
 
         APIC::SetTimerEvent(ISR_Timer);
-
-        volatile uint16* flag = (uint16*)MemoryManager::PhysToKernelPtr((void*)0x1234);
         
         uint8* buffer = header->smpTrampolineBuffer;
-        kmemcpy(buffer, (void*)&func_CoreStartup, (uint64)&func_CoreStartup_End - (uint64)&func_CoreStartup);
+        kmemcpy(buffer, (void*)&smp_Start, (uint64)&smp_End - (uint64)&smp_Start);
+
+        uint32 addressOffset = (uint64)&smp_Address - (uint64)&smp_Start;
+        *(volatile uint32*)(buffer + addressOffset) = (uint64)MemoryManager::KernelToPhysPtr(buffer);
+
+        uint64 flagOffset = (uint64)&smp_StartupFlag - (uint64)&smp_Start;
+        volatile uint16* flag = (uint16*)(buffer + flagOffset);
 
         uint64 pos = 0;
         ACPI::MADTEntryHeader* entry;
