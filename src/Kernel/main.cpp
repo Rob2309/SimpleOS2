@@ -6,7 +6,7 @@
 #include "interrupts/IDT.h"
 #include "arch/APIC.h"
 #include "memory/MemoryManager.h"
-#include "arch/SMP.h"
+#include "multicore/SMP.h"
 
 extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     Terminal::Init(info->screenBuffer, info->screenWidth, info->screenHeight, info->screenScanlineWidth, info->screenColorsInverted);
