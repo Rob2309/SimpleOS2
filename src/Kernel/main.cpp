@@ -14,12 +14,13 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
 
     klog_info("Kernel", "Kernel at 0x%x", info->kernelImage.buffer);
 
-    MemoryManager::Init(info);
+    MemoryManager::EarlyInit(info);
     GDT::Init();
     IDT::Init();
     APIC::Init();
-    
     SMP::StartCores(info);
+
+    MemoryManager::Init();
 
     while(true) ;
 }

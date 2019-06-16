@@ -10,15 +10,21 @@ namespace SMP {
 
     extern "C" int smp_Start;
     extern "C" int smp_End;
-    extern "C" int smp_Trampoline;
-    extern "C" int smp_StartupFlag;
-    extern "C" int smp_Address;
+    extern "C" int smp_TrampolineBaseAddress;
     extern "C" int smp_PML4Address;
+    extern "C" int smp_DestinationAddress;
+    extern "C" int smp_StackAddress;
 
     static volatile bool wait = true;
+    static volatile bool started = false;
 
     static void ISR_Timer(IDT::Registers* regs) {
         wait = false;
+    }
+
+    static void CoreEntry() {
+        started = true;
+        while(true) ;
     }
 
     void StartCores(KernelHeader* header) {
@@ -39,14 +45,17 @@ namespace SMP {
         uint8* buffer = header->smpTrampolineBuffer;
         kmemcpy(buffer, (void*)&smp_Start, (uint64)&smp_End - (uint64)&smp_Start);
 
-        uint32 addressOffset = (uint64)&smp_Address - (uint64)&smp_Start;
+        uint32 addressOffset = (uint64)&smp_TrampolineBaseAddress - (uint64)&smp_Start;
         *(volatile uint32*)(buffer + addressOffset) = (uint64)MemoryManager::KernelToPhysPtr(buffer);
 
-        uint64 flagOffset = (uint64)&smp_StartupFlag - (uint64)&smp_Start;
-        volatile uint16* flag = (uint16*)(buffer + flagOffset);
+        uint64 entryOffset = (uint64)&smp_DestinationAddress - (uint64)&smp_Start;
+        *(volatile uint64*)(buffer + entryOffset) = (uint64)&CoreEntry;
 
         uint64 pml4Offset = (uint64)&smp_PML4Address - (uint64)&smp_Start;
         *(volatile uint64*)(buffer + pml4Offset) = (uint64)MemoryManager::KernelToPhysPtr(header->pageBuffer);
+
+        uint64 stackOffset = (uint64)&smp_StackAddress - (uint64)&smp_Start;
+        *(volatile uint64*)(buffer + stackOffset) = (uint64)MemoryManager::PhysToKernelPtr(MemoryManager::AllocatePages(3));
 
         uint64 pos = 0;
         ACPI::MADTEntryHeader* entry;
@@ -59,7 +68,7 @@ namespace SMP {
                     continue;
 
                 wait = true;
-                *flag = 0;
+                started = false;
                 APIC::SendInitIPI(lapic->lapicID);
                 APIC::StartTimer(10);
                 IDT::EnableInterrupts();
@@ -67,7 +76,7 @@ namespace SMP {
                 IDT::DisableInterrupts();
                 APIC::SendStartupIPI(lapic->lapicID, (uint64)MemoryManager::KernelToPhysPtr(buffer));
 
-                while(*flag != 0xDEAD) ;
+                while(!started) ;
                 klog_info("SMP", "Core %i started...", lapic->processorID);
             }
         }

@@ -12,7 +12,7 @@ smp_Trampoline:
         mov ss, ax
 
         ; Calculate absolute address of smp_Start
-        mov edi, [ds: smp_Address - smp_Start]
+        mov edi, [ds: smp_TrampolineBaseAddress - smp_Start]
 
         mov ecx, edi
         add ecx, GDT - smp_Start                        ; Calculate absolute address of temp GDT
@@ -71,14 +71,17 @@ GDT_Desc:
     .base:
 		DD 0
 
-GLOBAL smp_StartupFlag
-smp_StartupFlag: DQ 0
-GLOBAL smp_Address
-smp_Address: DQ 0
-GLOBAL smp_PML4Address
-smp_PML4Address: DQ 0
+%macro Variable 1
+    GLOBAL %1
+    %1: DQ 0
+%endmacro
 
-TIMES 512 DB 0
+Variable smp_TrampolineBaseAddress
+Variable smp_PML4Address
+Variable smp_StackAddress
+Variable smp_DestinationAddress
+
+TIMES 20 DB 0
 stack_top:
 
 [BITS 32]
@@ -88,6 +91,7 @@ pm_Entry:
         mov es, eax
         mov ss, eax
 
+        ; Setup stack
         mov eax, edi
         add eax, stack_top - smp_Start
         mov esp, eax
@@ -96,19 +100,23 @@ pm_Entry:
         mov eax, DWORD [edi + smp_PML4Address - smp_Start]
         mov cr3, eax
 
+        ; Enable PAE paging
         mov eax, cr4
         or eax, 1 << 5
         mov cr4, eax
 
+        ; Enable long mode
         mov ecx, 0xC0000080
         rdmsr
         or eax, 1 << 8
         wrmsr
 
+        ; Enable paging
         mov eax, cr0
         or eax, 1 << 31
         mov cr0, eax
 
+        ; Jump from compatibility mode to actual long mode
         mov eax, edi
         add eax, lm_Entry - smp_Start
         push DWORD 24
@@ -121,12 +129,21 @@ pm_Entry:
 
 [BITS 64]
 lm_Entry:
+        ; Load 64-Bit data segments
         mov rax, 32
         mov ds, rax
         mov es, rax
         mov ss, rax
 
-        mov QWORD [rdi + smp_StartupFlag - smp_Start], 0xDEAD
+        ; Setup stack
+        mov rax, rdi
+        add rax, smp_StackAddress - smp_Start
+        mov rsp, [rax]
+
+        ; Jump to CoreEntry function
+        mov rax, rdi
+        add rax, smp_DestinationAddress - smp_Start
+        jmp [rax]
 
     .loop:
         hlt

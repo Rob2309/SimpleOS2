@@ -5,7 +5,8 @@
 
 namespace MemoryManager {
 
-    void Init(KernelHeader* header);
+    void EarlyInit(KernelHeader* header);
+    void Init();
 
     /**
      * Allocate physically continuous pages

@@ -47,27 +47,31 @@ namespace MemoryManager {
 
     static volatile uint64* g_PML4;
 
-    void Init(KernelHeader* header)
+    void EarlyInit(KernelHeader* header)
     {
         g_FreeList = ktl::FreeList(header->physMapStart);
         g_HighMemBase = header->highMemoryBase;
         g_PML4 = header->pageBuffer;
-
-        // delete lower half mapping
-        //g_PML4[0] = 0;
 
         uint64 availableMemory = 0;
         for(const auto& a : g_FreeList) {
             availableMemory += a.size;
         }
 
+        klog_info("MemoryManager", "Available memory: %i MB", availableMemory / 1024 / 1024);
+        klog_info("MemoryManager", "Early initialization done");
+    }
+
+    void Init() {
+        // delete lower half mapping
+        g_PML4[0] = 0;
+
         volatile uint64* heapPML3 = (volatile uint64*)PhysToKernelPtr(AllocatePages(1));
         for(int i = 0; i < 512; i++)
             heapPML3[i] = 0;
         g_PML4[510] = PML_SET_ADDR((uint64)KernelToPhysPtr((uint64*)heapPML3)) | PML_SET_P(1) | PML_SET_RW(1);
 
-        klog_info("Memory", "Available memory: %i MB", availableMemory / 1024 / 1024);
-        klog_info("Memory", "Memory manager initialized");
+        klog_info("MemoryManager", "MemoryManager fully initialized");
     }
 
     static void* _AllocatePages(uint64 numPages) {
