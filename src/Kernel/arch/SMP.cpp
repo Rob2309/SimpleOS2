@@ -13,6 +13,7 @@ namespace SMP {
     extern "C" int smp_Trampoline;
     extern "C" int smp_StartupFlag;
     extern "C" int smp_Address;
+    extern "C" int smp_PML4Address;
 
     static volatile bool wait = true;
 
@@ -43,6 +44,9 @@ namespace SMP {
 
         uint64 flagOffset = (uint64)&smp_StartupFlag - (uint64)&smp_Start;
         volatile uint16* flag = (uint16*)(buffer + flagOffset);
+
+        uint64 pml4Offset = (uint64)&smp_PML4Address - (uint64)&smp_Start;
+        *(volatile uint64*)(buffer + pml4Offset) = (uint64)MemoryManager::KernelToPhysPtr(header->pageBuffer);
 
         uint64 pos = 0;
         ACPI::MADTEntryHeader* entry;

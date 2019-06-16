@@ -54,7 +54,7 @@ namespace MemoryManager {
         g_PML4 = header->pageBuffer;
 
         // delete lower half mapping
-        g_PML4[0] = 0;
+        //g_PML4[0] = 0;
 
         uint64 availableMemory = 0;
         for(const auto& a : g_FreeList) {
