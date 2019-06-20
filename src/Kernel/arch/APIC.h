@@ -22,6 +22,8 @@ namespace APIC
      **/
     void StartTimer(uint32 ms);
 
+    void SignalEOI();
+
     typedef void (*TimerEvent)(IDT::Registers* regs);
     /**
      * Sets the function to be called when the timer fires
@@ -30,6 +32,14 @@ namespace APIC
 
     void SendInitIPI(uint8 coreID);
     void SendStartupIPI(uint8 coreID, uint64 startPage);
+
+    enum IPITargetMode {
+        IPI_TARGET_CORE = 0,
+        IPI_TARGET_SELF = 1,
+        IPI_TARGET_ALL = 2,
+        IPI_TARGET_ALL_BUT_SELF = 3,
+    };
+    void SendIPI(IPITargetMode targetMode, uint8 targetID, uint8 vector);
 
     uint64 GetID();
 }

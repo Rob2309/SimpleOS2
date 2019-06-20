@@ -76,6 +76,9 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     Ext2::Init();
     VFS::Mount("/initrd", "ext2", "/dev/ram0");
 
+    APIC::SendIPI(APIC::IPI_TARGET_CORE, 1, 123);
+    APIC::SendIPI(APIC::IPI_TARGET_CORE, 1, 123);
+
     SetupTestProcess();
     Scheduler::Start();
 

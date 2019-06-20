@@ -28,7 +28,7 @@ namespace APIC
     static uint64 g_TimerTicksPerMS;
     static TimerEvent g_TimerEvent = nullptr;
 
-    static void SendEOI()
+    void SignalEOI()
     {
         *(volatile uint32*)(g_APICBase + RegEOI) = 0;
     }
@@ -37,11 +37,11 @@ namespace APIC
     {
         if(g_TimerEvent != nullptr)
             g_TimerEvent(regs);
-        SendEOI();
+        SignalEOI();
     }
     static void ISR_Error(IDT::Registers* regs)
     {
-        SendEOI();
+        SignalEOI();
     }
     static void ISR_Spurious(IDT::Registers* regs)
     {
@@ -129,6 +129,35 @@ namespace APIC
         uint32 cmd = (0b110 << 8) | (startPage >> 12);
         *(volatile uint32*)(g_APICBase + RegCommandHi) = (uint32)coreID << 24;
         *(volatile uint32*)(g_APICBase + RegCommandLow) = cmd;
+    }
+
+    void SendIPI(IPITargetMode targetMode, uint8 targetID, uint8 vector) {
+        uint32 high = 0;
+        uint32 low = 0;
+
+        switch(targetMode) {
+        case IPI_TARGET_CORE:
+            high = targetID << 24;
+            low = vector;
+            break;
+        case IPI_TARGET_SELF:
+            high = 0xFF << 24;
+            low = vector | (0b01 << 18);
+            break;
+        case IPI_TARGET_ALL:
+            high = 0xFF << 24;
+            low = vector | (0b10 << 18);
+            break;
+        case IPI_TARGET_ALL_BUT_SELF:
+            high = 0xFF << 24;
+            low = vector | (0b11 << 18);
+            break;
+        default:
+            return;
+        }
+
+        *(volatile uint32*)(g_APICBase + RegCommandHi) = high;
+        *(volatile uint32*)(g_APICBase + RegCommandLow) = low;
     }
 
     uint64 GetID() {

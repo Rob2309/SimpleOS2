@@ -25,11 +25,19 @@ namespace SMP {
         wait = false;
     }
 
+    static void ISR_Test(IDT::Registers* regs) {
+        kprintf("Received IPI...\n");
+        APIC::SignalEOI();
+    }
+
     static void CoreEntry() {
         GDT::InitCore(APIC::GetID());
         IDT::InitCore(APIC::GetID());
         APIC::InitCore();
         SyscallHandler::InitCore();
+
+        IDT::SetISR(123, ISR_Test);
+        IDT::EnableInterrupts();
 
         started = true;
         while(true) ;
