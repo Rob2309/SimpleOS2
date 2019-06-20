@@ -9,10 +9,10 @@ code=0
 function check_cmd {
     printf "Checking wether $1 is installed... "
     if type $1 1>/dev/zero 2>/dev/zero; then
-        echo -e "${green}yes${reset}"
+        printf "${green}yes${reset}\n"
     else
-        echo -e "${red}no${reset}"
-        echo -e "${red}$2${reset}"
+        printf "${red}no${reset}\n"
+        printf "${red}$2${reset}\n"
         code=1
     fi
 }
@@ -27,9 +27,9 @@ check_cmd mcopy "SimpleOS2 requires mtools to be installed"
 check_cmd debugfs "SimpleOS2 requires debugfs in order to create its ramdisk"
 
 if [ $code = 1 ]; then
-    echo -e "${red}Not all dependencies are fullfilled${reset}"
+    printf "${red}Not all dependencies are fullfilled${reset}\n"
 else
-    echo -e "${green}All dependencies required by SimpleOS2 are installed${reset}"
+    printf "${green}All dependencies required by SimpleOS2 are installed${reset}\n"
 fi
 
 exit $code
