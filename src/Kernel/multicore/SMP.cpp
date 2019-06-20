@@ -7,6 +7,7 @@
 #include "interrupts/IDT.h"
 #include "arch/APIC.h"
 #include "klib/memory.h"
+#include "syscalls/SyscallHandler.h"
 
 namespace SMP {
 
@@ -28,6 +29,7 @@ namespace SMP {
         GDT::InitCore(APIC::GetID());
         IDT::InitCore(APIC::GetID());
         APIC::InitCore();
+        SyscallHandler::InitCore();
 
         started = true;
         while(true) ;

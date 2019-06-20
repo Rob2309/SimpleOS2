@@ -21,7 +21,7 @@ namespace SyscallHandler {
 
     extern "C" void SyscallEntry();
 
-    void Init()
+    void InitCore()
     {
         uint64 eferVal = MSR::Read(MSR::RegEFER);
         eferVal |= 1;

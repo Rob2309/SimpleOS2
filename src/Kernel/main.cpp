@@ -5,6 +5,7 @@
 #include "arch/GDT.h"
 #include "interrupts/IDT.h"
 #include "arch/APIC.h"
+#include "syscalls/SyscallHandler.h"
 #include "memory/MemoryManager.h"
 #include "multicore/SMP.h"
 
@@ -57,6 +58,7 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     IDT::InitCore(APIC::GetID());
     APIC::Init();
     APIC::InitCore();
+    SyscallHandler::InitCore();
 
     SMP::StartCores(info);
     MemoryManager::FreePages(MemoryManager::KernelToPhysPtr(info->smpTrampolineBuffer), info->smpTrampolineBufferPages);
