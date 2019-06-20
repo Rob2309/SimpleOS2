@@ -5,6 +5,7 @@
 #include "arch/GDT.h"
 #include "scheduler/Process.h"
 #include "memory/MemoryManager.h"
+#include "arch/APIC.h"
 
 #define ISRSTUB(vectno) extern "C" void ISRSTUB_##vectno();
 #define ISRSTUBE(vectno) extern "C" void ISRSTUB_##vectno();
@@ -92,9 +93,6 @@ namespace IDT {
 
     void Init()
     {
-        uint8* interruptBuffer = (uint8*)MemoryManager::PhysToKernelPtr(MemoryManager::AllocatePages(4));
-        GDT::SetIST1(interruptBuffer + 4 * 4096);
-
         g_IDTDesc.limit = sizeof(g_IDT) - 1;
         g_IDTDesc.offset = (uint64)g_IDT;
 
@@ -136,6 +134,11 @@ namespace IDT {
         SetISR(29, ISR_Exceptions);
         SetISR(30, ISR_Exceptions);
         SetISR(31, ISR_Exceptions);
+    }
+
+    void InitCore(uint64 coreID) {
+        uint8* interruptBuffer = (uint8*)MemoryManager::PhysToKernelPtr(MemoryManager::AllocatePages(4));
+        GDT::SetIST1(coreID, interruptBuffer + 4 * 4096);
 
         DisableInterrupts();
 

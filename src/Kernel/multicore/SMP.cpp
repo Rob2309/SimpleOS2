@@ -3,6 +3,8 @@
 #include "acpi/ACPI.h"
 #include "memory/MemoryManager.h"
 #include "klib/stdio.h"
+#include "arch/GDT.h"
+#include "interrupts/IDT.h"
 #include "arch/APIC.h"
 #include "klib/memory.h"
 
@@ -23,6 +25,10 @@ namespace SMP {
     }
 
     static void CoreEntry() {
+        GDT::InitCore(APIC::GetID());
+        IDT::InitCore(APIC::GetID());
+        APIC::InitCore();
+
         started = true;
         while(true) ;
     }

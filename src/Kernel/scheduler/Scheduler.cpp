@@ -212,7 +212,6 @@ namespace Scheduler {
         IDT::DisableInterrupts();
         APIC::SetTimerEvent(TimerEvent);
         APIC::StartTimer(10);
-        IDT::EnableInterrupts();
 
         // Init idle process
         ThreadInfo* p = new ThreadInfo();

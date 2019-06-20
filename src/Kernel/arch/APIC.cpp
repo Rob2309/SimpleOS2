@@ -10,6 +10,8 @@
 
 namespace APIC
 {
+    constexpr uint64 RegID = 0x20;
+
     constexpr uint64 RegSpurious = 0xF0;
     constexpr uint64 RegError = 0x370;
     constexpr uint64 RegEOI = 0xB0;
@@ -90,6 +92,11 @@ namespace APIC
 
         CalibrateTimer();
     }
+    void InitCore() {
+        *(volatile uint32*)(g_APICBase + RegSpurious) = 0x100 | ISRNumbers::APICSpurious;
+        *(volatile uint32*)(g_APICBase + RegError) = 0x10000 | ISRNumbers::APICError;
+    }
+
     void StartTimer(uint8 div, uint32 count, bool repeat)
     {
         switch(div)
@@ -122,6 +129,11 @@ namespace APIC
         uint32 cmd = (0b110 << 8) | (startPage >> 12);
         *(volatile uint32*)(g_APICBase + RegCommandHi) = (uint32)coreID << 24;
         *(volatile uint32*)(g_APICBase + RegCommandLow) = cmd;
+    }
+
+    uint64 GetID() {
+        uint64 res = (*(volatile uint32*)(g_APICBase + RegID)) >> 24;
+        return res;
     }
 
 }

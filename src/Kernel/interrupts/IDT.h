@@ -17,6 +17,7 @@ namespace IDT {
     typedef void (*ISR)(Registers* regs);
 
     void Init();
+    void InitCore(uint64 coreID);
 
     /**
      * Sets the function to be called when the given interrupt is fired

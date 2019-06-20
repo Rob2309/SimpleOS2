@@ -9,6 +9,7 @@ namespace APIC
      * Initializes the APIC, has to be called before using any APIC function
      **/
     void Init();
+    void InitCore();
     /**
      * Starts the Local APIC Timer with the specified duration.
      * @param div: the number to divide the clock by
@@ -29,4 +30,6 @@ namespace APIC
 
     void SendInitIPI(uint8 coreID);
     void SendStartupIPI(uint8 coreID, uint64 startPage);
+
+    uint64 GetID();
 }
