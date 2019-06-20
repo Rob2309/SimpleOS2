@@ -37,6 +37,7 @@ namespace SMP {
         SyscallHandler::InitCore();
 
         IDT::SetISR(ISRNumbers::IPIPagingSync, ISR_Test);
+        IDT::SetISR(ISRNumbers::IPIPagingSync + 1, ISR_Test);
         IDT::EnableInterrupts();
 
         started = true;
