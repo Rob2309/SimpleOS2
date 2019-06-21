@@ -23,6 +23,7 @@ namespace Scheduler {
      **/
     uint64 CloneProcess(IDT::Registers* regs);
 
+    void Init(uint64 numCores);
     /**
      * This function is called by the Kernel to start normal Scheduling procedures. It never returns.
      **/

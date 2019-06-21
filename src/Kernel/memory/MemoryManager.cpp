@@ -39,9 +39,6 @@
 #define GET_PML3_INDEX(addr)        (((addr) >> (12 + 2 * 9)) & 0x1FF)
 #define GET_PML4_INDEX(addr)        (((addr) >> (12 + 3 * 9)) & 0x1FF)
 
-extern bool g_PageSync_IsKernelPage;
-extern void* g_PageSync_KernelPage;
-
 namespace MemoryManager {
 
     static Mutex g_Lock;
@@ -52,6 +49,9 @@ namespace MemoryManager {
     static volatile uint64** g_CorePageTables;
     static volatile uint64* g_KernelPages;
     static volatile uint64* g_KernelVPages;
+
+    static bool g_PageSync_IsKernelPage;
+    static void* g_PageSync_KernelPage;
 
     void Init(KernelHeader* header, uint64 numCores)
     {
@@ -78,6 +78,14 @@ namespace MemoryManager {
         klog_info("MemoryManager", "MemoryManager initialized");
     }
 
+    static void ISR_PageSync(IDT::Registers* regs) {
+        APIC::SignalEOI();
+
+        if(g_PageSync_IsKernelPage) {
+            InvalidatePage(g_PageSync_KernelPage);
+        }
+    }
+
     void InitCore(uint64 coreID) {
         uint64* pml4 = (uint64*)PhysToKernelPtr(AllocatePages(1));
         for(int i = 0; i < 512; i++)
@@ -91,6 +99,8 @@ namespace MemoryManager {
             "movq %0, %%cr3"
             : : "r"(KernelToPhysPtr(pml4))
         );
+
+        IDT::SetISR(ISRNumbers::IPIPagingSync, ISR_PageSync);
     }
 
     void InvalidatePage(void* page) {

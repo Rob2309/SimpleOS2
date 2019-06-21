@@ -60,6 +60,8 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     APIC::InitCore();
     SyscallHandler::InitCore();
 
+    Scheduler::Init(4);
+
     SMP::StartCores(info);
     MemoryManager::FreePages(MemoryManager::KernelToPhysPtr(info->smpTrampolineBuffer), info->smpTrampolineBufferPages);
 

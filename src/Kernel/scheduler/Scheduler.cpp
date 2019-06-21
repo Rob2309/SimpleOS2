@@ -16,9 +16,6 @@ namespace Scheduler {
 
     extern "C" void IdleThread();
 
-    static ktl::nlist<ThreadInfo> g_ThreadList;
-    static ktl::nlist<ThreadInfo> g_DeadThreads;
-
     static uint64 g_PIDCounter = 1;
     static uint64 g_TIDCounter = 1;
 
@@ -27,12 +24,17 @@ namespace Scheduler {
     extern "C" void ReturnToThread(IDT::Registers* regs);
     extern "C" void ContextSwitchAndReturn(IDT::Registers* from, IDT::Registers* to);
 
-    static struct {
+    struct CPUData {
         uint64 currentThreadKernelStack;
 
         ThreadInfo* idleThread;
         ThreadInfo* currentThread;
-    } g_CPUData;
+
+        ktl::nlist<ThreadInfo> threadList;
+        ktl::nlist<ThreadInfo> deadThreads;
+    };
+
+    static CPUData* g_CPUData;
 
     static void TimerEvent(IDT::Registers* regs)
     {
@@ -41,10 +43,12 @@ namespace Scheduler {
 
     static ThreadInfo* CreateThreadStruct()
     {
+        uint64 coreID = APIC::GetID();
+
         IDT::DisableInterrupts();
-        if(!g_DeadThreads.empty()) {
-            ThreadInfo* res = &g_DeadThreads.back();
-            g_DeadThreads.pop_back();
+        if(!g_CPUData[coreID].deadThreads.empty()) {
+            ThreadInfo* res = &g_CPUData[coreID].deadThreads.back();
+            g_CPUData[coreID].deadThreads.pop_back();
             IDT::EnableInterrupts();
             return res;
         }
@@ -58,6 +62,8 @@ namespace Scheduler {
 
     uint64 CreateProcess(uint64 pml4Entry, IDT::Registers* regs)
     {
+        uint64 coreID = APIC::GetID();
+
         ProcessInfo* pInfo = new ProcessInfo();
         pInfo->pid = g_PIDCounter++;
         pInfo->pml4Entry = pml4Entry;
@@ -72,7 +78,7 @@ namespace Scheduler {
         pInfo->threads.push_back(tInfo);
         
         IDT::DisableInterrupts();
-        g_ThreadList.push_back(tInfo);
+        g_CPUData[coreID].threadList.push_back(tInfo);
         uint64 ret = pInfo->pid;
         IDT::EnableInterrupts();
 
@@ -81,6 +87,8 @@ namespace Scheduler {
 
     uint64 CreateKernelThread(uint64 rip)
     {
+        uint64 coreID = APIC::GetID();
+
         ThreadInfo* tInfo = CreateThreadStruct();
 
         IDT::Registers regs;
@@ -99,7 +107,7 @@ namespace Scheduler {
         tInfo->registers = regs;
         
         IDT::DisableInterrupts();
-        g_ThreadList.push_back(tInfo);
+        g_CPUData[coreID].threadList.push_back(tInfo);
         uint64 ret = tInfo->tid;
         IDT::EnableInterrupts();
 
@@ -108,7 +116,9 @@ namespace Scheduler {
 
     uint64 CloneProcess(IDT::Registers* regs)
     {
-        ProcessInfo* oldPInfo = g_CPUData.currentThread->process;
+        uint64 coreID = APIC::GetID();
+
+        ProcessInfo* oldPInfo = g_CPUData[coreID].currentThread->process;
 
         uint64 pml4Entry = MemoryManager::ForkProcessMap();
 
@@ -139,7 +149,7 @@ namespace Scheduler {
         pInfo->threads.push_back(tInfo);
         
         IDT::DisableInterrupts();
-        g_ThreadList.push_back(tInfo);
+        g_CPUData[coreID].threadList.push_back(tInfo);
         uint64 ret = pInfo->pid;
         IDT::EnableInterrupts();
 
@@ -147,7 +157,9 @@ namespace Scheduler {
     }
 
     static void UpdateEvents() {
-        for(auto p : g_ThreadList) {
+        uint64 coreID = APIC::GetID();
+
+        for(auto p : g_CPUData[coreID].threadList) {
             switch(p->blockEvent.type) {
             case ThreadBlockEvent::TYPE_WAIT:
                 if(p->blockEvent.wait.remainingMillis <= 10) {
@@ -165,35 +177,40 @@ namespace Scheduler {
     }
 
     static ThreadInfo* FindNextThread() {
-        for(auto a = g_ThreadList.begin(); a != g_ThreadList.end(); ++a) {
+        uint64 coreID = APIC::GetID();
+
+        for(auto a = g_CPUData[coreID].threadList.begin(); a != g_CPUData[coreID].threadList.end(); ++a) {
             ThreadInfo* p = *a;
             if(p->blockEvent.type == ThreadBlockEvent::TYPE_NONE) {
-                g_ThreadList.erase(a);
-                g_ThreadList.push_back(p);
+                g_CPUData[coreID].threadList.erase(a);
+                g_CPUData[coreID].threadList.push_back(p);
                 return p;
             }
         }
 
-        return g_CPUData.idleThread;
+        return g_CPUData[coreID].idleThread;
     }
 
     static void SaveThreadInfo(IDT::Registers* regs)
     {
-        g_CPUData.currentThread->registers = *regs;     // save all registers in process info
+        uint64 coreID = APIC::GetID();
+        g_CPUData[coreID].currentThread->registers = *regs;     // save all registers in process info
     }
 
     static void SetContext(ThreadInfo* thread, IDT::Registers* regs)
     {
-        g_CPUData.currentThread = thread;
+        uint64 coreID = APIC::GetID();
+
+        g_CPUData[coreID].currentThread = thread;
         // Load paging structures for the process
         if(thread->process != nullptr)
             MemoryManager::SwitchProcessMap(thread->process->pml4Entry);
         // Load registers from saved state
-        *regs = g_CPUData.currentThread->registers;
-        g_CPUData.currentThreadKernelStack = g_CPUData.currentThread->kernelStack;
-        bool inKernelMode = ((g_CPUData.currentThread->registers.cs & 0b11) == 0);
-        MSR::Write(MSR::RegKernelGSBase, inKernelMode ? g_CPUData.currentThread->userGSBase : (uint64)&g_CPUData);
-        MSR::Write(MSR::RegGSBase, inKernelMode ? (uint64)&g_CPUData : g_CPUData.currentThread->userGSBase);
+        *regs = g_CPUData[coreID].currentThread->registers;
+        g_CPUData[coreID].currentThreadKernelStack = g_CPUData[coreID].currentThread->kernelStack;
+        bool inKernelMode = ((g_CPUData[coreID].currentThread->registers.cs & 0b11) == 0);
+        MSR::Write(MSR::RegKernelGSBase, inKernelMode ? g_CPUData[coreID].currentThread->userGSBase : (uint64)&g_CPUData[coreID]);
+        MSR::Write(MSR::RegGSBase, inKernelMode ? (uint64)&g_CPUData : g_CPUData[coreID].currentThread->userGSBase);
     }
 
     void Tick(IDT::Registers* regs)
@@ -207,8 +224,14 @@ namespace Scheduler {
         SetContext(nextProcess, regs);
     }
 
+    void Init(uint64 numCores) {
+        g_CPUData = new CPUData[numCores];
+    }
+
     void Start()
     {
+        uint64 coreID = APIC::GetID();
+
         IDT::DisableInterrupts();
         APIC::SetTimerEvent(TimerEvent);
         APIC::StartTimer(10);
@@ -225,8 +248,8 @@ namespace Scheduler {
         p->registers.ss = GDT::KernelData;
         p->registers.rflags = CPU::FLAGS_IF;
 
-        g_CPUData.idleThread = p;
-        g_CPUData.currentThread = p;
+        g_CPUData[coreID].idleThread = p;
+        g_CPUData[coreID].currentThread = p;
 
         __asm__ __volatile__ (
             "pushq $0x10;"      // kernel data selector
@@ -247,7 +270,9 @@ namespace Scheduler {
 
     static void Yield()
     {
-        IDT::Registers* myRegs = &g_CPUData.currentThread->registers;
+        uint64 coreID = APIC::GetID();
+
+        IDT::Registers* myRegs = &g_CPUData[coreID].currentThread->registers;
 
         // TODO: Find out why this breaks in release mode
         /*ThreadInfo* nextThread = FindNextThread();
@@ -259,7 +284,7 @@ namespace Scheduler {
             ContextSwitchAndReturn(myRegs, &nextRegs);
         }*/
         IDT::Registers nextRegs;
-        SetContext(g_CPUData.idleThread, &nextRegs);
+        SetContext(g_CPUData[coreID].idleThread, &nextRegs);
         ContextSwitchAndReturn(myRegs, &nextRegs);
     }
 
@@ -272,19 +297,23 @@ namespace Scheduler {
 
     void ThreadWait(uint64 ms)
     {
+        uint64 coreID = APIC::GetID();
+
         IDT::DisableInterrupts();
 
-        g_CPUData.currentThread->blockEvent.type = ThreadBlockEvent::TYPE_WAIT;
-        g_CPUData.currentThread->blockEvent.wait.remainingMillis = ms;
+        g_CPUData[coreID].currentThread->blockEvent.type = ThreadBlockEvent::TYPE_WAIT;
+        g_CPUData[coreID].currentThread->blockEvent.wait.remainingMillis = ms;
 
         Yield();
         IDT::EnableInterrupts();
     }
     void ThreadWaitForLock(void* lock)
     {
+        uint64 coreID = APIC::GetID();
+
         IDT::DisableInterrupts();
-        g_CPUData.currentThread->blockEvent.type = ThreadBlockEvent::TYPE_MUTEX;
-        g_CPUData.currentThread->blockEvent.mutex.lock = (Mutex*)lock;
+        g_CPUData[coreID].currentThread->blockEvent.type = ThreadBlockEvent::TYPE_MUTEX;
+        g_CPUData[coreID].currentThread->blockEvent.mutex.lock = (Mutex*)lock;
         
         Yield();
         IDT::EnableInterrupts();
@@ -292,18 +321,22 @@ namespace Scheduler {
 
     void ThreadWaitForNodeRead(uint64 node)
     {
+        uint64 coreID = APIC::GetID();
+
         IDT::DisableInterrupts();
-        g_CPUData.currentThread->blockEvent.type = ThreadBlockEvent::TYPE_NODE_READ;
-        g_CPUData.currentThread->blockEvent.node.nodeID = node;
+        g_CPUData[coreID].currentThread->blockEvent.type = ThreadBlockEvent::TYPE_NODE_READ;
+        g_CPUData[coreID].currentThread->blockEvent.node.nodeID = node;
         
         Yield();
         IDT::EnableInterrupts();
     }
     void ThreadWaitForNodeWrite(uint64 node)
     {
+        uint64 coreID = APIC::GetID();
+
         IDT::DisableInterrupts();
-        g_CPUData.currentThread->blockEvent.type = ThreadBlockEvent::TYPE_NODE_WRITE;
-        g_CPUData.currentThread->blockEvent.node.nodeID = node;
+        g_CPUData[coreID].currentThread->blockEvent.type = ThreadBlockEvent::TYPE_NODE_WRITE;
+        g_CPUData[coreID].currentThread->blockEvent.node.nodeID = node;
         
         Yield();
         IDT::EnableInterrupts();
@@ -317,7 +350,9 @@ namespace Scheduler {
 
     void ThreadExit(uint64 code)
     {
-        ThreadInfo* tInfo = g_CPUData.currentThread;
+        uint64 coreID = APIC::GetID();
+
+        ThreadInfo* tInfo = g_CPUData[coreID].currentThread;
         ProcessInfo* pInfo = tInfo->process;
 
         if(pInfo != nullptr) {
@@ -332,8 +367,8 @@ namespace Scheduler {
         }
 
         IDT::DisableInterrupts();
-        g_ThreadList.erase(tInfo);
-        g_DeadThreads.push_back(tInfo);
+        g_CPUData[coreID].threadList.erase(tInfo);
+        g_CPUData[coreID].deadThreads.push_back(tInfo);
         
         IDT::Registers regs;
         ThreadInfo* next = FindNextThread();
@@ -344,21 +379,26 @@ namespace Scheduler {
 
     uint64 ThreadGetTID()
     {
-        return g_CPUData.currentThread->tid;
+        uint64 coreID = APIC::GetID();
+        return g_CPUData[coreID].currentThread->tid;
     }
     uint64 ThreadGetPID()
     {  
-        if(g_CPUData.currentThread->process != nullptr)
-            return g_CPUData.currentThread->process->pid;
+        uint64 coreID = APIC::GetID();
+
+        if(g_CPUData[coreID].currentThread->process != nullptr)
+            return g_CPUData[coreID].currentThread->process->pid;
         else
             return 0;    
     }
 
     uint64 ThreadCreateThread(uint64 entry, uint64 stack)
     {
+        uint64 coreID = APIC::GetID();
+
         ThreadInfo* tInfo = CreateThreadStruct();
         tInfo->tid = g_TIDCounter++;
-        tInfo->process = g_CPUData.currentThread->process;
+        tInfo->process = g_CPUData[coreID].currentThread->process;
         tInfo->userGSBase = 0;
         tInfo->registers.cs = GDT::UserCode;
         tInfo->registers.ds = GDT::UserData;
@@ -373,7 +413,7 @@ namespace Scheduler {
         }
 
         IDT::DisableInterrupts();
-        g_ThreadList.push_back(tInfo);
+        g_CPUData[coreID].threadList.push_back(tInfo);
         uint64 res = tInfo->tid;
         IDT::EnableInterrupts();
 
@@ -381,7 +421,9 @@ namespace Scheduler {
     }
 
     uint64 ProcessAddFileDescriptor(uint64 sysDescriptor) {
-        ProcessInfo* pInfo = g_CPUData.currentThread->process;
+        uint64 coreID = APIC::GetID();
+
+        ProcessInfo* pInfo = g_CPUData[coreID].currentThread->process;
         pInfo->fileDescLock.SpinLock();
         for(ProcessFileDescriptor* d : pInfo->fileDescs) {
             if(d->desc == 0) {
@@ -399,7 +441,9 @@ namespace Scheduler {
         return newDesc->id;
     };
     void ProcessCloseFileDescriptor(uint64 descID) {
-        ProcessInfo* pInfo = g_CPUData.currentThread->process;
+        uint64 coreID = APIC::GetID();
+
+        ProcessInfo* pInfo = g_CPUData[coreID].currentThread->process;
 
         pInfo->fileDescLock.SpinLock();
         ProcessFileDescriptor* desc = pInfo->fileDescs[descID];
@@ -408,7 +452,9 @@ namespace Scheduler {
         pInfo->fileDescLock.Unlock();
     }
     uint64 ProcessGetSystemFileDescriptor(uint64 descID) {
-        ProcessInfo* pInfo = g_CPUData.currentThread->process;
+        uint64 coreID = APIC::GetID();
+
+        ProcessInfo* pInfo = g_CPUData[coreID].currentThread->process;
 
         pInfo->fileDescLock.SpinLock();
         ProcessFileDescriptor* desc = pInfo->fileDescs[descID];
@@ -419,9 +465,11 @@ namespace Scheduler {
 
     void ProcessExec(uint64 pml4Entry, IDT::Registers* regs)
     {
+        uint64 coreID = APIC::GetID();
+
         IDT::DisableInterrupts();
-        uint64 oldPML4Entry = g_CPUData.currentThread->process->pml4Entry;
-        g_CPUData.currentThread->process->pml4Entry = pml4Entry;
+        uint64 oldPML4Entry = g_CPUData[coreID].currentThread->process->pml4Entry;
+        g_CPUData[coreID].currentThread->process->pml4Entry = pml4Entry;
         IDT::EnableInterrupts();
 
         MemoryManager::FreeProcessMap(oldPML4Entry);
@@ -429,7 +477,7 @@ namespace Scheduler {
         IDT::DisableInterrupts();
 
         SaveThreadInfo(regs);
-        SetContext(g_CPUData.currentThread, regs);
+        SetContext(g_CPUData[coreID].currentThread, regs);
         ReturnToThread(regs);
     }
 
@@ -449,7 +497,9 @@ namespace Scheduler {
     }
 
     void ThreadReturnToSignalHandler(uint64 signal) {
-        ThreadInfo* tInfo = g_CPUData.currentThread;
+        uint64 coreID = APIC::GetID();
+
+        ThreadInfo* tInfo = g_CPUData[coreID].currentThread;
 
         kmemset(&tInfo->registers, 0, sizeof(IDT::Registers));
         tInfo->registers.cs = GDT::KernelCode;

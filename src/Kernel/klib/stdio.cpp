@@ -1,8 +1,10 @@
 #include "stdio.h"
 
 #include "terminal/terminal.h"
+#include "Mutex.h"
 
 static uint32 g_TerminalColor = 0xFFFFFF;
+static Mutex g_PrintLock;
 
 static char* IntToStringBase(int base, char* buffer, char* symbols, int64 num) {
     if(num == 0) {
@@ -88,6 +90,8 @@ void kprintf(const char* format, ...)
     __builtin_va_list arg;
     __builtin_va_start(arg, format);
 
+    g_PrintLock.SpinLock();
+
     uint32 i = 0;
     char c;
     while((c = format[i]) != '\0') {
@@ -117,6 +121,8 @@ void kprintf(const char* format, ...)
             i++;
         }
     }
+
+    g_PrintLock.Unlock();
 
     __builtin_va_end(arg);
 }
