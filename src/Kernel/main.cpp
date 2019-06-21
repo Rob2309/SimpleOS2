@@ -51,7 +51,7 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
 
     klog_info("Kernel", "Kernel at 0x%x", info->kernelImage.buffer);
 
-    MemoryManager::EarlyInit(info);
+    MemoryManager::Init(info, 4);
     GDT::Init(4);
     GDT::InitCore(APIC::GetID());
     IDT::Init();
@@ -63,8 +63,6 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     SMP::StartCores(info);
     MemoryManager::FreePages(MemoryManager::KernelToPhysPtr(info->smpTrampolineBuffer), info->smpTrampolineBufferPages);
 
-    MemoryManager::Init();
-
     VFS::Init(new TestFS());
     VFS::CreateFolder("/dev");
     VFS::CreateFolder("/initrd");
@@ -75,9 +73,6 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
 
     Ext2::Init();
     VFS::Mount("/initrd", "ext2", "/dev/ram0");
-
-    APIC::SendIPI(APIC::IPI_TARGET_CORE, 1, ISRNumbers::IPIPagingSync);
-    APIC::SendIPI(APIC::IPI_TARGET_CORE, 1, ISRNumbers::IPIPagingSync);
 
     SetupTestProcess();
     Scheduler::Start();

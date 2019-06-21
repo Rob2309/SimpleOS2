@@ -9,6 +9,9 @@
 #include "klib/memory.h"
 #include "syscalls/SyscallHandler.h"
 
+bool g_PageSync_IsKernelPage;
+void* g_PageSync_KernelPage;
+
 namespace SMP {
 
     extern "C" int smp_Start;
@@ -25,19 +28,23 @@ namespace SMP {
         wait = false;
     }
 
-    static void ISR_Test(IDT::Registers* regs) {
-        kprintf("Received IPI...\n");
+    static void ISR_PageSync(IDT::Registers* regs) {
         APIC::SignalEOI();
+        kprintf("Received PageSync IPI...\n");
+
+        if(g_PageSync_IsKernelPage) {
+            MemoryManager::InvalidatePage(g_PageSync_KernelPage);
+        }
     }
 
     static void CoreEntry() {
         GDT::InitCore(APIC::GetID());
         IDT::InitCore(APIC::GetID());
         APIC::InitCore();
+        MemoryManager::InitCore(APIC::GetID());
         SyscallHandler::InitCore();
 
-        IDT::SetISR(ISRNumbers::IPIPagingSync, ISR_Test);
-        IDT::SetISR(ISRNumbers::IPIPagingSync + 1, ISR_Test);
+        IDT::SetISR(ISRNumbers::IPIPagingSync, ISR_PageSync);
         IDT::EnableInterrupts();
 
         started = true;
