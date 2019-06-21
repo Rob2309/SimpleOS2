@@ -3,7 +3,7 @@
 
 extern "C" void main()
 {
-    //if(Syscall::Fork()) {
+    if(Syscall::Fork()) {
         Syscall::Print("Parent...\n");
 
         for(int i = 0; i < 5; i++) {
@@ -13,13 +13,13 @@ extern "C" void main()
 
         Syscall::Print("Lets allocate pages in the kernel memory space!\n");
         Syscall::AllocPages((void*)0xFFFFFF8000123000, 10);
-    /*} else {
+    } else {
         Syscall::Print("Child...\n");
 
         Syscall::Exec("/initrd/Test2.elf");
 
         Syscall::Print("Failed to exec...\n");
-    }*/
+    }
 
     Syscall::Exit(0);
 }

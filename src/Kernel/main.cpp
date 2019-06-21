@@ -45,6 +45,13 @@ static void SetupTestProcess() {
     klog_info("Test", "Created test process with PID %i", pid);
 }
 
+static void TestThread() {
+    while(true) {
+        kprintf("Thread alive on Core %i\n", APIC::GetID());
+        Scheduler::ThreadWait(1000);
+    }
+}
+
 extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     Terminal::Init(info->screenBuffer, info->screenWidth, info->screenHeight, info->screenScanlineWidth, info->screenColorsInverted);
     Terminal::Clear();
@@ -76,7 +83,10 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     Ext2::Init();
     VFS::Mount("/initrd", "ext2", "/dev/ram0");
 
-    SetupTestProcess();
+    //SetupTestProcess();
+
+    Scheduler::CreateKernelThread((uint64)&TestThread);
+
     Scheduler::Start();
 
     while(true) ;

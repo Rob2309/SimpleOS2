@@ -210,7 +210,7 @@ namespace Scheduler {
         g_CPUData[coreID].currentThreadKernelStack = g_CPUData[coreID].currentThread->kernelStack;
         bool inKernelMode = ((g_CPUData[coreID].currentThread->registers.cs & 0b11) == 0);
         MSR::Write(MSR::RegKernelGSBase, inKernelMode ? g_CPUData[coreID].currentThread->userGSBase : (uint64)&g_CPUData[coreID]);
-        MSR::Write(MSR::RegGSBase, inKernelMode ? (uint64)&g_CPUData : g_CPUData[coreID].currentThread->userGSBase);
+        MSR::Write(MSR::RegGSBase, inKernelMode ? (uint64)&g_CPUData[coreID] : g_CPUData[coreID].currentThread->userGSBase);
     }
 
     void Tick(IDT::Registers* regs)

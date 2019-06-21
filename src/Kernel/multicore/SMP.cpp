@@ -8,6 +8,7 @@
 #include "arch/APIC.h"
 #include "klib/memory.h"
 #include "syscalls/SyscallHandler.h"
+#include "scheduler/Scheduler.h"
 
 namespace SMP {
 
@@ -20,9 +21,17 @@ namespace SMP {
 
     static volatile bool wait = true;
     static volatile bool started = false;
+    static volatile bool startScheduler = false;
 
     static void ISR_Timer(IDT::Registers* regs) {
         wait = false;
+    }
+
+    static void TestThread() {
+        while(true) {
+            kprintf("Thread alive on Core %i\n", APIC::GetID());
+            Scheduler::ThreadWait(1000);
+        }
     }
 
     static void CoreEntry() {
@@ -32,10 +41,13 @@ namespace SMP {
         MemoryManager::InitCore(APIC::GetID());
         SyscallHandler::InitCore();
 
-        IDT::EnableInterrupts();
+        Scheduler::CreateKernelThread((uint64)&TestThread);
 
         started = true;
-        while(true) ;
+        
+        while(!startScheduler) ;
+
+        Scheduler::Start();
     }
 
     void StartCores(KernelHeader* header) {
@@ -91,6 +103,8 @@ namespace SMP {
                 klog_info("SMP", "Core %i started...", lapic->processorID);
             }
         }
+
+        startScheduler = true;
     }
 
 }
