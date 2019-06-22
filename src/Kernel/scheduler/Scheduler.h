@@ -92,4 +92,6 @@ namespace Scheduler {
      */
     void ThreadReturnToSignalHandler(uint64 signal);
 
+    void MoveThreadToCPU(uint64 logicalCoreID, uint64 tid);
+
 }

@@ -22,6 +22,7 @@ namespace SMP {
     static volatile bool wait = true;
     static volatile bool started = false;
     static volatile bool startScheduler = false;
+    static volatile uint64 startCount = 0;
 
     static void ISR_Timer(IDT::Registers* regs) {
         wait = false;
@@ -29,16 +30,16 @@ namespace SMP {
 
     static void TestThread() {
         while(true) {
-            kprintf("Thread alive on Core %i\n", SMP::GetCoreID());
+            kprintf("Thread alive on Core %i\n", SMP::GetLogicalCoreID());
             Scheduler::ThreadWait(1000);
         }
     }
 
     static void CoreEntry() {
-        GDT::InitCore(SMP::GetCoreID());
-        IDT::InitCore(SMP::GetCoreID());
+        GDT::InitCore(SMP::GetLogicalCoreID());
+        IDT::InitCore(SMP::GetLogicalCoreID());
         APIC::InitCore();
-        MemoryManager::InitCore(SMP::GetCoreID());
+        MemoryManager::InitCore(SMP::GetLogicalCoreID());
         SyscallHandler::InitCore();
 
         Scheduler::CreateKernelThread((uint64)&TestThread);
@@ -47,6 +48,11 @@ namespace SMP {
         
         while(!startScheduler) ;
 
+        IDT::DisableInterrupts();
+        __asm__ __volatile__ (
+            "lock incq (%0)"
+            : : "r"(&startCount)
+        );
         Scheduler::Start();
     }
 
@@ -140,18 +146,24 @@ namespace SMP {
         }
 
         startScheduler = true;
+
+        while(startCount < SMP::GetCoreCount() - 1) ;
     }
 
     uint64 GetCoreCount() {
         return g_NumCores;
     }
 
-    uint64 GetCoreID() {
+    uint64 GetLogicalCoreID() {
         uint64 lapicID = APIC::GetID();
         for(uint64 i = 0; i < g_NumCores; i++) {
             if(g_Info[i].apicID == lapicID)
                 return i;
         }
+    }
+
+    uint64 GetApicID(uint64 logicalCore) {
+        return g_Info[logicalCore].apicID;
     }
 
 }

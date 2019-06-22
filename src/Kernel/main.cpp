@@ -17,11 +17,11 @@
 #include "scheduler/Scheduler.h"
 #include "scheduler/ELF.h"
 
-static void SetupTestProcess() {
+static uint64 SetupTestProcess() {
     uint64 file = VFS::Open("/initrd/Test.elf");
     if(file == 0) {
         klog_error("Test", "Failed to open /initrd/Test.elf");
-        return;
+        return 0;
     }
     
     VFS::NodeStats stats;
@@ -36,18 +36,19 @@ static void SetupTestProcess() {
     if(!PrepareELF(buffer, pml4Entry, regs)) {
         klog_error("Test", "Failed to setup test process");
         delete[] buffer;
-        return;
+        return 0;
     }
 
     delete[] buffer;
 
-    uint64 pid = Scheduler::CreateProcess(pml4Entry, &regs);
-    klog_info("Test", "Created test process with PID %i", pid);
+    uint64 tid = Scheduler::CreateProcess(pml4Entry, &regs);
+    klog_info("Test", "Created test process with TID %i", tid);
+    return tid;
 }
 
 static void TestThread() {
     while(true) {
-        kprintf("Thread alive on Core %i\n", SMP::GetCoreID());
+        kprintf("Thread alive on Core %i\n", SMP::GetLogicalCoreID());
         Scheduler::ThreadWait(1000);
     }
 }
@@ -62,9 +63,9 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     APIC::Init();
     SMP::GatherInfo(info);
     GDT::Init(SMP::GetCoreCount());
-    GDT::InitCore(SMP::GetCoreID());
+    GDT::InitCore(SMP::GetLogicalCoreID());
     IDT::Init();
-    IDT::InitCore(SMP::GetCoreID());
+    IDT::InitCore(SMP::GetLogicalCoreID());
     APIC::InitBootCore();
     SyscallHandler::InitCore();
 
@@ -84,9 +85,10 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     Ext2::Init();
     VFS::Mount("/initrd", "ext2", "/dev/ram0");
 
-    //SetupTestProcess();
+    uint64 tid = SetupTestProcess();
 
     Scheduler::CreateKernelThread((uint64)&TestThread);
+    Scheduler::MoveThreadToCPU(1, tid);
 
     Scheduler::Start();
 

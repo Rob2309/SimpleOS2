@@ -11,6 +11,7 @@ namespace SMP {
     void StartCores();
 
     uint64 GetCoreCount();
-    uint64 GetCoreID();
+    uint64 GetLogicalCoreID();
+    uint64 GetApicID(uint64 logicalCore);
 
 }

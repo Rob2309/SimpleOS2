@@ -1,15 +1,13 @@
 #include "Scheduler.h"
 
+#include "Thread.h"
 #include "Process.h"
-#include "ktl/list.h"
-#include "klib/memory.h"
-#include "interrupts/IDT.h"
-#include "arch/GDT.h"
+#include "multicore/SMP.h"
 #include "memory/MemoryManager.h"
+#include "arch/GDT.h"
+#include "arch/CPU.h"
 #include "arch/MSR.h"
 #include "arch/APIC.h"
-#include "multicore/SMP.h"
-#include "arch/CPU.h"
 #include "fs/VFS.h"
 #include "klib/stdio.h"
 
@@ -42,9 +40,21 @@ namespace Scheduler {
         Scheduler::Tick(regs);
     }
 
+    static Mutex g_TransferLock;
+    static bool g_TransferComplete;
+    static ThreadInfo* g_TransferThread;
+
+    static void TransferEvent(IDT::Registers* regs) {
+        APIC::SignalEOI();
+
+        uint64 coreID = SMP::GetLogicalCoreID();
+        g_CPUData[coreID].threadList.push_back(g_TransferThread);
+        g_TransferComplete = true;
+    }
+
     static ThreadInfo* CreateThreadStruct()
     {
-        uint64 coreID = SMP::GetCoreID();
+        uint64 coreID = SMP::GetLogicalCoreID();
 
         IDT::DisableInterrupts();
         if(!g_CPUData[coreID].deadThreads.empty()) {
@@ -63,7 +73,7 @@ namespace Scheduler {
 
     uint64 CreateProcess(uint64 pml4Entry, IDT::Registers* regs)
     {
-        uint64 coreID = SMP::GetCoreID();
+        uint64 coreID = SMP::GetLogicalCoreID();
 
         ProcessInfo* pInfo = new ProcessInfo();
         pInfo->pid = g_PIDCounter++;
@@ -80,7 +90,7 @@ namespace Scheduler {
         
         IDT::DisableInterrupts();
         g_CPUData[coreID].threadList.push_back(tInfo);
-        uint64 ret = pInfo->pid;
+        uint64 ret = tInfo->tid;
         IDT::EnableInterrupts();
 
         return ret;
@@ -88,7 +98,7 @@ namespace Scheduler {
 
     uint64 CreateKernelThread(uint64 rip)
     {
-        uint64 coreID = SMP::GetCoreID();
+        uint64 coreID = SMP::GetLogicalCoreID();
 
         ThreadInfo* tInfo = CreateThreadStruct();
 
@@ -117,7 +127,7 @@ namespace Scheduler {
 
     uint64 CloneProcess(IDT::Registers* regs)
     {
-        uint64 coreID = SMP::GetCoreID();
+        uint64 coreID = SMP::GetLogicalCoreID();
 
         ProcessInfo* oldPInfo = g_CPUData[coreID].currentThread->process;
 
@@ -158,7 +168,7 @@ namespace Scheduler {
     }
 
     static void UpdateEvents() {
-        uint64 coreID = SMP::GetCoreID();
+        uint64 coreID = SMP::GetLogicalCoreID();
 
         for(auto p : g_CPUData[coreID].threadList) {
             switch(p->blockEvent.type) {
@@ -178,7 +188,7 @@ namespace Scheduler {
     }
 
     static ThreadInfo* FindNextThread() {
-        uint64 coreID = SMP::GetCoreID();
+        uint64 coreID = SMP::GetLogicalCoreID();
 
         for(auto a = g_CPUData[coreID].threadList.begin(); a != g_CPUData[coreID].threadList.end(); ++a) {
             ThreadInfo* p = *a;
@@ -194,13 +204,13 @@ namespace Scheduler {
 
     static void SaveThreadInfo(IDT::Registers* regs)
     {
-        uint64 coreID = SMP::GetCoreID();
+        uint64 coreID = SMP::GetLogicalCoreID();
         g_CPUData[coreID].currentThread->registers = *regs;     // save all registers in process info
     }
 
     static void SetContext(ThreadInfo* thread, IDT::Registers* regs)
     {
-        uint64 coreID = SMP::GetCoreID();
+        uint64 coreID = SMP::GetLogicalCoreID();
 
         g_CPUData[coreID].currentThread = thread;
         // Load paging structures for the process
@@ -227,11 +237,13 @@ namespace Scheduler {
 
     void Init(uint64 numCores) {
         g_CPUData = new CPUData[numCores];
+
+        IDT::SetISR(ISRNumbers::IPIMoveThread, TransferEvent);
     }
 
     void Start()
     {
-        uint64 coreID = SMP::GetCoreID();
+        uint64 coreID = SMP::GetLogicalCoreID();
 
         IDT::DisableInterrupts();
         APIC::SetTimerEvent(TimerEvent);
@@ -271,7 +283,7 @@ namespace Scheduler {
 
     static void Yield()
     {
-        uint64 coreID = SMP::GetCoreID();
+        uint64 coreID = SMP::GetLogicalCoreID();
 
         IDT::Registers* myRegs = &g_CPUData[coreID].currentThread->registers;
 
@@ -298,7 +310,7 @@ namespace Scheduler {
 
     void ThreadWait(uint64 ms)
     {
-        uint64 coreID = SMP::GetCoreID();
+        uint64 coreID = SMP::GetLogicalCoreID();
 
         IDT::DisableInterrupts();
 
@@ -310,7 +322,7 @@ namespace Scheduler {
     }
     void ThreadWaitForLock(void* lock)
     {
-        uint64 coreID = SMP::GetCoreID();
+        uint64 coreID = SMP::GetLogicalCoreID();
 
         IDT::DisableInterrupts();
         g_CPUData[coreID].currentThread->blockEvent.type = ThreadBlockEvent::TYPE_MUTEX;
@@ -322,7 +334,7 @@ namespace Scheduler {
 
     void ThreadWaitForNodeRead(uint64 node)
     {
-        uint64 coreID = SMP::GetCoreID();
+        uint64 coreID = SMP::GetLogicalCoreID();
 
         IDT::DisableInterrupts();
         g_CPUData[coreID].currentThread->blockEvent.type = ThreadBlockEvent::TYPE_NODE_READ;
@@ -333,7 +345,7 @@ namespace Scheduler {
     }
     void ThreadWaitForNodeWrite(uint64 node)
     {
-        uint64 coreID = SMP::GetCoreID();
+        uint64 coreID = SMP::GetLogicalCoreID();
 
         IDT::DisableInterrupts();
         g_CPUData[coreID].currentThread->blockEvent.type = ThreadBlockEvent::TYPE_NODE_WRITE;
@@ -351,7 +363,7 @@ namespace Scheduler {
 
     void ThreadExit(uint64 code)
     {
-        uint64 coreID = SMP::GetCoreID();
+        uint64 coreID = SMP::GetLogicalCoreID();
 
         ThreadInfo* tInfo = g_CPUData[coreID].currentThread;
         ProcessInfo* pInfo = tInfo->process;
@@ -380,12 +392,12 @@ namespace Scheduler {
 
     uint64 ThreadGetTID()
     {
-        uint64 coreID = SMP::GetCoreID();
+        uint64 coreID = SMP::GetLogicalCoreID();
         return g_CPUData[coreID].currentThread->tid;
     }
     uint64 ThreadGetPID()
     {  
-        uint64 coreID = SMP::GetCoreID();
+        uint64 coreID = SMP::GetLogicalCoreID();
 
         if(g_CPUData[coreID].currentThread->process != nullptr)
             return g_CPUData[coreID].currentThread->process->pid;
@@ -395,7 +407,7 @@ namespace Scheduler {
 
     uint64 ThreadCreateThread(uint64 entry, uint64 stack)
     {
-        uint64 coreID = SMP::GetCoreID();
+        uint64 coreID = SMP::GetLogicalCoreID();
 
         ThreadInfo* tInfo = CreateThreadStruct();
         tInfo->tid = g_TIDCounter++;
@@ -422,7 +434,7 @@ namespace Scheduler {
     }
 
     uint64 ProcessAddFileDescriptor(uint64 sysDescriptor) {
-        uint64 coreID = SMP::GetCoreID();
+        uint64 coreID = SMP::GetLogicalCoreID();
 
         ProcessInfo* pInfo = g_CPUData[coreID].currentThread->process;
         pInfo->fileDescLock.SpinLock();
@@ -442,7 +454,7 @@ namespace Scheduler {
         return newDesc->id;
     };
     void ProcessCloseFileDescriptor(uint64 descID) {
-        uint64 coreID = SMP::GetCoreID();
+        uint64 coreID = SMP::GetLogicalCoreID();
 
         ProcessInfo* pInfo = g_CPUData[coreID].currentThread->process;
 
@@ -453,7 +465,7 @@ namespace Scheduler {
         pInfo->fileDescLock.Unlock();
     }
     uint64 ProcessGetSystemFileDescriptor(uint64 descID) {
-        uint64 coreID = SMP::GetCoreID();
+        uint64 coreID = SMP::GetLogicalCoreID();
 
         ProcessInfo* pInfo = g_CPUData[coreID].currentThread->process;
 
@@ -466,7 +478,7 @@ namespace Scheduler {
 
     void ProcessExec(uint64 pml4Entry, IDT::Registers* regs)
     {
-        uint64 coreID = SMP::GetCoreID();
+        uint64 coreID = SMP::GetLogicalCoreID();
 
         IDT::DisableInterrupts();
         uint64 oldPML4Entry = g_CPUData[coreID].currentThread->process->pml4Entry;
@@ -493,12 +505,12 @@ namespace Scheduler {
         default: signalName = "UNKNOWN"; break;
         }
 
-        klog_error("Signal", "%i.%i Received signal %s on Core %i", ThreadGetPID(), ThreadGetTID(), signalName, SMP::GetCoreID());
+        klog_error("Signal", "%i.%i Received signal %s on Core %i", ThreadGetPID(), ThreadGetTID(), signalName, SMP::GetLogicalCoreID());
         ThreadExit(1);
     }
 
     void ThreadReturnToSignalHandler(uint64 signal) {
-        uint64 coreID = SMP::GetCoreID();
+        uint64 coreID = SMP::GetLogicalCoreID();
 
         ThreadInfo* tInfo = g_CPUData[coreID].currentThread;
 
@@ -512,6 +524,28 @@ namespace Scheduler {
         tInfo->registers.rdi = signal;
 
         ReturnToThread(&tInfo->registers);
+    }
+
+    void MoveThreadToCPU(uint64 logicalCoreID, uint64 tid) {
+        IDT::DisableInterrupts();
+
+        uint64 coreID = SMP::GetLogicalCoreID();
+        for(auto a = g_CPUData[coreID].threadList.begin(); a != g_CPUData[coreID].threadList.end(); ++a) {
+            if(a->tid == tid) {
+                g_CPUData[coreID].threadList.erase(a);
+
+                g_TransferLock.SpinLock();
+                g_TransferComplete = false;
+                g_TransferThread = *a;
+                APIC::SendIPI(APIC::IPI_TARGET_CORE, SMP::GetApicID(logicalCoreID), ISRNumbers::IPIMoveThread);
+                while(!g_TransferComplete) ;
+                g_TransferLock.Unlock();
+                IDT::EnableInterrupts();
+                return;
+            }
+        }
+
+        IDT::EnableInterrupts();
     }
 
 }
