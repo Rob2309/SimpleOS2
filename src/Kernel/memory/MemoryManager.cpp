@@ -5,6 +5,7 @@
 #include "ktl/FreeList.h"
 #include "Mutex.h"
 #include "arch/APIC.h"
+#include "multicore/SMP.h"
 
 #define PML_GET_NX(entry)           ((entry) & 0x8000000000000000)
 #define PML_GET_ADDR(entry)         ((entry) & 0x000FFFFFFFFFF000)
@@ -189,7 +190,7 @@ namespace MemoryManager {
     }
     uint64 ForkProcessMap()
     {
-        volatile uint64* myPML4 = g_CorePageTables[APIC::GetID()];
+        volatile uint64* myPML4 = g_CorePageTables[SMP::GetCoreID()];
 
         uint64 newPML4Entry = CreateProcessMap();
 
@@ -230,7 +231,7 @@ namespace MemoryManager {
 
     void SwitchProcessMap(uint64 pml4Entry)
     {
-        volatile uint64* myPML4 = g_CorePageTables[APIC::GetID()];
+        volatile uint64* myPML4 = g_CorePageTables[SMP::GetCoreID()];
 
         myPML4[0] = pml4Entry;
 
@@ -242,7 +243,7 @@ namespace MemoryManager {
 
     void MapKernelPage(void* phys, void* virt)
     {
-        volatile uint64* myPML4 = g_CorePageTables[APIC::GetID()];
+        volatile uint64* myPML4 = g_CorePageTables[SMP::GetCoreID()];
 
         uint64 pml4Index = GET_PML4_INDEX((uint64)virt);
         uint64 pml3Index = GET_PML3_INDEX((uint64)virt);
@@ -289,7 +290,7 @@ namespace MemoryManager {
         g_Lock.Unlock();
     }
     void RemapLargeKernelPage(void* phys, void* virt, bool disableCache) {
-        volatile uint64* myPML4 = g_CorePageTables[APIC::GetID()];
+        volatile uint64* myPML4 = g_CorePageTables[SMP::GetCoreID()];
 
         uint64 pml4Index = GET_PML4_INDEX((uint64)virt);
         uint64 pml3Index = GET_PML3_INDEX((uint64)virt);
@@ -327,7 +328,7 @@ namespace MemoryManager {
     }
     void UnmapKernelPage(void* virt)
     {
-        volatile uint64* myPML4 = g_CorePageTables[APIC::GetID()];
+        volatile uint64* myPML4 = g_CorePageTables[SMP::GetCoreID()];
 
         uint64 pml4Index = GET_PML4_INDEX((uint64)virt);
         uint64 pml3Index = GET_PML3_INDEX((uint64)virt);
@@ -444,7 +445,7 @@ namespace MemoryManager {
         return PhysToKernelPtr(phys);
     }
     void MapProcessPage(void* virt) {
-        volatile uint64* myPML4 = g_CorePageTables[APIC::GetID()];
+        volatile uint64* myPML4 = g_CorePageTables[SMP::GetCoreID()];
         MapProcessPage(myPML4[0], virt, true);
     }
     void UnmapProcessPage(uint64 pml4Entry, void* virt, bool invalidate)
@@ -471,13 +472,13 @@ namespace MemoryManager {
         }
     }
     void UnmapProcessPage(void* virt) {
-        volatile uint64* myPML4 = g_CorePageTables[APIC::GetID()];
+        volatile uint64* myPML4 = g_CorePageTables[SMP::GetCoreID()];
         UnmapProcessPage(myPML4[0], virt, true);
     }
 
     void* UserToKernelPtr(const void* virt)
     {
-        volatile uint64* myPML4 = g_CorePageTables[APIC::GetID()];
+        volatile uint64* myPML4 = g_CorePageTables[SMP::GetCoreID()];
         uint64 pml4Entry = myPML4[0];
 
         uint64 pml3Index = GET_PML3_INDEX((uint64)virt);

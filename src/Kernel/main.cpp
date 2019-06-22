@@ -47,7 +47,7 @@ static void SetupTestProcess() {
 
 static void TestThread() {
     while(true) {
-        kprintf("Thread alive on Core %i\n", APIC::GetID());
+        kprintf("Thread alive on Core %i\n", SMP::GetCoreID());
         Scheduler::ThreadWait(1000);
     }
 }
@@ -58,18 +58,19 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
 
     klog_info("Kernel", "Kernel at 0x%x", info->kernelImage.buffer);
 
-    MemoryManager::Init(info, 4);
-    GDT::Init(4);
-    GDT::InitCore(APIC::GetID());
-    IDT::Init();
-    IDT::InitCore(APIC::GetID());
+    MemoryManager::Init(info, 20);
     APIC::Init();
-    APIC::InitCore();
+    SMP::GatherInfo(info);
+    GDT::Init(SMP::GetCoreCount());
+    GDT::InitCore(SMP::GetCoreID());
+    IDT::Init();
+    IDT::InitCore(SMP::GetCoreID());
+    APIC::InitBootCore();
     SyscallHandler::InitCore();
 
-    Scheduler::Init(4);
+    Scheduler::Init(SMP::GetCoreCount());
 
-    SMP::StartCores(info);
+    SMP::StartCores();
     MemoryManager::FreePages(MemoryManager::KernelToPhysPtr(info->smpTrampolineBuffer), info->smpTrampolineBufferPages);
 
     VFS::Init(new TestFS());

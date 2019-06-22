@@ -76,8 +76,7 @@ namespace APIC
         g_TimerEvent = evt;
     }
 
-    void Init()
-    {
+    void Init() {
         uint64 lapicBase = MSR::Read(MSR::RegLAPICBase);    // Physical address of LAPIC memory space
 
         g_APICBase = (uint64)MemoryManager::PhysToKernelPtr((void*)(lapicBase & 0xFFFFFFFFFFFFF000));
@@ -88,7 +87,9 @@ namespace APIC
         IDT::SetISR(ISRNumbers::APICTimer, ISR_Timer);
 
         MemoryManager::RemapLargeKernelPage((void*)(lapicBase & 0xFFFFFFFFFFE00000), (void*)(g_APICBase & 0xFFFFFFFFFFE00000), true);
-
+    }
+    void InitBootCore()
+    {
         *(volatile uint32*)(g_APICBase + RegSpurious) = 0x100 | ISRNumbers::APICSpurious;
         *(volatile uint32*)(g_APICBase + RegError) = 0x10000 | ISRNumbers::APICError;
 

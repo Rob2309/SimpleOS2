@@ -29,16 +29,16 @@ namespace SMP {
 
     static void TestThread() {
         while(true) {
-            kprintf("Thread alive on Core %i\n", APIC::GetID());
+            kprintf("Thread alive on Core %i\n", SMP::GetCoreID());
             Scheduler::ThreadWait(1000);
         }
     }
 
     static void CoreEntry() {
-        GDT::InitCore(APIC::GetID());
-        IDT::InitCore(APIC::GetID());
+        GDT::InitCore(SMP::GetCoreID());
+        IDT::InitCore(SMP::GetCoreID());
         APIC::InitCore();
-        MemoryManager::InitCore(APIC::GetID());
+        MemoryManager::InitCore(SMP::GetCoreID());
         SyscallHandler::InitCore();
 
         Scheduler::CreateKernelThread((uint64)&TestThread);
@@ -50,7 +50,18 @@ namespace SMP {
         Scheduler::Start();
     }
 
-    void StartCores(KernelHeader* header) {
+    struct CoreInfo {
+        uint64 apicID;
+        uint64 coreID;
+    };
+
+    static uint64 g_NumCores;
+    static CoreInfo g_Info[MaxCoreCount];
+
+    static uint8* g_TrampolineBuffer;
+    static uint64* g_PageBuffer;
+    
+    void GatherInfo(KernelHeader* header) {
         ACPI::RSDPDescriptor* rsdp = (ACPI::RSDPDescriptor*)header->rsdp;
         ACPI::XSDT* xsdt = (ACPI::XSDT*)MemoryManager::PhysToKernelPtr((void*)rsdp->xsdtAddress);
         klog_info("ACPI", "XSDT at 0x%x", xsdt);
@@ -63,9 +74,35 @@ namespace SMP {
         else
             klog_info("ACPI", "MADT at 0x%x", madt);
 
+        g_NumCores = 0;
+
+        uint64 pos = 0;
+        ACPI::MADTEntryHeader* entry;
+        while((entry = madt->GetNextEntry(pos)) != nullptr) {
+            if(entry->entryType == ACPI::MADTEntryHeader::TYPE_LAPIC) {
+                ACPI::MADTEntryLAPIC* lapic = (ACPI::MADTEntryLAPIC*)(entry);
+                
+                if(!lapic->processorEnabled) {
+                    klog_info("SMP", "LAPIC: Proc=%i, ID=%i, Flags=%X [DISABLED]", lapic->processorID, lapic->lapicID, lapic->processorEnabled);
+                    continue;
+                } else {
+                    klog_info("SMP", "LAPIC: Proc=%i, ID=%i, Flags=%X", lapic->processorID, lapic->lapicID, lapic->processorEnabled);
+                }
+
+                g_Info[g_NumCores].apicID = lapic->lapicID;
+                g_Info[g_NumCores].coreID = lapic->processorID;
+                g_NumCores++;
+            }
+        }
+
+        g_TrampolineBuffer = header->smpTrampolineBuffer;
+        g_PageBuffer = header->pageBuffer;
+    }
+
+    void StartCores() {
         APIC::SetTimerEvent(ISR_Timer);
         
-        uint8* buffer = header->smpTrampolineBuffer;
+        uint8* buffer = g_TrampolineBuffer;
         kmemcpy(buffer, (void*)&smp_Start, (uint64)&smp_End - (uint64)&smp_Start);
 
         uint32 addressOffset = (uint64)&smp_TrampolineBaseAddress - (uint64)&smp_Start;
@@ -75,37 +112,46 @@ namespace SMP {
         *(volatile uint64*)(buffer + entryOffset) = (uint64)&CoreEntry;
 
         uint64 pml4Offset = (uint64)&smp_PML4Address - (uint64)&smp_Start;
-        *(volatile uint64*)(buffer + pml4Offset) = (uint64)MemoryManager::KernelToPhysPtr(header->pageBuffer);
+        *(volatile uint64*)(buffer + pml4Offset) = (uint64)MemoryManager::KernelToPhysPtr(g_PageBuffer);
 
         uint64 stackOffset = (uint64)&smp_StackAddress - (uint64)&smp_Start;
 
-        uint64 pos = 0;
-        ACPI::MADTEntryHeader* entry;
-        while((entry = madt->GetNextEntry(pos)) != nullptr) {
-            if(entry->entryType == ACPI::MADTEntryHeader::TYPE_LAPIC) {
-                ACPI::MADTEntryLAPIC* lapic = (ACPI::MADTEntryLAPIC*)(entry);
-                klog_info("SMP", "LAPIC: Proc=%i, ID=%i, Flags=%X", lapic->processorID, lapic->lapicID, lapic->processorEnabled);
+        uint64 bootAPIC = APIC::GetID();
 
-                if(lapic->lapicID == 0)
-                    continue;
+        for(int i = 0; i < g_NumCores; i++) {
+            if(g_Info[i].apicID == bootAPIC)
+                continue;
 
-                *(volatile uint64*)(buffer + stackOffset) = (uint64)MemoryManager::PhysToKernelPtr(MemoryManager::AllocatePages(3));
+            klog_info("SMP", "Starting logical Core %i", i);
 
-                wait = true;
-                started = false;
-                APIC::SendInitIPI(lapic->lapicID);
-                APIC::StartTimer(10);
-                IDT::EnableInterrupts();
-                while(wait) ;
-                IDT::DisableInterrupts();
-                APIC::SendStartupIPI(lapic->lapicID, (uint64)MemoryManager::KernelToPhysPtr(buffer));
+            *(volatile uint64*)(buffer + stackOffset) = (uint64)MemoryManager::PhysToKernelPtr(MemoryManager::AllocatePages(3));
 
-                while(!started) ;
-                klog_info("SMP", "Core %i started...", lapic->processorID);
-            }
+            wait = true;
+            started = false;
+            APIC::SendInitIPI(g_Info[i].apicID);
+            APIC::StartTimer(10);
+            IDT::EnableInterrupts();
+            while(wait) ;
+            IDT::DisableInterrupts();
+            APIC::SendStartupIPI(g_Info[i].apicID, (uint64)MemoryManager::KernelToPhysPtr(buffer));
+
+            while(!started) ;
+            klog_info("SMP", "Logical Core %i started...", i);
         }
-        
+
         startScheduler = true;
+    }
+
+    uint64 GetCoreCount() {
+        return g_NumCores;
+    }
+
+    uint64 GetCoreID() {
+        uint64 lapicID = APIC::GetID();
+        for(uint64 i = 0; i < g_NumCores; i++) {
+            if(g_Info[i].apicID == lapicID)
+                return i;
+        }
     }
 
 }

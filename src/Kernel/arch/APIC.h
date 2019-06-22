@@ -9,6 +9,7 @@ namespace APIC
      * Initializes the APIC, has to be called before using any APIC function
      **/
     void Init();
+    void InitBootCore();
     void InitCore();
     /**
      * Starts the Local APIC Timer with the specified duration.
