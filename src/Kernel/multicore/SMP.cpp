@@ -78,7 +78,6 @@ namespace SMP {
         *(volatile uint64*)(buffer + pml4Offset) = (uint64)MemoryManager::KernelToPhysPtr(header->pageBuffer);
 
         uint64 stackOffset = (uint64)&smp_StackAddress - (uint64)&smp_Start;
-        *(volatile uint64*)(buffer + stackOffset) = (uint64)MemoryManager::PhysToKernelPtr(MemoryManager::AllocatePages(3));
 
         uint64 pos = 0;
         ACPI::MADTEntryHeader* entry;
@@ -89,6 +88,8 @@ namespace SMP {
 
                 if(lapic->lapicID == 0)
                     continue;
+
+                *(volatile uint64*)(buffer + stackOffset) = (uint64)MemoryManager::PhysToKernelPtr(MemoryManager::AllocatePages(3));
 
                 wait = true;
                 started = false;
@@ -103,7 +104,7 @@ namespace SMP {
                 klog_info("SMP", "Core %i started...", lapic->processorID);
             }
         }
-
+        
         startScheduler = true;
     }
 

@@ -288,6 +288,43 @@ namespace MemoryManager {
 
         g_Lock.Unlock();
     }
+    void RemapLargeKernelPage(void* phys, void* virt, bool disableCache) {
+        volatile uint64* myPML4 = g_CorePageTables[APIC::GetID()];
+
+        uint64 pml4Index = GET_PML4_INDEX((uint64)virt);
+        uint64 pml3Index = GET_PML3_INDEX((uint64)virt);
+        uint64 pml2Index = GET_PML2_INDEX((uint64)virt);
+
+        g_Lock.SpinLock();
+
+        uint64 pml4Entry = myPML4[pml4Index];
+        volatile uint64* pml3 = (uint64*)PhysToKernelPtr((void*)PML_GET_ADDR(pml4Entry));
+
+        uint64 pml3Entry = pml3[pml3Index];
+        volatile uint64* pml2;
+        if(!PML_GET_P(pml3Entry)) {
+            pml2 = (uint64*)PhysToKernelPtr(_AllocatePages(1));
+            for(int i = 0; i < 512; i++)
+                pml2[i] = 0;
+            pml3[pml3Index] = PML_SET_ADDR((uint64)KernelToPhysPtr((uint64*)pml2)) | PML_SET_P(1) | PML_SET_RW(1);
+        } else {
+            pml2 = (uint64*)PhysToKernelPtr((void*)PML_GET_ADDR(pml3Entry));
+        }
+
+        pml2[pml2Index] = PML_SET_ADDR((uint64)phys) | PML_SET_P(1) | PML_SET_RW(1) | PML1_SET_PAT(1) | PML_SET_PCD(disableCache ? 1 : 0);
+        if(disableCache) {
+            __asm__ __volatile__ (
+                "wbinvd"
+            );
+        }
+
+        __asm__ __volatile__ (
+            "invlpg (%0)"
+            : : "r"(virt)
+        );
+
+        g_Lock.Unlock();
+    }
     void UnmapKernelPage(void* virt)
     {
         volatile uint64* myPML4 = g_CorePageTables[APIC::GetID()];

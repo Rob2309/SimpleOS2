@@ -87,6 +87,8 @@ namespace APIC
         IDT::SetISR(ISRNumbers::APICSpurious, ISR_Spurious);
         IDT::SetISR(ISRNumbers::APICTimer, ISR_Timer);
 
+        MemoryManager::RemapLargeKernelPage((void*)(lapicBase & 0xFFFFFFFFFFE00000), (void*)(g_APICBase & 0xFFFFFFFFFFE00000), true);
+
         *(volatile uint32*)(g_APICBase + RegSpurious) = 0x100 | ISRNumbers::APICSpurious;
         *(volatile uint32*)(g_APICBase + RegError) = 0x10000 | ISRNumbers::APICError;
 

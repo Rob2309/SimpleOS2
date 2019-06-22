@@ -47,6 +47,7 @@ namespace MemoryManager {
      * Map a physical page to be accessible by the kernel only
      **/
     void MapKernelPage(void* phys, void* virt);
+    void RemapLargeKernelPage(void* phys, void* virt, bool disableCache);
     /**
      * Unmap a kernel page
      **/
