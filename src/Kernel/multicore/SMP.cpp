@@ -69,7 +69,7 @@ namespace SMP {
         kmemcpy(buffer, (void*)&smp_Start, (uint64)&smp_End - (uint64)&smp_Start);
 
         uint32 addressOffset = (uint64)&smp_TrampolineBaseAddress - (uint64)&smp_Start;
-        *(volatile uint32*)(buffer + addressOffset) = (uint64)MemoryManager::KernelToPhysPtr(buffer);
+        *(volatile uint64*)(buffer + addressOffset) = (uint64)MemoryManager::KernelToPhysPtr(buffer);
 
         uint64 entryOffset = (uint64)&smp_DestinationAddress - (uint64)&smp_Start;
         *(volatile uint64*)(buffer + entryOffset) = (uint64)&CoreEntry;
