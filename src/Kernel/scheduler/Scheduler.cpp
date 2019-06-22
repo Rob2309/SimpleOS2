@@ -71,7 +71,7 @@ namespace Scheduler {
         return n;
     }
 
-    uint64 CreateProcess(uint64 pml4Entry, IDT::Registers* regs)
+    uint64 CreateUserThread(uint64 pml4Entry, IDT::Registers* regs)
     {
         uint64 coreID = SMP::GetLogicalCoreID();
 
@@ -161,7 +161,7 @@ namespace Scheduler {
         
         IDT::DisableInterrupts();
         g_CPUData[coreID].threadList.push_back(tInfo);
-        uint64 ret = pInfo->pid;
+        uint64 ret = tInfo->tid;
         IDT::EnableInterrupts();
 
         return ret;
@@ -327,29 +327,6 @@ namespace Scheduler {
         IDT::DisableInterrupts();
         g_CPUData[coreID].currentThread->blockEvent.type = ThreadBlockEvent::TYPE_MUTEX;
         g_CPUData[coreID].currentThread->blockEvent.mutex.lock = (Mutex*)lock;
-        
-        Yield();
-        IDT::EnableInterrupts();
-    }
-
-    void ThreadWaitForNodeRead(uint64 node)
-    {
-        uint64 coreID = SMP::GetLogicalCoreID();
-
-        IDT::DisableInterrupts();
-        g_CPUData[coreID].currentThread->blockEvent.type = ThreadBlockEvent::TYPE_NODE_READ;
-        g_CPUData[coreID].currentThread->blockEvent.node.nodeID = node;
-        
-        Yield();
-        IDT::EnableInterrupts();
-    }
-    void ThreadWaitForNodeWrite(uint64 node)
-    {
-        uint64 coreID = SMP::GetLogicalCoreID();
-
-        IDT::DisableInterrupts();
-        g_CPUData[coreID].currentThread->blockEvent.type = ThreadBlockEvent::TYPE_NODE_WRITE;
-        g_CPUData[coreID].currentThread->blockEvent.node.nodeID = node;
         
         Yield();
         IDT::EnableInterrupts();

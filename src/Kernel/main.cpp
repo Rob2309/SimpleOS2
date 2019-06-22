@@ -41,7 +41,7 @@ static uint64 SetupTestProcess() {
 
     delete[] buffer;
 
-    uint64 tid = Scheduler::CreateProcess(pml4Entry, &regs);
+    uint64 tid = Scheduler::CreateUserThread(pml4Entry, &regs);
     klog_info("Test", "Created test process with TID %i", tid);
     return tid;
 }

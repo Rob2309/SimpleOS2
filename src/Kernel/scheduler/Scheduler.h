@@ -6,23 +6,30 @@
 namespace Scheduler {
 
     /**
-     * Create a new userspace Process with one Thread
-     * @param pml4Entry the Paging Structure to user for this process
+     * Create a new userspace Thread and Process with the given Memory space
+     * @param pml4Entry the Paging Structure to user for the process
      * @param regs the initial register values for the created Thread
+     * @returns the TID of the created Thread
      **/
-    uint64 CreateProcess(uint64 pml4Entry, IDT::Registers* regs);
+    uint64 CreateUserThread(uint64 pml4Entry, IDT::Registers* regs);
     /**
-     * Create a new Kernel Thread that will be handled like any other Thread by the Scheduler
+     * Create a new Kernel Thread that is not associated with any Process
      * @param rip the Entry point of the Thread
+     * @returns the TID of the created Thread
      **/
     uint64 CreateKernelThread(uint64 rip);
     /**
      * Clones the currently active Process and its User Memory Space. All Open FileDescriptors will be cloned onto the new Process.
      * The new Process will have a single Thread.
      * @param regs the initial register values for the created Thread
+     * @returns the TID of the newly created Thread
      **/
     uint64 CloneProcess(IDT::Registers* regs);
 
+    /**
+     * Performs basic initialization of the Scheduler.
+     * Has to be called before any Core calls the Start() function
+     */
     void Init(uint64 numCores);
     /**
      * This function is called by the Kernel to start normal Scheduling procedures. It never returns.
@@ -33,6 +40,7 @@ namespace Scheduler {
      * Suspends the currently active Thread and starts the next one.
      * @param regs [in]  The register state of the currently running Thread; 
      *             [out] The register state of the next Thread
+     * Should only ever be called by the Timer interrupt handler
      **/
     void Tick(IDT::Registers* regs);
 
@@ -52,16 +60,6 @@ namespace Scheduler {
      **/
     void ThreadWaitForLock(void* lock);
     /**
-     * Suspends the active thread until another thread read at least 1 byte from the given FileSystem Node.
-     * Can be called from a KernelThread
-     **/
-    void ThreadWaitForNodeRead(uint64 node);
-    /**
-     * Suspends the active thread until another thread has written at least 1 byte to the given FileSystem Node.
-     * Can be called from a KernelThread
-     **/
-    void ThreadWaitForNodeWrite(uint64 node);
-    /**
      * Destroys the current Thread.
      * Can be called from a KernelThread
      **/
@@ -69,6 +67,7 @@ namespace Scheduler {
     /**
      * Creates a new Thread in the currently active process.
      * Can *not* be called from a KernelThread, use CreateKernelThread instead
+     * @returns the TID of the newly created Thread
      **/
     uint64 ThreadCreateThread(uint64 entry, uint64 stack);
     /**
@@ -76,7 +75,8 @@ namespace Scheduler {
      **/
     uint64 ThreadGetTID();
     /**
-     * Get the ProcessID of the currently active Process
+     * Get the ProcessID of the currently active Process.
+     * Returns 0 if the current Thread does not belong to a process (KernelThread)
      **/
     uint64 ThreadGetPID();
 
@@ -84,6 +84,9 @@ namespace Scheduler {
     void ProcessCloseFileDescriptor(uint64 desc);
     uint64 ProcessGetSystemFileDescriptor(uint64 desc);
 
+    /**
+     * Replaces the Memory space of the current Process with the given pml4Entry
+     */
     void ProcessExec(uint64 pml4Entry, IDT::Registers* regs);
 
     /**
@@ -92,6 +95,10 @@ namespace Scheduler {
      */
     void ThreadReturnToSignalHandler(uint64 signal);
 
+    /**
+     * Moves the given thread to another Core
+     * Can currently only be called from a non-thread context
+     */
     void MoveThreadToCPU(uint64 logicalCoreID, uint64 tid);
 
 }
