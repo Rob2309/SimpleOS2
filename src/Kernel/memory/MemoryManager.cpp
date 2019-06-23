@@ -117,7 +117,7 @@ namespace MemoryManager {
 
         return KernelToPhysPtr(p);
     }
-    static void* _FreePages(void* pages, uint64 numPages) {
+    static void _FreePages(void* pages, uint64 numPages) {
         g_FreeList.MarkFree(PhysToKernelPtr(pages), numPages * 4096);
     }
 
