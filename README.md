@@ -45,3 +45,9 @@ This OS should basically run on any x86_64 machine that supports UEFI. If you fi
 
 ## Running on real Hardware
 I have run SimpleOS2 several times on my own hardware and never encountered any damage. Nevertheless, I do not take any responsibility for any kind of damage to your system!
+
+## Lessons learned
+- When your Code works on Qemu but triple faults on VirtualBox, you have missed some very important minor detail in the AMD64 spec
+- When your Code works on VirtualBox but triple faults on Qemu, chances are Qemu does not recognize that you've written to the KernelGSBase MSR (you have to write 0 to gs and fs)
+- When your SMP Code crashes when booting more that two Processor Cores, they are probably booting on the same stack (took 2 days to find this stupid bug)
+- *NEVER* *EVER* forget that stacks grow down. I spent multiple days searching seemingly random bugs, just to notice that I allocated a memory area for some stack and forgot that the stack should begin at the **end** of the allocated space
