@@ -120,7 +120,7 @@ namespace Ext2 {
         node->dir = dir;
         return dir;
     }
-    Directory* Ext2Driver::WriteDirEntries(Node* node) {
+    void Ext2Driver::WriteDirEntries(Node* node) {
 
     }
 

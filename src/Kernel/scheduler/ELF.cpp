@@ -72,4 +72,5 @@ bool RunELF(const uint8* diskImg)
     if(!PrepareELF(diskImg, pml4Entry, regs))
         return false;
     Scheduler::CreateUserThread(pml4Entry, &regs);
+    return true;
 }

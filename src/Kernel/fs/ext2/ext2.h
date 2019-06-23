@@ -138,7 +138,7 @@ namespace Ext2 {
         uint64 WriteNodeData(VFS::Node* node, uint64 pos, const void* buffer, uint64 bufferSize) override;
 
         VFS::Directory* ReadDirEntries(VFS::Node* node) override;
-        VFS::Directory* WriteDirEntries(VFS::Node* node) override;
+        void WriteDirEntries(VFS::Node* node) override;
 
     private:
         uint64 m_Dev;

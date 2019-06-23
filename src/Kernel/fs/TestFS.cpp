@@ -92,7 +92,7 @@ Directory* TestFS::ReadDirEntries(Node* node) {
     TestNode* refNode = (TestNode*)(node->id);
     return refNode->dir;
 }
-Directory* TestFS::WriteDirEntries(Node* node) {
+void TestFS::WriteDirEntries(Node* node) {
     TestNode* refNode = (TestNode*)(node->id);
     refNode->dir = node->dir;
 }

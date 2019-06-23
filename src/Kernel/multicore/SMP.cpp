@@ -152,6 +152,8 @@ namespace SMP {
             if(g_Info[i].apicID == lapicID)
                 return i;
         }
+
+        return MaxCoreCount;
     }
 
     uint64 GetApicID(uint64 logicalCore) {

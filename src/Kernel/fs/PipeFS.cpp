@@ -165,7 +165,7 @@ namespace VFS {
         return bufferSize;
     }
 
-    Directory* PipeFS::ReadDirEntries(Node* node) { }
-    Directory* PipeFS::WriteDirEntries(Node* node) { }
+    Directory* PipeFS::ReadDirEntries(Node* node) { return nullptr; }
+    void PipeFS::WriteDirEntries(Node* node) { }
 
 }

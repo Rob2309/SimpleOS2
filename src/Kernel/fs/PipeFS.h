@@ -29,7 +29,7 @@ namespace VFS {
         uint64 WriteNodeData(Node* node, uint64 pos, const void* buffer, uint64 bufferSize) override;
 
         Directory* ReadDirEntries(Node* node) override;
-        Directory* WriteDirEntries(Node* node) override;
+        void WriteDirEntries(Node* node) override;
 
     private:
         Mutex m_PipesLock;

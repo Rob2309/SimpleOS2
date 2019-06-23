@@ -197,4 +197,6 @@ extern "C" EFI_STATUS efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
         ".att_syntax prefix"
         : : "D"(header), "a"(kernelMain), "r"(kernelStackTop)
     );
+
+    return EFI_LOAD_ERROR;
 }

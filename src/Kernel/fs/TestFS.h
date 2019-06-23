@@ -18,7 +18,7 @@ public:
     virtual uint64 WriteNodeData(VFS::Node* node, uint64 pos, const void* buffer, uint64 bufferSize) override;
 
     virtual VFS::Directory* ReadDirEntries(VFS::Node* node) override;
-    virtual VFS::Directory* WriteDirEntries(VFS::Node* node) override;
+    virtual void WriteDirEntries(VFS::Node* node) override;
 
 private:
     uint64 m_RootNodeID;
