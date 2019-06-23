@@ -1,8 +1,19 @@
 #pragma once
 
 #include "FileSystem.h"
+#include "Mutex.h"
+#include "ktl/vector.h"
 
 namespace VFS {
+
+    struct Pipe {
+        uint64 id;
+        bool free;
+        Mutex lock;
+        uint64 readPos;
+        uint64 writePos;
+        char buffer[4096];
+    };
 
     class PipeFS : public FileSystem {
     public:
@@ -19,6 +30,10 @@ namespace VFS {
 
         Directory* ReadDirEntries(Node* node) override;
         Directory* WriteDirEntries(Node* node) override;
+
+    private:
+        Mutex m_PipesLock;
+        ktl::vector<Pipe*> m_Pipes;
     };
 
 }

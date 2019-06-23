@@ -8,23 +8,11 @@
 
 namespace VFS {
 
-    struct Pipe {
-        uint64 id;
-        bool free;
-        Mutex lock;
-        uint64 readPos;
-        uint64 writePos;
-        char buffer[4096];
-    };
-
-    static Mutex g_PipesLock;
-    static ktl::vector<Pipe*> g_Pipes;
-
     void PipeFS::GetSuperBlock(SuperBlock* sb) { }
 
     void PipeFS::CreateNode(Node* node) {
-        g_PipesLock.SpinLock();
-        for(Pipe* p : g_Pipes) {
+        m_PipesLock.SpinLock();
+        for(Pipe* p : m_Pipes) {
             if(p->free) {
                 p->free = false;
                 p->readPos = 0;
@@ -32,26 +20,26 @@ namespace VFS {
                 node->id = p->id;
                 node->fs = this;
                 node->linkRefCount = 0;
-                g_PipesLock.Unlock();
+                m_PipesLock.Unlock();
                 return;
             }
         }
 
         Pipe* newPipe = new Pipe();
-        newPipe->id = g_Pipes.size();
+        newPipe->id = m_Pipes.size();
         newPipe->free = false;
         newPipe->readPos = 0;
         newPipe->writePos = 0;
-        g_Pipes.push_back(newPipe);
-        g_PipesLock.Unlock();
+        m_Pipes.push_back(newPipe);
+        m_PipesLock.Unlock();
         node->id = newPipe->id;
         node->fs = this;
         node->linkRefCount = 0;
     }
     void PipeFS::DestroyNode(Node* node) {
-        g_PipesLock.SpinLock();
-        g_Pipes[node->id]->free = true;
-        g_PipesLock.Unlock();
+        m_PipesLock.SpinLock();
+        m_Pipes[node->id]->free = true;
+        m_PipesLock.Unlock();
     }
 
     void ReadNode(uint64 id, Node* node) { }
@@ -97,9 +85,9 @@ namespace VFS {
         }
     }
     uint64 PipeFS::ReadNodeData(Node* node, uint64 pos, void* buffer, uint64 bufferSize)  {
-        g_PipesLock.SpinLock();
-        Pipe* p = g_Pipes[node->id];
-        g_PipesLock.Unlock();
+        m_PipesLock.SpinLock();
+        Pipe* p = m_Pipes[node->id];
+        m_PipesLock.Unlock();
 
         uint64 res;
         while((res = _Read(p, buffer, bufferSize)) == 0)
@@ -160,9 +148,9 @@ namespace VFS {
     uint64 PipeFS::WriteNodeData(Node* node, uint64 pos, const void* buffer, uint64 bufferSize) {
         char* realBuffer = (char*)buffer;
 
-        g_PipesLock.SpinLock();
-        Pipe* p = g_Pipes[node->id];
-        g_PipesLock.Unlock();
+        m_PipesLock.SpinLock();
+        Pipe* p = m_Pipes[node->id];
+        m_PipesLock.Unlock();
 
         uint64 res = 0;
         while(true) {
