@@ -28,13 +28,6 @@ namespace SMP {
         wait = false;
     }
 
-    static void TestThread() {
-        while(true) {
-            kprintf("Thread alive on Core %i\n", SMP::GetLogicalCoreID());
-            Scheduler::ThreadWait(1000);
-        }
-    }
-
     static void CoreEntry() {
         uint64 logicalID = SMP::GetLogicalCoreID();
         GDT::InitCore(logicalID);

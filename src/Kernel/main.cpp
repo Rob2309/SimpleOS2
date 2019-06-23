@@ -46,13 +46,6 @@ static uint64 SetupTestProcess() {
     return tid;
 }
 
-static void TestThread() {
-    while(true) {
-        kprintf("Thread alive on Core %i\n", SMP::GetLogicalCoreID());
-        Scheduler::ThreadWait(1000);
-    }
-}
-
 extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     Terminal::Init(info->screenBuffer, info->screenWidth, info->screenHeight, info->screenScanlineWidth, info->screenColorsInverted);
     Terminal::Clear();
