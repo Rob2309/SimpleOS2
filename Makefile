@@ -25,7 +25,7 @@ partition: $(bin_dir)/partition.img FORCE
 vboxpartition: $(bin_dir)/partition.vdi FORCE
 run: $(bin_dir)/partition.img FORCE
 	@ printf "\e[32mstarting SimpleOS2 in qemu\e[0m\n"
-	@ qemu-system-x86_64 -m 1024 -cpu qemu64 -smp 2 -net none -drive if=pflash,unit=0,format=raw,file=dep/ovmf/x64/OVMF_CODE.fd,readonly=on -drive if=pflash,unit=1,format=raw,file=dep/ovmf/x64/OVMF_VARS.fd,readonly=on -drive file=$<,if=ide
+	@ qemu-system-x86_64 -m 1024 -cpu qemu64 -smp 4 -net none -drive if=pflash,unit=0,format=raw,file=dep/ovmf/x64/OVMF_CODE.fd,readonly=on -drive if=pflash,unit=1,format=raw,file=dep/ovmf/x64/OVMF_VARS.fd,readonly=on -drive file=$<,if=ide
 runvbox: $(bin_dir)/../partition.vdi FORCE
 	@ printf "\e[32mstarting SimpleOS2 in VirtualBox\e[0m\n"
 	@ VBoxManage startvm SimpleOS2

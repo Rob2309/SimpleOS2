@@ -47,19 +47,25 @@ namespace MemoryManager {
 
     static uint64 g_HighMemBase;
 
-    static volatile uint64** g_CorePageTables;
+    static volatile uint64* g_CorePageTables[SMP::MaxCoreCount];
     static volatile uint64* g_KernelPages;
     static volatile uint64* g_KernelVPages;
 
     static bool g_PageSync_IsKernelPage;
     static void* g_PageSync_KernelPage;
 
-    void Init(KernelHeader* header, uint64 numCores)
+    static void ISR_PageSync(IDT::Registers* regs) {
+        APIC::SignalEOI();
+
+        if(g_PageSync_IsKernelPage) {
+            InvalidatePage(g_PageSync_KernelPage);
+        }
+    }
+
+    void Init(KernelHeader* header)
     {
         g_FreeList = ktl::FreeList(header->physMapStart);
         g_HighMemBase = header->highMemoryBase;
-        g_CorePageTables = (volatile uint64**)PhysToKernelPtr(AllocatePages((numCores * sizeof(uint64) + 4095) / 4096));
-        g_CorePageTables[0] = header->pageBuffer;
         g_KernelPages = (uint64*)PhysToKernelPtr((void*)PML_GET_ADDR(header->pageBuffer[511]));
 
         uint64 availableMemory = 0;
@@ -74,21 +80,13 @@ namespace MemoryManager {
             heapPML3[i] = 0;
         g_KernelVPages = heapPML3;
 
-        g_CorePageTables[0][510] = PML_SET_ADDR((uint64)KernelToPhysPtr((uint64*)g_KernelVPages)) | PML_SET_P(1) | PML_SET_RW(1);
+        IDT::SetISR(ISRNumbers::IPIPagingSync, ISR_PageSync);
 
         klog_info("MemoryManager", "MemoryManager initialized");
     }
 
-    static void ISR_PageSync(IDT::Registers* regs) {
-        APIC::SignalEOI();
-
-        if(g_PageSync_IsKernelPage) {
-            InvalidatePage(g_PageSync_KernelPage);
-        }
-    }
-
     void InitCore(uint64 coreID) {
-        uint64* pml4 = (uint64*)PhysToKernelPtr(AllocatePages(1));
+        volatile uint64* pml4 = (uint64*)PhysToKernelPtr(AllocatePages(1));
         for(int i = 0; i < 512; i++)
             pml4[i] = 0;
         g_CorePageTables[coreID] = pml4;
@@ -98,10 +96,8 @@ namespace MemoryManager {
 
         __asm__ __volatile__ (
             "movq %0, %%cr3"
-            : : "r"(KernelToPhysPtr(pml4))
+            : : "r"(KernelToPhysPtr((uint64*)pml4))
         );
-
-        IDT::SetISR(ISRNumbers::IPIPagingSync, ISR_PageSync);
     }
 
     void InvalidatePage(void* page) {
@@ -279,17 +275,9 @@ namespace MemoryManager {
 
         pml1[pml1Index] = PML_SET_ADDR((uint64)phys) | PML_SET_P(1) | PML_SET_RW(1);
 
-        __asm__ __volatile__ (
-            "invlpg (%0)"
-            : : "r"(virt)
-        );
-        g_PageSync_IsKernelPage = true;
-        g_PageSync_KernelPage = virt;
-        APIC::SendIPI(APIC::IPI_TARGET_ALL_BUT_SELF, 0, ISRNumbers::IPIPagingSync);
-
         g_Lock.Unlock();
     }
-    void RemapLargeKernelPage(void* phys, void* virt, bool disableCache) {
+    void DisableChacheOnLargePage(void* virt) {
         volatile uint64* myPML4 = g_CorePageTables[SMP::GetLogicalCoreID()];
 
         uint64 pml4Index = GET_PML4_INDEX((uint64)virt);
@@ -302,26 +290,14 @@ namespace MemoryManager {
         volatile uint64* pml3 = (uint64*)PhysToKernelPtr((void*)PML_GET_ADDR(pml4Entry));
 
         uint64 pml3Entry = pml3[pml3Index];
-        volatile uint64* pml2;
-        if(!PML_GET_P(pml3Entry)) {
-            pml2 = (uint64*)PhysToKernelPtr(_AllocatePages(1));
-            for(int i = 0; i < 512; i++)
-                pml2[i] = 0;
-            pml3[pml3Index] = PML_SET_ADDR((uint64)KernelToPhysPtr((uint64*)pml2)) | PML_SET_P(1) | PML_SET_RW(1);
-        } else {
-            pml2 = (uint64*)PhysToKernelPtr((void*)PML_GET_ADDR(pml3Entry));
-        }
+        volatile uint64* pml2 = (uint64*)PhysToKernelPtr((void*)PML_GET_ADDR(pml3Entry));
 
-        pml2[pml2Index] = PML_SET_ADDR((uint64)phys) | PML_SET_P(1) | PML_SET_RW(1) | PML1_SET_PAT(1) | PML_SET_PCD(disableCache ? 1 : 0);
-        if(disableCache) {
-            __asm__ __volatile__ (
-                "wbinvd"
-            );
-        }
+        pml2[pml2Index] |= PML_SET_PCD(1);
 
         __asm__ __volatile__ (
-            "invlpg (%0)"
-            : : "r"(virt)
+            "invlpg (%0);"
+            "wbinvd"
+            : : "r" (virt)
         );
 
         g_Lock.Unlock();

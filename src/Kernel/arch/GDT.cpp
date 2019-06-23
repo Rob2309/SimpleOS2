@@ -61,11 +61,11 @@ namespace GDT
     void Init(uint64 coreCount)
     {
         klog_info("GDT", "Reserving space for GDT");
-
-        // null descriptor
+        
         g_GDT = (GDTEntry*)MemoryManager::PhysToKernelPtr(MemoryManager::AllocatePages(((5 + coreCount * 2) * sizeof(GDTEntry) + 4095) / 4096));
         g_TSS = (TSS*)MemoryManager::PhysToKernelPtr(MemoryManager::AllocatePages((coreCount * sizeof(TSS) + 4095) / 4096));
 
+        // null descriptor
         kmemset((void*)&g_GDT[0], 0, sizeof(GDTEntry));
 
         // kernel code
@@ -81,7 +81,7 @@ namespace GDT
         g_GDT[2].base1 = 0x0000;
         g_GDT[2].base2 = 0x00;
         g_GDT[2].access = 0b10010010;
-        g_GDT[2].limit2flags = 0b10101111;
+        g_GDT[2].limit2flags = 0b10001111;
         g_GDT[2].base3 = 0x00;
 
         // user data
@@ -89,7 +89,7 @@ namespace GDT
         g_GDT[3].base1 = 0x0000;
         g_GDT[3].base2 = 0x00;
         g_GDT[3].access = 0b11110010;
-        g_GDT[3].limit2flags = 0b10101111;
+        g_GDT[3].limit2flags = 0b10001111;
         g_GDT[3].base3 = 0x00;
 
         // user code
@@ -107,6 +107,7 @@ namespace GDT
     void InitCore(uint64 coreID) {
         // TSS, needed for inter priviledge level interrupts
         kmemset((void*)&g_TSS[coreID], 0, sizeof(TSS));
+        
         g_TSS[coreID].iopbOffset = sizeof(TSS);
         // this is the stack pointer that will be loaded when an interrupt CHANGES the priviledge level to 0
         // if an interrupt is fired in kernel mode, this stack pointer won't be used

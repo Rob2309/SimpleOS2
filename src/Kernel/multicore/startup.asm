@@ -62,7 +62,7 @@ GDT:
         DW 0x0000
         DB 0x00
         DB 0b10010010
-        DB 0b10101111
+        DB 0b10001111
         DB 0x00
 
 GDT_Desc:

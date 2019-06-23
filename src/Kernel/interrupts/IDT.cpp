@@ -87,7 +87,7 @@ namespace IDT {
             "movq %%cr2, %0"
             : "=r"(cr2)
         );
-        klog_fatal("PANIC", "Unhandled interrupt: CR2=0x%x, ErrorCode=0x%X, RIP=0x%x", cr2, regs->errorCode, regs->rip);
+        klog_fatal("PANIC", "Unhandled interrupt %i: CR2=0x%x, ErrorCode=0x%X, RIP=0x%x", regs->intNumber, cr2, regs->errorCode, regs->rip);
         while(true);
     }
 

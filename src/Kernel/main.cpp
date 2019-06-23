@@ -59,9 +59,10 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
 
     klog_info("Kernel", "Kernel at 0x%x", info->kernelImage.buffer);
 
-    MemoryManager::Init(info, 20);
+    MemoryManager::Init(info);
     APIC::Init();
     SMP::GatherInfo(info);
+    MemoryManager::InitCore(SMP::GetLogicalCoreID());
     GDT::Init(SMP::GetCoreCount());
     GDT::InitCore(SMP::GetLogicalCoreID());
     IDT::Init();
@@ -86,8 +87,6 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     VFS::Mount("/initrd", "ext2", "/dev/ram0");
 
     uint64 tid = SetupTestProcess();
-
-    Scheduler::CreateKernelThread((uint64)&TestThread);
     Scheduler::MoveThreadToCPU(1, tid);
 
     Scheduler::Start();

@@ -36,14 +36,13 @@ namespace SMP {
     }
 
     static void CoreEntry() {
-        GDT::InitCore(SMP::GetLogicalCoreID());
-        IDT::InitCore(SMP::GetLogicalCoreID());
+        uint64 logicalID = SMP::GetLogicalCoreID();
+        GDT::InitCore(logicalID);
+        IDT::InitCore(logicalID);
         APIC::InitCore();
-        MemoryManager::InitCore(SMP::GetLogicalCoreID());
+        MemoryManager::InitCore(logicalID);
         SyscallHandler::InitCore();
-
-        Scheduler::CreateKernelThread((uint64)&TestThread);
-
+        
         started = true;
         
         while(!startScheduler) ;
@@ -89,10 +88,10 @@ namespace SMP {
                 ACPI::MADTEntryLAPIC* lapic = (ACPI::MADTEntryLAPIC*)(entry);
                 
                 if(!lapic->processorEnabled) {
-                    klog_info("SMP", "LAPIC: Proc=%i, ID=%i, Flags=%X [DISABLED]", lapic->processorID, lapic->lapicID, lapic->processorEnabled);
+                    klog_info("SMP", "LAPIC: Logical=%i, Proc=%i, ID=%i, Flags=%X [DISABLED]", g_NumCores, lapic->processorID, lapic->lapicID, lapic->processorEnabled);
                     continue;
                 } else {
-                    klog_info("SMP", "LAPIC: Proc=%i, ID=%i, Flags=%X", lapic->processorID, lapic->lapicID, lapic->processorEnabled);
+                    klog_info("SMP", "LAPIC: Logical=%i, Proc=%i, ID=%i, Flags=%X", g_NumCores, lapic->processorID, lapic->lapicID, lapic->processorEnabled);
                 }
 
                 g_Info[g_NumCores].apicID = lapic->lapicID;
@@ -124,18 +123,18 @@ namespace SMP {
 
         uint64 bootAPIC = APIC::GetID();
 
-        for(int i = 0; i < g_NumCores; i++) {
+        for(uint64 i = 0; i < g_NumCores; i++) {
             if(g_Info[i].apicID == bootAPIC)
                 continue;
 
             klog_info("SMP", "Starting logical Core %i", i);
 
-            *(volatile uint64*)(buffer + stackOffset) = (uint64)MemoryManager::PhysToKernelPtr(MemoryManager::AllocatePages(3));
+            *(volatile uint64*)(buffer + stackOffset) = (uint64)MemoryManager::PhysToKernelPtr(MemoryManager::AllocatePages(3)) + 3 * 4096;
 
             wait = true;
             started = false;
             APIC::SendInitIPI(g_Info[i].apicID);
-            APIC::StartTimer(10);
+            APIC::StartTimerOneshot(10);
             IDT::EnableInterrupts();
             while(wait) ;
             IDT::DisableInterrupts();
@@ -147,7 +146,7 @@ namespace SMP {
 
         startScheduler = true;
 
-        while(startCount < SMP::GetCoreCount() - 1) ;
+        while(startCount < g_NumCores - 1) ;
     }
 
     uint64 GetCoreCount() {

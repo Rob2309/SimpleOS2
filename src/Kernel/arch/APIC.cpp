@@ -85,8 +85,6 @@ namespace APIC
         IDT::SetISR(ISRNumbers::APICError, ISR_Error);
         IDT::SetISR(ISRNumbers::APICSpurious, ISR_Spurious);
         IDT::SetISR(ISRNumbers::APICTimer, ISR_Timer);
-
-        MemoryManager::RemapLargeKernelPage((void*)(lapicBase & 0xFFFFFFFFFFE00000), (void*)(g_APICBase & 0xFFFFFFFFFFE00000), true);
     }
     void InitBootCore()
     {
@@ -94,6 +92,8 @@ namespace APIC
         *(volatile uint32*)(g_APICBase + RegError) = 0x10000 | ISRNumbers::APICError;
 
         CalibrateTimer();
+
+        MemoryManager::DisableChacheOnLargePage((void*)(g_APICBase & 0xFFFFFFFFFFE00000));
     }
     void InitCore() {
         *(volatile uint32*)(g_APICBase + RegSpurious) = 0x100 | ISRNumbers::APICSpurious;
@@ -120,6 +120,9 @@ namespace APIC
     void StartTimer(uint32 ms)
     {
         StartTimer(1, g_TimerTicksPerMS * ms, true);
+    }
+    void StartTimerOneshot(uint32 ms) {
+        StartTimer(1, g_TimerTicksPerMS * ms, false);
     }
 
     void SendInitIPI(uint8 coreID) {

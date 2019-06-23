@@ -5,8 +5,10 @@
 
 namespace MemoryManager {
 
-    void Init(KernelHeader* header, uint64 numCores);
+    void Init(KernelHeader* header);
     void InitCore(uint64 coreID);
+
+    void DisableChacheOnLargePage(void* virt);
 
     /**
      * Allocate physically continuous pages
@@ -47,7 +49,6 @@ namespace MemoryManager {
      * Map a physical page to be accessible by the kernel only
      **/
     void MapKernelPage(void* phys, void* virt);
-    void RemapLargeKernelPage(void* phys, void* virt, bool disableCache);
     /**
      * Unmap a kernel page
      **/

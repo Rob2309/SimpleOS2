@@ -22,6 +22,7 @@ namespace APIC
      * Starts the timer on repeat mode with the specified interval (in milliseconds)
      **/
     void StartTimer(uint32 ms);
+    void StartTimerOneshot(uint32 ms);
 
     void SignalEOI();
 

@@ -57,6 +57,7 @@ namespace Scheduler {
         uint64 coreID = SMP::GetLogicalCoreID();
 
         IDT::DisableInterrupts();
+
         if(!g_CPUData[coreID].deadThreads.empty()) {
             ThreadInfo* res = &g_CPUData[coreID].deadThreads.back();
             g_CPUData[coreID].deadThreads.pop_back();
