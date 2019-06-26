@@ -72,6 +72,32 @@ namespace Scheduler {
         return n;
     }
 
+    uint64 CreateInitThread(void (*func)()) {
+        uint64 coreID = SMP::GetLogicalCoreID();
+
+        ThreadInfo* tInfo = (ThreadInfo*)MemoryManager::PhysToKernelPtr(MemoryManager::EarlyAllocatePages(NUM_PAGES(sizeof(ThreadInfo))));
+
+        IDT::Registers regs;
+        kmemset(&regs, 0, sizeof(IDT::Registers));
+        regs.cs = GDT::KernelCode;
+        regs.ds = GDT::KernelData;
+        regs.ss = GDT::KernelData;
+        regs.rflags = CPU::FLAGS_IF;
+        regs.rip = (uint64)func;
+        regs.userrsp = tInfo->kernelStack;
+
+        tInfo->tid = g_TIDCounter++;
+        tInfo->process = nullptr;
+        tInfo->blockEvent.type = ThreadBlockEvent::TYPE_NONE;
+        tInfo->userGSBase = 0;
+        tInfo->registers = regs;
+        
+        g_CPUData[coreID].threadList.push_back(tInfo);
+        uint64 ret = tInfo->tid;
+
+        return ret;
+    }
+
     uint64 CreateUserThread(uint64 pml4Entry, IDT::Registers* regs)
     {
         uint64 coreID = SMP::GetLogicalCoreID();
@@ -227,6 +253,10 @@ namespace Scheduler {
 
     void Tick(IDT::Registers* regs)
     {
+        uint64 coreID = SMP::GetLogicalCoreID();
+        if(g_CPUData[coreID].currentThread->sticky)
+            return;
+
         SaveThreadInfo(regs);
 
         // Find next process to execute
@@ -237,7 +267,9 @@ namespace Scheduler {
     }
 
     void Init(uint64 numCores) {
-        g_CPUData = new CPUData[numCores];
+        g_CPUData = (CPUData*)MemoryManager::PhysToKernelPtr(MemoryManager::EarlyAllocatePages(NUM_PAGES(numCores * sizeof(CPUData))));
+        for(uint64 i = 0; i < numCores; i++)
+            new(&g_CPUData[i]) CPUData();
 
         IDT::SetISR(ISRNumbers::IPIMoveThread, TransferEvent);
     }
@@ -251,7 +283,7 @@ namespace Scheduler {
         APIC::StartTimer(10);
 
         // Init idle process
-        ThreadInfo* p = new ThreadInfo();
+        ThreadInfo* p = (ThreadInfo*)MemoryManager::PhysToKernelPtr(MemoryManager::EarlyAllocatePages(NUM_PAGES(sizeof(ThreadInfo))));
         kmemset(p, 0, sizeof(ThreadInfo));
         p->tid = 0;
         p->blockEvent.type = ThreadBlockEvent::TYPE_NONE;
@@ -502,6 +534,11 @@ namespace Scheduler {
         tInfo->registers.rdi = signal;
 
         ReturnToThread(&tInfo->registers);
+    }
+
+    void ThreadSetSticky(bool sticky) {
+        uint64 coreID = SMP::GetLogicalCoreID();
+        g_CPUData[coreID].currentThread->sticky = sticky;
     }
 
     void MoveThreadToCPU(uint64 logicalCoreID, uint64 tid) {

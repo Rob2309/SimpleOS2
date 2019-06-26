@@ -5,6 +5,8 @@
 
 namespace Scheduler {
 
+    uint64 CreateInitThread(void (*func)());
+
     /**
      * Create a new userspace Thread and Process with the given Memory space
      * @param pml4Entry the Paging Structure to user for the process
@@ -94,6 +96,8 @@ namespace Scheduler {
      * Can only be called from an atomic context.
      */
     void ThreadReturnToSignalHandler(uint64 signal);
+
+    void ThreadSetSticky(bool sticky);
 
     /**
      * Moves the given thread to another Core

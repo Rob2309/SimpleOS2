@@ -46,6 +46,26 @@ static uint64 SetupTestProcess() {
     return tid;
 }
 
+static void InitThread() {
+    kprintf("Init Thread running\n");
+
+    VFS::Init(new TestFS());
+    VFS::CreateFolder("/dev");
+    VFS::CreateFolder("/initrd");
+
+    /*auto ramdriver = new RamDeviceDriver();
+    uint64 initrdID = ramdriver->AddDevice((char*)info->ramdiskImage.buffer, 512, info->ramdiskImage.numPages * 8);
+    VFS::CreateDeviceFile("/dev/ram0", ramdriver->GetDriverID(), initrdID);
+
+    Ext2::Init();
+    VFS::Mount("/initrd", "ext2", "/dev/ram0");
+
+    uint64 tid = SetupTestProcess();
+    Scheduler::MoveThreadToCPU(1, tid);*/
+
+    while(true) ;
+}
+
 extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     Terminal::Init(info->screenBuffer, info->screenWidth, info->screenHeight, info->screenScanlineWidth, info->screenColorsInverted);
     Terminal::Clear();
@@ -66,22 +86,10 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     Scheduler::Init(SMP::GetCoreCount());
 
     SMP::StartCores();
-    MemoryManager::FreePages(MemoryManager::KernelToPhysPtr(info->smpTrampolineBuffer), info->smpTrampolineBufferPages);
-
-    VFS::Init(new TestFS());
-    VFS::CreateFolder("/dev");
-    VFS::CreateFolder("/initrd");
-
-    auto ramdriver = new RamDeviceDriver();
-    uint64 initrdID = ramdriver->AddDevice((char*)info->ramdiskImage.buffer, 512, info->ramdiskImage.numPages * 8);
-    VFS::CreateDeviceFile("/dev/ram0", ramdriver->GetDriverID(), initrdID);
-
-    Ext2::Init();
-    VFS::Mount("/initrd", "ext2", "/dev/ram0");
-
-    uint64 tid = SetupTestProcess();
-    Scheduler::MoveThreadToCPU(1, tid);
-
+    MemoryManager::EarlyFreePages(MemoryManager::KernelToPhysPtr(info->smpTrampolineBuffer), info->smpTrampolineBufferPages);
+    Scheduler::CreateInitThread(InitThread);
+    
+    SMP::StartSchedulers();
     Scheduler::Start();
 
     while(true) ;

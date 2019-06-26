@@ -45,6 +45,8 @@ struct ThreadInfo {
     uint64 kernelStack;
     uint64 userGSBase;
 
+    bool sticky;
+
     IDT::Registers registers;
 };
 

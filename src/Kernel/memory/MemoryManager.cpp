@@ -3,7 +3,7 @@
 #include "klib/stdio.h"
 #include "klib/memory.h"
 #include "ktl/FreeList.h"
-#include "Mutex.h"
+#include "locks/StickyLock.h"
 #include "arch/APIC.h"
 #include "multicore/SMP.h"
 
@@ -42,7 +42,7 @@
 
 namespace MemoryManager {
 
-    static Mutex g_Lock;
+    static StickyLock g_Lock;
     static ktl::FreeList g_FreeList;
 
     static uint64 g_HighMemBase;
@@ -75,7 +75,7 @@ namespace MemoryManager {
 
         klog_info("MemoryManager", "Available memory: %i MB", availableMemory / 1024 / 1024);
 
-        volatile uint64* heapPML3 = (volatile uint64*)PhysToKernelPtr(AllocatePages(1));
+        volatile uint64* heapPML3 = (volatile uint64*)PhysToKernelPtr(EarlyAllocatePages(1));
         for(int i = 0; i < 512; i++)
             heapPML3[i] = 0;
         g_KernelVPages = heapPML3;
@@ -86,7 +86,7 @@ namespace MemoryManager {
     }
 
     void InitCore(uint64 coreID) {
-        volatile uint64* pml4 = (uint64*)PhysToKernelPtr(AllocatePages(1));
+        volatile uint64* pml4 = (uint64*)PhysToKernelPtr(EarlyAllocatePages(1));
         for(int i = 0; i < 512; i++)
             pml4[i] = 0;
         g_CorePageTables[coreID] = pml4;
@@ -121,6 +121,18 @@ namespace MemoryManager {
         g_FreeList.MarkFree(PhysToKernelPtr(pages), numPages * 4096);
     }
 
+    void* EarlyAllocatePages(uint64 numPages) {
+        g_Lock.SpinLock_NoSticky();
+        void* res = _AllocatePages(numPages);
+        g_Lock.Unlock_NoSticky();
+        return res;
+    }
+    void EarlyFreePages(void* pages, uint64 numPages) {
+        g_Lock.SpinLock_NoSticky();
+        _FreePages(pages, numPages);
+        g_Lock.Unlock_NoSticky();
+    }
+
     void* AllocatePages(uint64 numPages)
     {
         g_Lock.SpinLock();
@@ -128,13 +140,13 @@ namespace MemoryManager {
         g_Lock.Unlock();
         return res;
     }
-
     void FreePages(void* pages, uint64 numPages)
     {
         g_Lock.SpinLock();
         _FreePages(pages, numPages);
         g_Lock.Unlock();
     }
+
     void* PhysToKernelPtr(const void* ptr)
     {
         return (char*)ptr + g_HighMemBase;
@@ -284,8 +296,6 @@ namespace MemoryManager {
         uint64 pml3Index = GET_PML3_INDEX((uint64)virt);
         uint64 pml2Index = GET_PML2_INDEX((uint64)virt);
 
-        g_Lock.SpinLock();
-
         uint64 pml4Entry = myPML4[pml4Index];
         volatile uint64* pml3 = (uint64*)PhysToKernelPtr((void*)PML_GET_ADDR(pml4Entry));
 
@@ -299,8 +309,6 @@ namespace MemoryManager {
             "wbinvd"
             : : "r" (virt)
         );
-
-        g_Lock.Unlock();
     }
     void UnmapKernelPage(void* virt)
     {
