@@ -7,14 +7,19 @@ StickyLock::StickyLock()
 { }
 
 void StickyLock::SpinLock() {
+    bool stickyBefore = Scheduler::ThreadGetSticky();
+
     Scheduler::ThreadSetSticky(true);
 
     while(!TryLock()) ;
+
+    m_StickyBefore = stickyBefore;
 }
 void StickyLock::Unlock() {
     DoUnlock();
 
-    Scheduler::ThreadSetSticky(false);
+    if(!m_StickyBefore)
+        Scheduler::ThreadSetSticky(false);
 }
 
 void StickyLock::SpinLock_NoSticky() {

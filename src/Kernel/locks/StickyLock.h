@@ -18,4 +18,5 @@ private:
 
 private:
     uint64 m_Val;
+    bool m_StickyBefore;
 };

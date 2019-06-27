@@ -46,27 +46,37 @@ static uint64 SetupTestProcess() {
     return tid;
 }
 
+static VFS::FileSystem* TestFSFactory() {
+    return new TestFS();
+}
+
+static KernelHeader* g_KernelHeader;
+
 static void InitThread() {
     kprintf("Init Thread running\n");
+
+    VFS::FileSystemRegistry::RegisterFileSystem("test", TestFSFactory);
 
     VFS::Init(new TestFS());
     VFS::CreateFolder("/dev");
     VFS::CreateFolder("/initrd");
 
-    /*auto ramdriver = new RamDeviceDriver();
-    uint64 initrdID = ramdriver->AddDevice((char*)info->ramdiskImage.buffer, 512, info->ramdiskImage.numPages * 8);
+    auto ramdriver = new RamDeviceDriver();
+    uint64 initrdID = ramdriver->AddDevice((char*)g_KernelHeader->ramdiskImage.buffer, 512, g_KernelHeader->ramdiskImage.numPages * 8);
     VFS::CreateDeviceFile("/dev/ram0", ramdriver->GetDriverID(), initrdID);
 
     Ext2::Init();
     VFS::Mount("/initrd", "ext2", "/dev/ram0");
 
     uint64 tid = SetupTestProcess();
-    Scheduler::MoveThreadToCPU(1, tid);*/
+    Scheduler::MoveThreadToCPU(1, tid);
 
-    while(true) ;
+    Scheduler::ThreadExit(0);
 }
 
 extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
+    g_KernelHeader = info;
+
     Terminal::Init(info->screenBuffer, info->screenWidth, info->screenHeight, info->screenScanlineWidth, info->screenColorsInverted);
     Terminal::Clear();
 
@@ -87,6 +97,7 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
 
     SMP::StartCores();
     MemoryManager::EarlyFreePages(MemoryManager::KernelToPhysPtr(info->smpTrampolineBuffer), info->smpTrampolineBufferPages);
+
     Scheduler::CreateInitThread(InitThread);
     
     SMP::StartSchedulers();

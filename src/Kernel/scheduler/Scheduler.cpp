@@ -76,6 +76,7 @@ namespace Scheduler {
         uint64 coreID = SMP::GetLogicalCoreID();
 
         ThreadInfo* tInfo = (ThreadInfo*)MemoryManager::PhysToKernelPtr(MemoryManager::EarlyAllocatePages(NUM_PAGES(sizeof(ThreadInfo))));
+        tInfo->kernelStack = (uint64)MemoryManager::PhysToKernelPtr((uint8*)MemoryManager::EarlyAllocatePages(3) + 3 * 4096);
 
         IDT::Registers regs;
         kmemset(&regs, 0, sizeof(IDT::Registers));
@@ -539,6 +540,11 @@ namespace Scheduler {
     void ThreadSetSticky(bool sticky) {
         uint64 coreID = SMP::GetLogicalCoreID();
         g_CPUData[coreID].currentThread->sticky = sticky;
+    }
+
+    bool ThreadGetSticky() {
+        uint64 coreID = SMP::GetLogicalCoreID();
+        return g_CPUData[coreID].currentThread->sticky;
     }
 
     void MoveThreadToCPU(uint64 logicalCoreID, uint64 tid) {

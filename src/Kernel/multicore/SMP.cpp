@@ -30,6 +30,7 @@ namespace SMP {
 
     static void CoreEntry() {
         uint64 logicalID = SMP::GetLogicalCoreID();
+
         GDT::InitCore(logicalID);
         IDT::InitCore(logicalID);
         APIC::InitCore();

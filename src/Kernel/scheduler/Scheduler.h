@@ -98,6 +98,7 @@ namespace Scheduler {
     void ThreadReturnToSignalHandler(uint64 signal);
 
     void ThreadSetSticky(bool sticky);
+    bool ThreadGetSticky();
 
     /**
      * Moves the given thread to another Core
