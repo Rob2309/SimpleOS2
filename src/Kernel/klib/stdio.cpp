@@ -1,10 +1,10 @@
 #include "stdio.h"
 
 #include "terminal/terminal.h"
-#include "Mutex.h"
+#include "locks/StickyLock.h"
 
 static uint32 g_TerminalColor = 0xFFFFFF;
-static Mutex g_PrintLock;
+static StickyLock g_PrintLock;
 
 static char* IntToStringBase(int base, char* buffer, char* symbols, int64 num) {
     if(num == 0) {
@@ -90,7 +90,7 @@ void kprintf(const char* format, ...)
     __builtin_va_list arg;
     __builtin_va_start(arg, format);
 
-    g_PrintLock.SpinLock();
+    g_PrintLock.SpinLock_NoSticky();
 
     uint32 i = 0;
     char c;
@@ -122,7 +122,7 @@ void kprintf(const char* format, ...)
         }
     }
 
-    g_PrintLock.Unlock();
+    g_PrintLock.Unlock_NoSticky();
 
     __builtin_va_end(arg);
 }

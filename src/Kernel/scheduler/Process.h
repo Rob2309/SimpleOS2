@@ -1,7 +1,7 @@
 #pragma once
 
 #include "types.h"
-#include "Mutex.h"
+#include "locks/StickyLock.h"
 #include "ktl/vector.h"
 #include "ktl/list.h"
 #include "Thread.h"
@@ -16,7 +16,7 @@ struct ProcessInfo {
 
     uint64 pml4Entry;
 
-    Mutex fileDescLock;
+    StickyLock fileDescLock;
     ktl::vector<ProcessFileDescriptor*> fileDescs;
 
     ktl::nlist<ThreadInfo> threads;

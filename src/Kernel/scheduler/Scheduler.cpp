@@ -40,7 +40,7 @@ namespace Scheduler {
         Scheduler::Tick(regs);
     }
 
-    static Mutex g_TransferLock;
+    static StickyLock g_TransferLock;
     static bool g_TransferComplete;
     static ThreadInfo* g_TransferThread;
 
@@ -59,7 +59,7 @@ namespace Scheduler {
         IDT::DisableInterrupts();
 
         if(!g_CPUData[coreID].deadThreads.empty()) {
-            ThreadInfo* res = &g_CPUData[coreID].deadThreads.back();
+            ThreadInfo* res = g_CPUData[coreID].deadThreads.back();
             g_CPUData[coreID].deadThreads.pop_back();
             IDT::EnableInterrupts();
             return res;
@@ -207,10 +207,6 @@ namespace Scheduler {
                     p->blockEvent.wait.remainingMillis -= 10;
                 }
                 break;
-            case ThreadBlockEvent::TYPE_MUTEX:
-                if(p->blockEvent.mutex.lock->TryLock()) {
-                    p->blockEvent.type = ThreadBlockEvent::TYPE_NONE;
-                }
             }
         }
     }
@@ -351,17 +347,6 @@ namespace Scheduler {
         g_CPUData[coreID].currentThread->blockEvent.type = ThreadBlockEvent::TYPE_WAIT;
         g_CPUData[coreID].currentThread->blockEvent.wait.remainingMillis = ms;
 
-        Yield();
-        IDT::EnableInterrupts();
-    }
-    void ThreadWaitForLock(void* lock)
-    {
-        uint64 coreID = SMP::GetLogicalCoreID();
-
-        IDT::DisableInterrupts();
-        g_CPUData[coreID].currentThread->blockEvent.type = ThreadBlockEvent::TYPE_MUTEX;
-        g_CPUData[coreID].currentThread->blockEvent.mutex.lock = (Mutex*)lock;
-        
         Yield();
         IDT::EnableInterrupts();
     }
@@ -567,6 +552,11 @@ namespace Scheduler {
         }
 
         IDT::EnableInterrupts();
+    }
+
+    ThreadInfo* GetCurrentThreadInfo() {
+        uint64 coreID = SMP::GetLogicalCoreID();
+        return g_CPUData[coreID].currentThread;
     }
 
 }

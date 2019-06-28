@@ -1,7 +1,7 @@
 #pragma once
 
 #include "FileSystem.h"
-#include "Mutex.h"
+#include "locks/StickyLock.h"
 #include "ktl/vector.h"
 
 namespace VFS {
@@ -9,7 +9,7 @@ namespace VFS {
     struct Pipe {
         uint64 id;
         bool free;
-        Mutex lock;
+        StickyLock lock;
         uint64 readPos;
         uint64 writePos;
         char buffer[4096];
@@ -32,7 +32,7 @@ namespace VFS {
         void WriteDirEntries(Node* node) override;
 
     private:
-        Mutex m_PipesLock;
+        StickyLock m_PipesLock;
         ktl::vector<Pipe*> m_Pipes;
     };
 

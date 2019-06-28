@@ -28,10 +28,10 @@ namespace VFS {
         FileSystem* fs;
         SuperBlock sb;
 
-        Mutex childMountLock;
+        StickyLock childMountLock;
         ktl::nlist<MountPoint> childMounts;
 
-        Mutex nodeCacheLock;
+        StickyLock nodeCacheLock;
         ktl::nlist<CachedNode> nodeCache;
     };
 
@@ -50,7 +50,7 @@ namespace VFS {
     static MountPoint* g_RootMount = nullptr;
     static MountPoint* g_PipeMount = nullptr;
 
-    static Mutex g_FileDescLock;
+    static StickyLock g_FileDescLock;
     static ktl::nlist<FileDescriptor> g_FileDescs;
 
     static bool CleanPath(const char* path, char* cleanBuffer) {
@@ -158,7 +158,7 @@ namespace VFS {
             if(n->nodeID == nodeID) {
                 n->softRefCount++;
                 mp->nodeCacheLock.Unlock();
-                n->node.lock.SpinLock();
+                n->node.lock.Lock();
                 return n;
             }
         }
@@ -166,7 +166,7 @@ namespace VFS {
         CachedNode* newNode = new CachedNode();
         newNode->nodeID = nodeID;
         newNode->softRefCount = 1;
-        newNode->node.lock.SpinLock();
+        newNode->node.lock.SetLocked();
         mp->nodeCache.push_back(newNode);
         mp->nodeCacheLock.Unlock();
 
@@ -189,8 +189,8 @@ namespace VFS {
                 Directory::Destroy(node->node.dir);
             delete node;
         } else {
-            node->node.lock.Unlock();
             mp->nodeCacheLock.Unlock();
+            node->node.lock.Unlock();
         }
     }
 
@@ -264,7 +264,7 @@ namespace VFS {
         mp->fs->CreateNode(&newNode->node);
         newNode->nodeID = newNode->node.id;
         newNode->softRefCount = softRefs;
-        newNode->node.lock.SpinLock();
+        newNode->node.lock.SetLocked();
 
         mp->nodeCacheLock.SpinLock();
         mp->nodeCache.push_back(newNode);
@@ -559,7 +559,7 @@ namespace VFS {
         desc->refCount--;
         if(desc->refCount == 0) {
             CachedNode* node = desc->node;
-            node->node.lock.SpinLock();
+            node->node.lock.Lock();
             ReleaseNode(desc->mp, node);
 
             delete desc;

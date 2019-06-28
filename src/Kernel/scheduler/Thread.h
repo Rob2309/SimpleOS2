@@ -2,7 +2,6 @@
 
 #include "types.h"
 #include "interrupts/IDT.h"
-#include "Mutex.h"
 
 constexpr uint64 KernelStackPages = 3;
 constexpr uint64 KernelStackSize = KernelStackPages * 4096;
@@ -13,7 +12,7 @@ struct ThreadBlockEvent {
     enum {
         TYPE_NONE,
         TYPE_WAIT,
-        TYPE_MUTEX,
+        TYPE_QUEUE_LOCK,
         TYPE_NODE_READ,
         TYPE_NODE_WRITE,
     } type;
@@ -22,9 +21,6 @@ struct ThreadBlockEvent {
         struct {
             uint64 remainingMillis;
         } wait;
-        struct {
-            Mutex* lock;
-        } mutex;
         struct {
             uint64 nodeID;
         } node;

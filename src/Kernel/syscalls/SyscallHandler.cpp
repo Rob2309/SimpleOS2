@@ -99,12 +99,6 @@ namespace SyscallHandler {
                     SendSignal(SignalAbort);
                 Scheduler::ThreadCreateThread(entry, stack); 
             } break;
-        case Syscall::FunctionWaitForLock: {
-                void* lock = (void*)arg1;
-                if(!MemoryManager::IsUserPtr(lock))
-                    SendSignal(SignalAbort);
-                Scheduler::ThreadWaitForLock(MemoryManager::UserToKernelPtr(lock)); 
-            } break;
         case Syscall::FunctionExec: {
                 const char* filePath = (const char*)arg1;
                 if(!MemoryManager::IsUserPtr(filePath))

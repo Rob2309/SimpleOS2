@@ -3,13 +3,13 @@
 #include "MemoryManager.h"
 
 #include "ktl/FreeList.h"
-#include "Mutex.h"
+#include "locks/StickyLock.h"
 
 namespace KernelHeap {
 
     constexpr uint64 HeapBase = ((uint64)510 << 39) | 0xFFFF000000000000;
 
-    static Mutex g_Lock;
+    static StickyLock g_Lock;
     static ktl::FreeList g_FreeList;
     static uint64 g_HeapPos = HeapBase;
 
