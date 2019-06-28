@@ -42,6 +42,7 @@ struct ThreadInfo {
     uint64 userGSBase;
 
     bool sticky;
+    bool killPending;
 
     IDT::Registers registers;
 };

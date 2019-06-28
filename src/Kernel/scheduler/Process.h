@@ -19,5 +19,6 @@ struct ProcessInfo {
     StickyLock fileDescLock;
     ktl::vector<ProcessFileDescriptor*> fileDescs;
 
-    ktl::nlist<ThreadInfo> threads;
+    StickyLock mainLock;
+    uint64 numThreads;
 };

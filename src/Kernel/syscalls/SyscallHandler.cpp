@@ -67,18 +67,13 @@ namespace SyscallHandler {
         return Scheduler::CloneProcess(&childRegs);
     }
 
-    static void SendSignal(uint64 signal) {
-        IDT::DisableInterrupts();
-        Scheduler::ThreadReturnToSignalHandler(signal);
-    }
-
     extern "C" uint64 SyscallDispatcher(uint64 func, uint64 arg1, uint64 arg2, uint64 arg3, uint64 arg4, State* state)
     {
         switch(func) {
         case Syscall::FunctionPrint: {
                 const char* msg = (const char*)arg1;
                 if(!MemoryManager::IsUserPtr(msg))
-                    SendSignal(SignalAbort);
+                    Scheduler::ThreadKillProcess();
 
                 kprintf_colored(200, 50, 50, "[%i.%i] ", Scheduler::ThreadGetPID(), Scheduler::ThreadGetTID());
                 kprintf((const char*)arg1); 
@@ -96,13 +91,13 @@ namespace SyscallHandler {
                 uint64 entry = arg1;
                 uint64 stack = arg2;
                 if(!MemoryManager::IsUserPtr((void*)entry) || !MemoryManager::IsUserPtr((void*)stack))
-                    SendSignal(SignalAbort);
+                    Scheduler::ThreadKillProcess();
                 Scheduler::ThreadCreateThread(entry, stack); 
             } break;
         case Syscall::FunctionExec: {
                 const char* filePath = (const char*)arg1;
                 if(!MemoryManager::IsUserPtr(filePath))
-                    SendSignal(SignalAbort);
+                    Scheduler::ThreadKillProcess();
 
                 uint64 file = VFS::Open(filePath);
                 if(file == 0)
@@ -129,19 +124,19 @@ namespace SyscallHandler {
         case Syscall::FunctionCreateFile: {
                 const char* filePath = (const char*)arg1;
                 if(!MemoryManager::IsUserPtr(filePath))
-                    SendSignal(SignalAbort);
+                    Scheduler::ThreadKillProcess();
                 return VFS::CreateFile(filePath); 
             } break;
         case Syscall::FunctionCreateFolder: {
                 const char* filePath = (const char*)arg1;
                 if(!MemoryManager::IsUserPtr(filePath))
-                    SendSignal(SignalAbort);
+                    Scheduler::ThreadKillProcess();
                 return VFS::CreateFolder(filePath); 
             } break;
         case Syscall::FunctionCreateDeviceFile: {
                 const char* filePath = (const char*)arg1;
                 if(!MemoryManager::IsUserPtr(filePath))
-                    SendSignal(SignalAbort);
+                    Scheduler::ThreadKillProcess();
                 return VFS::CreateDeviceFile(filePath, arg2, arg3); 
             } break;
         case Syscall::FunctionCreatePipe: {
@@ -153,7 +148,7 @@ namespace SyscallHandler {
         case Syscall::FunctionDelete: {
                 const char* filePath = (const char*)arg1;
                 if(!MemoryManager::IsUserPtr(filePath))
-                    SendSignal(SignalAbort);
+                    Scheduler::ThreadKillProcess();
                 return VFS::Delete(filePath); 
             } break;
         case Syscall::FunctionOpen: {
@@ -167,20 +162,20 @@ namespace SyscallHandler {
         case Syscall::FunctionRead: {
                 void* buffer = (void*)arg2;
                 if(!MemoryManager::IsUserPtr(buffer))
-                    SendSignal(SignalAbort);
+                    Scheduler::ThreadKillProcess();
                 return VFS::Read(Scheduler::ProcessGetSystemFileDescriptor(arg1), buffer, arg3); 
             } break;
         case Syscall::FunctionWrite: {
                 const void* buffer = (const void*)arg2;
                 if(!MemoryManager::IsUserPtr(buffer))
-                    SendSignal(SignalAbort);
+                    Scheduler::ThreadKillProcess();
                 return VFS::Write(Scheduler::ProcessGetSystemFileDescriptor(arg1), buffer, arg3); 
             } break;
         case Syscall::FunctionMount: { 
                 const char* mountPoint = (const char*)arg1;
                 const char* fsID = (const char*)arg2;
                 if(!MemoryManager::IsUserPtr(mountPoint) || !MemoryManager::IsUserPtr(fsID))
-                    SendSignal(SignalAbort);
+                    Scheduler::ThreadKillProcess();
                 return VFS::Mount(mountPoint, fsID); 
             } break;
         case Syscall::FunctionMountDev: {
@@ -188,14 +183,14 @@ namespace SyscallHandler {
                 const char* fsID = (const char*)arg2;
                 const char* devFile = (const char*) arg3;
                 if(!MemoryManager::IsUserPtr(mountPoint) || !MemoryManager::IsUserPtr(fsID) || !MemoryManager::IsUserPtr(devFile))
-                    SendSignal(SignalAbort);
+                    Scheduler::ThreadKillProcess();
                 return VFS::Mount(mountPoint, fsID, devFile);
             } break;
 
         case Syscall::FunctionAllocPages: {
                 char* pageBase = (char*)arg1;
                 if(!MemoryManager::IsUserPtr(pageBase))
-                    SendSignal(SignalAbort);
+                    Scheduler::ThreadKillProcess();
                 for(uint64 i = 0; i < arg2; i++) {
                     MemoryManager::MapProcessPage(pageBase + i * 4096);
                 }
@@ -204,7 +199,7 @@ namespace SyscallHandler {
         case Syscall::FunctionFreePages: {
                 char* pageBase = (char*)arg1;
                 if(!MemoryManager::IsUserPtr(pageBase))
-                    SendSignal(SignalAbort);
+                    Scheduler::ThreadKillProcess();
                 for(uint64 i = 0; i < arg2; i++) {
                     MemoryManager::UnmapProcessPage(pageBase + i * 4096);
                 }
