@@ -1,9 +1,9 @@
 #include "DeviceDriver.h"
 
-#include "Mutex.h"
 #include "ktl/list.h"
 #include "ktl/new.h"
 #include "scheduler/Scheduler.h"
+#include "locks/QueueLock.h"
 
 DeviceDriver::DeviceDriver(Type type) 
     : m_Type(type)
@@ -24,7 +24,7 @@ struct CachedBlock {
     uint64 subID;
     uint64 blockID;
     uint64 refCount;
-    Mutex dataLock;
+    QueueLock dataLock;
     char data[];
 };
 
@@ -66,8 +66,8 @@ void BlockDeviceDriver::GetData(uint64 subID, uint64 pos, void* buffer, uint64 b
         m_CacheLock.SpinLock();
         CachedBlock* cb;
         if(!GetCachedBlock(subID, blockID, GetBlockSize(subID), m_Cache, &cb)) {
-            cb->dataLock.SpinLock();
             m_CacheLock.Unlock();
+            cb->dataLock.Lock();
 
             Atomic<uint64> finished;
             finished = 0;
@@ -76,7 +76,7 @@ void BlockDeviceDriver::GetData(uint64 subID, uint64 pos, void* buffer, uint64 b
                 // TODO: Yield
         } else {
             m_CacheLock.Unlock();
-            cb->dataLock.SpinLock();
+            cb->dataLock.Lock();
         }
 
         uint64 offs = pos - (blockID * GetBlockSize(subID));
@@ -110,8 +110,8 @@ void BlockDeviceDriver::SetData(uint64 subID, uint64 pos, const void* buffer, ui
         m_CacheLock.SpinLock();
         CachedBlock* cb;
         if(!GetCachedBlock(subID, blockID, GetBlockSize(subID), m_Cache, &cb)) {
-            cb->dataLock.SpinLock();
             m_CacheLock.Unlock();
+            cb->dataLock.Lock();
 
             Atomic<uint64> finished;
             finished = 0;
@@ -120,7 +120,7 @@ void BlockDeviceDriver::SetData(uint64 subID, uint64 pos, const void* buffer, ui
                 // TODO: Yield
         } else {
             m_CacheLock.Unlock();
-            cb->dataLock.SpinLock();
+            cb->dataLock.Lock();
         }
 
         uint64 offs = pos - (blockID * GetBlockSize(subID));
@@ -140,7 +140,7 @@ void BlockDeviceDriver::SetData(uint64 subID, uint64 pos, const void* buffer, ui
     }
 }
 
-static Mutex g_DriverLock;
+static StickyLock g_DriverLock;
 static uint64 g_DriverIDCounter = 0;
 static ktl::nlist<DeviceDriver> g_Drivers;
 

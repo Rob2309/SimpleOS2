@@ -3,7 +3,7 @@
 #include "types.h"
 #include "Directory.h"
 #include "atomic/Atomics.h"
-#include "Mutex.h"
+#include "locks/QueueLock.h"
 #include "FileSystem.h"
 
 namespace VFS {
@@ -12,7 +12,7 @@ namespace VFS {
 
     struct Node
     {
-        Mutex lock;
+        QueueLock lock;
 
         enum Type {
             TYPE_FILE,              // Normal File

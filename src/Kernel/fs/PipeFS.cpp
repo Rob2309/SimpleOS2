@@ -1,6 +1,5 @@
 #include "PipeFS.h"
 
-#include "Mutex.h"
 #include "ktl/vector.h"
 #include "klib/memory.h"
 #include "scheduler/Scheduler.h"

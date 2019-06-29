@@ -1,6 +1,6 @@
 #include "FileSystem.h"
 
-#include "Mutex.h"
+#include "locks/StickyLock.h"
 #include "ktl/list.h"
 #include "klib/string.h"
 
@@ -18,7 +18,7 @@ namespace VFS {
         const char* id;
     };
 
-    static Mutex g_Lock;
+    static StickyLock g_Lock;
     static ktl::nlist<FSEntry> g_FileSystems;
 
     void FileSystemRegistry::RegisterFileSystem(const char* id, FileSystemFactory factory) {

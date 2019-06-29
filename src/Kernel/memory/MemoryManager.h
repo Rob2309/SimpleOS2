@@ -3,6 +3,10 @@
 #include "types.h"
 #include "KernelHeader.h"
 
+constexpr uint64 NUM_PAGES(uint64 size) {
+    return (size + 4095) / 4096;
+}
+
 namespace MemoryManager {
 
     void Init(KernelHeader* header);
@@ -10,10 +14,18 @@ namespace MemoryManager {
 
     void DisableChacheOnLargePage(void* virt);
 
+    void* EarlyAllocatePages(uint64 numPages);
+    void EarlyFreePages(void* pages, uint64 numPages);
+
     /**
-     * Allocate physically continuous pages
+     * Allocate physically continuous pages.
+     * Can only be called from a thread.
      **/
     void* AllocatePages(uint64 numPages = 1);
+    /**
+     * Free pages Allocated with AllocatePages.
+     * Can only be called from a thread.
+     */
     void FreePages(void* pages, uint64 numPages = 1);
 
     void InvalidatePage(void* page);

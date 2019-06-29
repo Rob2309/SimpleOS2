@@ -1,7 +1,6 @@
 #pragma once
 
 #include "DeviceDriver.h"
-#include "Mutex.h"
 #include "ktl/vector.h"
 
 /**

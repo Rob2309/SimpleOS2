@@ -30,6 +30,7 @@ namespace SMP {
 
     static void CoreEntry() {
         uint64 logicalID = SMP::GetLogicalCoreID();
+
         GDT::InitCore(logicalID);
         IDT::InitCore(logicalID);
         APIC::InitCore();
@@ -122,7 +123,7 @@ namespace SMP {
 
             klog_info("SMP", "Starting logical Core %i", i);
 
-            *(volatile uint64*)(buffer + stackOffset) = (uint64)MemoryManager::PhysToKernelPtr(MemoryManager::AllocatePages(3)) + 3 * 4096;
+            *(volatile uint64*)(buffer + stackOffset) = (uint64)MemoryManager::PhysToKernelPtr(MemoryManager::EarlyAllocatePages(3)) + 3 * 4096;
 
             wait = true;
             started = false;
@@ -136,7 +137,9 @@ namespace SMP {
             while(!started) ;
             klog_info("SMP", "Logical Core %i started...", i);
         }
+    }
 
+    void StartSchedulers() {
         startScheduler = true;
 
         while(startCount < g_NumCores - 1) ;

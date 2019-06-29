@@ -151,7 +151,8 @@ namespace ktl {
         nlist(const nlist& t) = delete;
         nlist(const nlist&& t) = delete;
 
-        Node& back() { return *m_Tail; }
+        Node* front() { return m_Head; }
+        Node* back() { return m_Tail; }
 
         /**
          * Add a node to the end of the list.

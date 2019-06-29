@@ -3,7 +3,11 @@
 #include "types.h"
 #include "interrupts/IDT.h"
 
+struct ThreadInfo;
+
 namespace Scheduler {
+
+    uint64 CreateInitThread(void (*func)());
 
     /**
      * Create a new userspace Thread and Process with the given Memory space
@@ -54,11 +58,7 @@ namespace Scheduler {
      * Can be called from a KernelThread
      **/
     void ThreadWait(uint64 ms);
-    /**
-     * Suspends the active thread until the mutex given by lock parameter was successfully locked by the Scheduler.
-     * Can be called from a KernelThread
-     **/
-    void ThreadWaitForLock(void* lock);
+
     /**
      * Destroys the current Thread.
      * Can be called from a KernelThread
@@ -89,16 +89,18 @@ namespace Scheduler {
      */
     void ProcessExec(uint64 pml4Entry, IDT::Registers* regs);
 
-    /**
-     * Runs the signal handler with the current thread.
-     * Can only be called from an atomic context.
-     */
-    void ThreadReturnToSignalHandler(uint64 signal);
+    void ThreadKillProcessFromInterrupt(IDT::Registers* regs);
+    void ThreadKillProcess();
+
+    void ThreadSetSticky(bool sticky);
+    bool ThreadGetSticky();
 
     /**
      * Moves the given thread to another Core
      * Can currently only be called from a non-thread context
      */
     void MoveThreadToCPU(uint64 logicalCoreID, uint64 tid);
+
+    ThreadInfo* GetCurrentThreadInfo();
 
 }

@@ -3,7 +3,7 @@
 #include "types.h"
 #include "atomic/Atomics.h"
 #include "ktl/vector.h"
-#include "Mutex.h"
+#include "locks/StickyLock.h"
 
 class DeviceDriver {
 public:
@@ -53,7 +53,7 @@ protected:
     virtual void ScheduleOperation(uint64 subID, uint64 startBlock, uint64 numBlocks, bool write, void* buffer, Atomic<uint64>* finishFlag) = 0;
 
 private:
-    Mutex m_CacheLock;
+    StickyLock m_CacheLock;
     ktl::vector<CachedBlock*> m_Cache;
 };
 

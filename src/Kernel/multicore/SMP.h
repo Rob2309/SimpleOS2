@@ -9,6 +9,7 @@ namespace SMP {
 
     void GatherInfo(KernelHeader* header);
     void StartCores();
+    void StartSchedulers();
 
     uint64 GetCoreCount();
     uint64 GetLogicalCoreID();
