@@ -26,6 +26,8 @@ check_cmd mcopy "SimpleOS2 requires mtools to be installed"
 
 check_cmd debugfs "SimpleOS2 requires debugfs in order to create its ramdisk"
 
+check_cmd parted "SimpleOS2 requires parted to create its disk image"
+
 if [ $code = 1 ]; then
     printf "${red}Not all dependencies are fullfilled${reset}\n"
 else
