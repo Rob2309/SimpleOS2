@@ -12,19 +12,19 @@ cpp_objects := $(addprefix $(int_dir)/, $(subst .cpp,.cpp.o, $(cpp_sources)))
 asm_objects := $(addprefix $(int_dir)/, $(subst .asm,.asm.o, $(asm_sources)))
 
 $(bin_dir)/$(out_file): $(c_objects) $(cpp_objects) $(asm_objects)
-	@ echo "\e[33mLinking executable\e[0m"
+	@ printf "\e[33mLinking executable\e[0m\n"
 	@ mkdir -p $(dir $@)
 	@ $(cpp_compiler) $(link_flags) -o $@ $^
 
 $(int_dir)/%.c.o: ./%.c $(c_headers) $(cross_headers)
-	@ echo "\e[33mCompiling $<\e[0m"
+	@ printf "\e[33mCompiling $<\e[0m\n"
 	@ mkdir -p $(dir $@)
 	@ $(cpp_compiler) $(compile_flags) $(include_flags) -c $< -o $@
 $(int_dir)/%.cpp.o: ./%.cpp $(c_headers) $(cross_headers)
-	@ echo "\e[33mCompiling $<\e[0m"
+	@ printf "\e[33mCompiling $<\e[0m\n"
 	@ mkdir -p $(dir $@)
 	@ $(cpp_compiler) $(compile_flags) $(include_flags) -c $< -o $@
 $(int_dir)/%.asm.o: ./%.asm $(cross_headers)
-	@ echo "\e[33mCompiling $<\e[0m"
+	@ printf "\e[33mCompiling $<\e[0m\n"
 	@ mkdir -p $(dir $@)
 	@ $(asm_compiler) $< -o $@

@@ -4,6 +4,8 @@
 #include "klib/memory.h"
 #include "ktl/FreeList.h"
 #include "Mutex.h"
+#include "arch/APIC.h"
+#include "multicore/SMP.h"
 
 #define PML_GET_NX(entry)           ((entry) & 0x8000000000000000)
 #define PML_GET_ADDR(entry)         ((entry) & 0x000FFFFFFFFFF000)
@@ -45,29 +47,64 @@ namespace MemoryManager {
 
     static uint64 g_HighMemBase;
 
-    static volatile uint64* g_PML4;
+    static volatile uint64* g_CorePageTables[SMP::MaxCoreCount];
+    static volatile uint64* g_KernelPages;
+    static volatile uint64* g_KernelVPages;
+
+    static bool g_PageSync_IsKernelPage;
+    static void* g_PageSync_KernelPage;
+
+    static void ISR_PageSync(IDT::Registers* regs) {
+        APIC::SignalEOI();
+
+        if(g_PageSync_IsKernelPage) {
+            InvalidatePage(g_PageSync_KernelPage);
+        }
+    }
 
     void Init(KernelHeader* header)
     {
         g_FreeList = ktl::FreeList(header->physMapStart);
         g_HighMemBase = header->highMemoryBase;
-        g_PML4 = header->pageBuffer;
-
-        // delete lower half mapping
-        g_PML4[0] = 0;
+        g_KernelPages = (uint64*)PhysToKernelPtr((void*)PML_GET_ADDR(header->pageBuffer[511]));
 
         uint64 availableMemory = 0;
         for(const auto& a : g_FreeList) {
             availableMemory += a.size;
         }
 
+        klog_info("MemoryManager", "Available memory: %i MB", availableMemory / 1024 / 1024);
+
         volatile uint64* heapPML3 = (volatile uint64*)PhysToKernelPtr(AllocatePages(1));
         for(int i = 0; i < 512; i++)
             heapPML3[i] = 0;
-        g_PML4[510] = PML_SET_ADDR((uint64)KernelToPhysPtr((uint64*)heapPML3)) | PML_SET_P(1) | PML_SET_RW(1);
+        g_KernelVPages = heapPML3;
 
-        klog_info("Memory", "Available memory: %i MB", availableMemory / 1024 / 1024);
-        klog_info("Memory", "Memory manager initialized");
+        IDT::SetISR(ISRNumbers::IPIPagingSync, ISR_PageSync);
+
+        klog_info("MemoryManager", "MemoryManager initialized");
+    }
+
+    void InitCore(uint64 coreID) {
+        volatile uint64* pml4 = (uint64*)PhysToKernelPtr(AllocatePages(1));
+        for(int i = 0; i < 512; i++)
+            pml4[i] = 0;
+        g_CorePageTables[coreID] = pml4;
+
+        pml4[511] = PML_SET_ADDR((uint64)KernelToPhysPtr((uint64*)g_KernelPages)) | PML_SET_P(1) | PML_SET_RW(1);
+        pml4[510] = PML_SET_ADDR((uint64)KernelToPhysPtr((uint64*)g_KernelVPages)) | PML_SET_P(1) | PML_SET_RW(1);
+
+        __asm__ __volatile__ (
+            "movq %0, %%cr3"
+            : : "r"(KernelToPhysPtr((uint64*)pml4))
+        );
+    }
+
+    void InvalidatePage(void* page) {
+        __asm__ __volatile__ (
+            "invlpg (%0)"
+            : : "r"(page)
+        );
     }
 
     static void* _AllocatePages(uint64 numPages) {
@@ -80,7 +117,7 @@ namespace MemoryManager {
 
         return KernelToPhysPtr(p);
     }
-    static void* _FreePages(void* pages, uint64 numPages) {
+    static void _FreePages(void* pages, uint64 numPages) {
         g_FreeList.MarkFree(PhysToKernelPtr(pages), numPages * 4096);
     }
 
@@ -98,7 +135,6 @@ namespace MemoryManager {
         _FreePages(pages, numPages);
         g_Lock.Unlock();
     }
-
     void* PhysToKernelPtr(const void* ptr)
     {
         return (char*)ptr + g_HighMemBase;
@@ -150,9 +186,11 @@ namespace MemoryManager {
     }
     uint64 ForkProcessMap()
     {
+        volatile uint64* myPML4 = g_CorePageTables[SMP::GetLogicalCoreID()];
+
         uint64 newPML4Entry = CreateProcessMap();
 
-        volatile uint64* pml3 = (uint64*)PhysToKernelPtr((void*)PML_GET_ADDR(g_PML4[0]));
+        volatile uint64* pml3 = (uint64*)PhysToKernelPtr((void*)PML_GET_ADDR(myPML4[0]));
 
         for(uint64 i = 0; i < 512; i++) {
             uint64 pml3Entry = pml3[i];
@@ -189,16 +227,20 @@ namespace MemoryManager {
 
     void SwitchProcessMap(uint64 pml4Entry)
     {
-        g_PML4[0] = pml4Entry;
+        volatile uint64* myPML4 = g_CorePageTables[SMP::GetLogicalCoreID()];
+
+        myPML4[0] = pml4Entry;
 
         __asm__ __volatile__ (
             "movq %0, %%cr3"
-            : : "r"(KernelToPhysPtr((uint64*)g_PML4))
+            : : "r"(KernelToPhysPtr((uint64*)myPML4))
         );
     }
 
     void MapKernelPage(void* phys, void* virt)
     {
+        volatile uint64* myPML4 = g_CorePageTables[SMP::GetLogicalCoreID()];
+
         uint64 pml4Index = GET_PML4_INDEX((uint64)virt);
         uint64 pml3Index = GET_PML3_INDEX((uint64)virt);
         uint64 pml2Index = GET_PML2_INDEX((uint64)virt);
@@ -206,7 +248,7 @@ namespace MemoryManager {
 
         g_Lock.SpinLock();
 
-        uint64 pml4Entry = g_PML4[pml4Index];
+        uint64 pml4Entry = myPML4[pml4Index];
         volatile uint64* pml3 = (uint64*)PhysToKernelPtr((void*)PML_GET_ADDR(pml4Entry));
 
         uint64 pml3Entry = pml3[pml3Index];
@@ -233,15 +275,37 @@ namespace MemoryManager {
 
         pml1[pml1Index] = PML_SET_ADDR((uint64)phys) | PML_SET_P(1) | PML_SET_RW(1);
 
+        g_Lock.Unlock();
+    }
+    void DisableChacheOnLargePage(void* virt) {
+        volatile uint64* myPML4 = g_CorePageTables[SMP::GetLogicalCoreID()];
+
+        uint64 pml4Index = GET_PML4_INDEX((uint64)virt);
+        uint64 pml3Index = GET_PML3_INDEX((uint64)virt);
+        uint64 pml2Index = GET_PML2_INDEX((uint64)virt);
+
+        g_Lock.SpinLock();
+
+        uint64 pml4Entry = myPML4[pml4Index];
+        volatile uint64* pml3 = (uint64*)PhysToKernelPtr((void*)PML_GET_ADDR(pml4Entry));
+
+        uint64 pml3Entry = pml3[pml3Index];
+        volatile uint64* pml2 = (uint64*)PhysToKernelPtr((void*)PML_GET_ADDR(pml3Entry));
+
+        pml2[pml2Index] |= PML_SET_PCD(1);
+
         __asm__ __volatile__ (
-            "invlpg (%0)"
-            : : "r"(virt)
+            "invlpg (%0);"
+            "wbinvd"
+            : : "r" (virt)
         );
 
         g_Lock.Unlock();
     }
     void UnmapKernelPage(void* virt)
     {
+        volatile uint64* myPML4 = g_CorePageTables[SMP::GetLogicalCoreID()];
+
         uint64 pml4Index = GET_PML4_INDEX((uint64)virt);
         uint64 pml3Index = GET_PML3_INDEX((uint64)virt);
         uint64 pml2Index = GET_PML2_INDEX((uint64)virt);
@@ -249,7 +313,7 @@ namespace MemoryManager {
 
         g_Lock.SpinLock();
 
-        uint64 pml4Entry = g_PML4[pml4Entry];
+        uint64 pml4Entry = myPML4[pml4Entry];
         volatile uint64* pml3 = (uint64*)PhysToKernelPtr((void*)PML_GET_ADDR(pml4Entry));
 
         uint64 pml3Entry = pml3[pml3Index];
@@ -264,6 +328,9 @@ namespace MemoryManager {
             "invlpg (%0)"
             : : "r"(virt)
         );
+        g_PageSync_IsKernelPage = true;
+        g_PageSync_KernelPage = virt;
+        APIC::SendIPI(APIC::IPI_TARGET_ALL_BUT_SELF, 0, ISRNumbers::IPIPagingSync);
 
         g_Lock.Unlock();
     }
@@ -354,7 +421,8 @@ namespace MemoryManager {
         return PhysToKernelPtr(phys);
     }
     void MapProcessPage(void* virt) {
-        MapProcessPage(g_PML4[0], virt, true);
+        volatile uint64* myPML4 = g_CorePageTables[SMP::GetLogicalCoreID()];
+        MapProcessPage(myPML4[0], virt, true);
     }
     void UnmapProcessPage(uint64 pml4Entry, void* virt, bool invalidate)
     {
@@ -380,12 +448,14 @@ namespace MemoryManager {
         }
     }
     void UnmapProcessPage(void* virt) {
-        UnmapProcessPage(g_PML4[0], virt, true);
+        volatile uint64* myPML4 = g_CorePageTables[SMP::GetLogicalCoreID()];
+        UnmapProcessPage(myPML4[0], virt, true);
     }
 
     void* UserToKernelPtr(const void* virt)
     {
-        uint64 pml4Entry = g_PML4[0];
+        volatile uint64* myPML4 = g_CorePageTables[SMP::GetLogicalCoreID()];
+        uint64 pml4Entry = myPML4[0];
 
         uint64 pml3Index = GET_PML3_INDEX((uint64)virt);
         uint64 pml2Index = GET_PML2_INDEX((uint64)virt);

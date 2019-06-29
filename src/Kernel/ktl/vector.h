@@ -15,8 +15,8 @@ namespace ktl {
         public:
             Iterator(T* data, uint64 pos) : m_Data(data), m_Pos(pos) { }
 
-            Iterator& operator++() { m_Pos++; }
-            Iterator& operator--() { m_Pos--; }
+            Iterator& operator++() { m_Pos++; return *this; }
+            Iterator& operator--() { m_Pos--; return *this; }
 
             T& operator* () { return m_Data[m_Pos]; }
             T* operator-> () { return &m_Data[m_Pos]; }

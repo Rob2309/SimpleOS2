@@ -7,3 +7,5 @@
 // Allocates size bytes, rounded up to the next page
 void* Allocate(uint64 size, EFI_MEMORY_TYPE type = EfiLoaderData);
 void Free(void* block, uint64 size);
+
+bool AllocateBelow(uint8** address, uint64 numPages, EFI_MEMORY_TYPE type);

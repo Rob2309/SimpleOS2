@@ -76,6 +76,25 @@ extern "C" EFI_STATUS efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
     // Convert the header pointer to a high-memory pointer
     header = (KernelHeader*)Paging::ConvertPtr(header);
 
+    Console::Print(L"Searching for ACPI 2.0 Table...\r\n");
+    header->rsdp = 0;
+    EFI_GUID acpi2guid = ACPI_20_TABLE_GUID;
+    EFI_CONFIGURATION_TABLE* configTable = EFIUtil::SystemTable->ConfigurationTable;
+    for(int i = 0; i < EFIUtil::SystemTable->NumberOfTableEntries; i++) {
+        EFI_CONFIGURATION_TABLE* configEntry = &configTable[i];
+        
+        if(configEntry->VendorGuid == acpi2guid) {
+            header->rsdp = Paging::ConvertPtr(configEntry->VendorTable);
+            break;
+        }
+    }
+
+    if(header->rsdp == 0) {
+        Console::Print(L"ACPI 2.0 not supported\r\nPress any key to exit...\r\n");
+        EFIUtil::WaitForKey();
+        return EFI_LOAD_ERROR;
+    }
+
     // Load Kernel elf file
     FileIO::FileData kernelData = FileIO::ReadFile(L"EFI\\BOOT\\kernel.sys");
     if(kernelData.size == 0) {
@@ -93,6 +112,15 @@ extern "C" EFI_STATUS efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
     }
 
     Console::Print(L"Preparing kernel...\r\n");
+
+    header->smpTrampolineBufferPages = 5;
+    uint8* trampBuffer = (uint8*)0xFFFFF;
+    if(!AllocateBelow(&trampBuffer, header->smpTrampolineBufferPages, (EFI_MEMORY_TYPE)0x80000001)) {
+        Console::Print(L"Failed to allocate smp trampoline buffer\r\nPress any key to exit...\r\n");
+        EFIUtil::WaitForKey();
+        return EFI_LOAD_ERROR;
+    }
+    header->smpTrampolineBuffer = (uint8*)Paging::ConvertPtr(trampBuffer);
 
     Elf64Addr kernelEntryPoint = 0;
     uint64 size = GetELFSize(kernelData.data);
@@ -169,4 +197,6 @@ extern "C" EFI_STATUS efi_main(EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* sysTable)
         ".att_syntax prefix"
         : : "D"(header), "a"(kernelMain), "r"(kernelStackTop)
     );
+
+    return EFI_LOAD_ERROR;
 }

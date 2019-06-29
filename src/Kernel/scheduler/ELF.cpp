@@ -71,5 +71,6 @@ bool RunELF(const uint8* diskImg)
     IDT::Registers regs;
     if(!PrepareELF(diskImg, pml4Entry, regs))
         return false;
-    Scheduler::CreateProcess(pml4Entry, &regs);
+    Scheduler::CreateUserThread(pml4Entry, &regs);
+    return true;
 }

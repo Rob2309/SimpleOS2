@@ -6,7 +6,7 @@ bin_dir := $(bin_dir)/Kernel
 
 includes := ../common
 
-compile_flags := -g -fPIC -ffreestanding -fno-stack-protector -fno-exceptions
+compile_flags := -g -fPIC -ffreestanding -fno-stack-protector -fno-exceptions -mno-sse
 link_flags := -g -fPIC -nostdlib -shared -e main -static -lgcc
 
 ifeq ($(config),Debug)

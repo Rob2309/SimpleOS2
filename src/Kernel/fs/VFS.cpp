@@ -418,6 +418,8 @@ namespace VFS {
 
         *readDesc = (uint64)descRead;
         *writeDesc = (uint64)descWrite;
+
+        return true;
     }
 
     bool Delete(const char* path) {
@@ -502,6 +504,8 @@ namespace VFS {
         mp->childMountLock.SpinLock();
         mp->childMounts.push_back(newMP);
         mp->childMountLock.Unlock();
+
+        return true;
     }
     bool Mount(const char* mountPoint, const char* fsID) {
         FileSystem* fs = FileSystemRegistry::CreateFileSystem(fsID);

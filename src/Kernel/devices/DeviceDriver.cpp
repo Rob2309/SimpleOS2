@@ -1,7 +1,7 @@
 #include "DeviceDriver.h"
 
 #include "Mutex.h"
-#include "ktl/vector.h"
+#include "ktl/list.h"
 #include "ktl/new.h"
 #include "scheduler/Scheduler.h"
 
@@ -141,23 +141,29 @@ void BlockDeviceDriver::SetData(uint64 subID, uint64 pos, const void* buffer, ui
 }
 
 static Mutex g_DriverLock;
-static ktl::vector<DeviceDriver*> g_Drivers;
+static uint64 g_DriverIDCounter = 0;
+static ktl::nlist<DeviceDriver> g_Drivers;
 
 uint64 DeviceDriverRegistry::RegisterDriver(DeviceDriver* driver) {
     g_DriverLock.SpinLock();
-    uint64 res = g_Drivers.size();
+    uint64 res = g_DriverIDCounter++;
     g_Drivers.push_back(driver);
     g_DriverLock.Unlock();
     return res;
 }
-void DeviceDriverRegistry::UnregisterDriver(uint64 id) {
+void DeviceDriverRegistry::UnregisterDriver(DeviceDriver* driver) {
     g_DriverLock.SpinLock();
-    g_Drivers[id] = nullptr;
+    g_Drivers.erase(driver);
     g_DriverLock.Unlock();
 }
 DeviceDriver* DeviceDriverRegistry::GetDriver(uint64 id) {
     g_DriverLock.SpinLock();
-    DeviceDriver* res = g_Drivers[id];
+    for(DeviceDriver* driver : g_Drivers) {
+        if(driver->GetDriverID() == id) {
+            g_DriverLock.Unlock();
+            return driver;
+        }
+    }
     g_DriverLock.Unlock();
-    return res;
+    return nullptr;
 }

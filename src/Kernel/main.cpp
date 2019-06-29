@@ -1,55 +1,49 @@
-#include <KernelHeader.h>
+#include "KernelHeader.h"
 
 #include "terminal/terminal.h"
 #include "klib/stdio.h"
-#include "memory/MemoryManager.h"
 #include "arch/GDT.h"
 #include "interrupts/IDT.h"
 #include "arch/APIC.h"
-
-#include "scheduler/Scheduler.h"
-
-#include "scheduler/ELF.h"
-
-#include "memory/KernelHeap.h"
+#include "syscalls/SyscallHandler.h"
+#include "memory/MemoryManager.h"
+#include "multicore/SMP.h"
 
 #include "fs/VFS.h"
-#include "fs/ext2/ext2.h"
-#include "devices/PseudoDeviceDriver.h"
-#include "devices/RamDeviceDriver.h"
-
-#include "syscalls/SyscallHandler.h"
-
-#include "scheduler/Process.h"
-
-#include "arch/CPU.h"
-
 #include "fs/TestFS.h"
+#include "devices/RamDeviceDriver.h"
+#include "fs/ext2/ext2.h"
 
-static void SetupTestProcess(uint8* loadBase)
-{
+#include "scheduler/Scheduler.h"
+#include "scheduler/ELF.h"
+
+static uint64 SetupTestProcess() {
     uint64 file = VFS::Open("/initrd/Test.elf");
     if(file == 0) {
-        klog_error("Init", "Failed to find Test.elf");
-        return;
+        klog_error("Test", "Failed to open /initrd/Test.elf");
+        return 0;
     }
-
+    
     VFS::NodeStats stats;
     VFS::Stat(file, &stats);
-    uint8* fileBuffer = new uint8[stats.size];
-    VFS::Read(file, 0, fileBuffer, stats.size);
+    
+    uint8* buffer = new uint8[stats.size];
+    VFS::Read(file, buffer, stats.size);
     VFS::Close(file);
 
-    if(!RunELF(fileBuffer)) {
-        klog_error("Init", "Failed to setup process");
-        return;
+    uint64 pml4Entry;
+    IDT::Registers regs;
+    if(!PrepareELF(buffer, pml4Entry, regs)) {
+        klog_error("Test", "Failed to setup test process");
+        delete[] buffer;
+        return 0;
     }
 
-    delete[] fileBuffer;
-}
+    delete[] buffer;
 
-static VFS::FileSystem* TestFactory() {
-    return new TestFS();
+    uint64 tid = Scheduler::CreateUserThread(pml4Entry, &regs);
+    klog_info("Test", "Created test process with TID %i", tid);
+    return tid;
 }
 
 extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
@@ -57,40 +51,38 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     Terminal::Clear();
 
     klog_info("Kernel", "Kernel at 0x%x", info->kernelImage.buffer);
-    
+
     MemoryManager::Init(info);
-
-    GDT::Init(info);
+    APIC::Init();
+    SMP::GatherInfo(info);
+    MemoryManager::InitCore(SMP::GetLogicalCoreID());
+    GDT::Init(SMP::GetCoreCount());
+    GDT::InitCore(SMP::GetLogicalCoreID());
     IDT::Init();
-    SyscallHandler::Init();
+    IDT::InitCore(SMP::GetLogicalCoreID());
+    APIC::InitBootCore();
+    SyscallHandler::InitCore();
 
-    Ext2::Init();
-    VFS::FileSystemRegistry::RegisterFileSystem("test", TestFactory);
+    Scheduler::Init(SMP::GetCoreCount());
+
+    SMP::StartCores();
+    MemoryManager::FreePages(MemoryManager::KernelToPhysPtr(info->smpTrampolineBuffer), info->smpTrampolineBufferPages);
 
     VFS::Init(new TestFS());
     VFS::CreateFolder("/dev");
-
-    RamDeviceDriver* ramDriver = new RamDeviceDriver();
-    uint64 initrdSubID = ramDriver->AddDevice((char*)info->ramdiskImage.buffer, 512, info->ramdiskImage.numPages * 8);
-    VFS::CreateDeviceFile("/dev/ram0", ramDriver->GetDriverID(), initrdSubID);
-
-    PseudoDeviceDriver* pseudoDriver = new PseudoDeviceDriver();
-    VFS::CreateDeviceFile("/dev/zero", pseudoDriver->GetDriverID(), PseudoDeviceDriver::DeviceZero);
-
     VFS::CreateFolder("/initrd");
+
+    auto ramdriver = new RamDeviceDriver();
+    uint64 initrdID = ramdriver->AddDevice((char*)info->ramdiskImage.buffer, 512, info->ramdiskImage.numPages * 8);
+    VFS::CreateDeviceFile("/dev/ram0", ramdriver->GetDriverID(), initrdID);
+
+    Ext2::Init();
     VFS::Mount("/initrd", "ext2", "/dev/ram0");
 
-    APIC::Init();
+    uint64 tid = SetupTestProcess();
+    Scheduler::MoveThreadToCPU(1, tid);
 
-    SetupTestProcess((uint8*)0x16000);
-    APIC::StartTimer(10);
     Scheduler::Start();
 
-    // should never be reached
-    while(true) {
-        __asm__ __volatile__ (
-            "hlt"
-        );
-    }
-
+    while(true) ;
 }

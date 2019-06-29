@@ -29,7 +29,8 @@ namespace ISRNumbers
     constexpr uint8 APICTimer = 100; // Interrupt of Local APIC Timer
     constexpr uint8 APICError = 101; // Interrupt if Local APIC throws an error
 
-    constexpr uint8 SchedulerControl = 127; // TODO: obsolete, remove
+    constexpr uint8 IPIPagingSync = 120; // Called by memory manager to keep page tables in sync across multiple cores
+    constexpr uint8 IPIMoveThread = 121; // Called by Scheduler to move a Thread to another processor
     
     constexpr uint8 APICSpurious = 255; // Spurious Local APIC Interrupt
 }

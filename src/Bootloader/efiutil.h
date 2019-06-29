@@ -31,3 +31,14 @@ namespace EFIUtil {
     EfiMemoryMap GetMemoryMap();
 
 }
+
+inline bool operator== (const EFI_GUID& a, const EFI_GUID& b) {
+    char* pa = (char*)&a;
+    char* pb = (char*)&b;
+
+    for(int i = 0; i < sizeof(EFI_GUID); i++)
+        if(pa[i] != pb[i])
+            return false;
+
+    return true;
+}

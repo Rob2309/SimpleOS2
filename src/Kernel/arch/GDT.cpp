@@ -3,6 +3,7 @@
 #include "types.h"
 #include "klib/stdio.h"
 #include "klib/memory.h"
+#include "memory/MemoryManager.h"
 
 namespace GDT
 {
@@ -53,12 +54,16 @@ namespace GDT
         uint64 offset;
     };
 
-    static volatile GDTEntry g_GDT[7];
-    static volatile TSS g_TSS;
+    static volatile GDTEntry* g_GDT;
+    static volatile TSS* g_TSS;
+    static GDTDesc g_GDTDesc;
 
-    void Init(KernelHeader* header)
+    void Init(uint64 coreCount)
     {
-        klog_info("GDT", "Initializing GDT");
+        klog_info("GDT", "Reserving space for GDT");
+        
+        g_GDT = (GDTEntry*)MemoryManager::PhysToKernelPtr(MemoryManager::AllocatePages(((5 + coreCount * 2) * sizeof(GDTEntry) + 4095) / 4096));
+        g_TSS = (TSS*)MemoryManager::PhysToKernelPtr(MemoryManager::AllocatePages((coreCount * sizeof(TSS) + 4095) / 4096));
 
         // null descriptor
         kmemset((void*)&g_GDT[0], 0, sizeof(GDTEntry));
@@ -76,7 +81,7 @@ namespace GDT
         g_GDT[2].base1 = 0x0000;
         g_GDT[2].base2 = 0x00;
         g_GDT[2].access = 0b10010010;
-        g_GDT[2].limit2flags = 0b10101111;
+        g_GDT[2].limit2flags = 0b10001111;
         g_GDT[2].base3 = 0x00;
 
         // user data
@@ -84,7 +89,7 @@ namespace GDT
         g_GDT[3].base1 = 0x0000;
         g_GDT[3].base2 = 0x00;
         g_GDT[3].access = 0b11110010;
-        g_GDT[3].limit2flags = 0b10101111;
+        g_GDT[3].limit2flags = 0b10001111;
         g_GDT[3].base3 = 0x00;
 
         // user code
@@ -95,27 +100,33 @@ namespace GDT
         g_GDT[4].limit2flags = 0b10101111;
         g_GDT[4].base3 = 0x00;
 
+        g_GDTDesc.size = (5 + coreCount * 2) * sizeof(GDTEntry) - 1;
+        g_GDTDesc.offset = (uint64)g_GDT;
+    }
+
+    void InitCore(uint64 coreID) {
         // TSS, needed for inter priviledge level interrupts
-        kmemset((void*)&g_TSS, 0, sizeof(TSS));
-        g_TSS.iopbOffset = sizeof(TSS);
+        kmemset((void*)&g_TSS[coreID], 0, sizeof(TSS));
+        
+        g_TSS[coreID].iopbOffset = sizeof(TSS);
         // this is the stack pointer that will be loaded when an interrupt CHANGES the priviledge level to 0
         // if an interrupt is fired in kernel mode, this stack pointer won't be used
-        g_TSS.rsp0 = 0;
+        g_TSS[coreID].rsp0 = 0;
         // This is a stack that can be explicitly enabled for specific interrupts.
         // Those interrupts will then always use this stack, no matter in which privilege level it occured
-        g_TSS.ist1 = (uint64)header->stack + header->stackPages * 4096;
+        //g_TSS.ist1 = (uint64)header->stack + header->stackPages * 4096;
+        g_TSS[coreID].ist1 = 0;
 
-        volatile TSSDesc* tssDesc = (volatile TSSDesc*)&g_GDT[5];
+        volatile TSSDesc* tssDesc = (volatile TSSDesc*)&g_GDT[5 + coreID * 2];
         kmemset((void*)tssDesc, 0, sizeof(TSSDesc));
         tssDesc->limit1 = (sizeof(TSS) - 1) & 0xFFFF;
         tssDesc->limit2flags = ((sizeof(TSS) - 1) >> 16) & 0xF;
-        tssDesc->base1 = (uint64)&g_TSS & 0xFFFF;
-        tssDesc->base2 = ((uint64)&g_TSS >> 16) & 0xFF;
-        tssDesc->base3 = ((uint64)&g_TSS >> 24) & 0xFF;
-        tssDesc->base4 = ((uint64)&g_TSS >> 32) & 0xFFFFFFFF;
+        tssDesc->base1 = (uint64)&g_TSS[coreID] & 0xFFFF;
+        tssDesc->base2 = ((uint64)&g_TSS[coreID] >> 16) & 0xFF;
+        tssDesc->base3 = ((uint64)&g_TSS[coreID] >> 24) & 0xFF;
+        tssDesc->base4 = ((uint64)&g_TSS[coreID] >> 32) & 0xFFFFFFFF;
         tssDesc->access = 0b11101001;
 
-        volatile GDTDesc desc = { sizeof(g_GDT) - 1, (uint64)(&g_GDT[0]) };
         __asm__ __volatile__ (
             "lgdtq (%0);"                    // tell cpu to use new GDT
             "mov $0x10, %%rax;"               // kernel data selector
@@ -128,13 +139,17 @@ namespace GDT
             "retfq;"                        // pops return address and cs
             "1: nop;"
             : 
-            : "r" (&desc)
+            : "r" (&g_GDTDesc)
             : "rax"
         );
 
         __asm__ __volatile__ (
             "ltr %%ax"              // tell cpu to use new TSS
-            : : "a" (5 * 8)
+            : : "a" ((5 + coreID * 2) * sizeof(GDTEntry))
         );
+    }
+
+    void SetIST1(uint64 coreID, void* addr) {
+        g_TSS[coreID].ist1 = (uint64)addr;
     }
 }

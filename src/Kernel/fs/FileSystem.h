@@ -62,7 +62,7 @@ namespace VFS {
          * Will only be called if the directory data gets ejected from the VFS cache.
          * Node will be locked when given to this function.
          **/
-        virtual Directory* WriteDirEntries(Node* node) = 0;
+        virtual void WriteDirEntries(Node* node) = 0;
     };
 
     typedef FileSystem* (*FileSystemFactory)();

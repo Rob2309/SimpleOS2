@@ -6,12 +6,17 @@
 namespace MemoryManager {
 
     void Init(KernelHeader* header);
+    void InitCore(uint64 coreID);
+
+    void DisableChacheOnLargePage(void* virt);
 
     /**
      * Allocate physically continuous pages
      **/
     void* AllocatePages(uint64 numPages = 1);
     void FreePages(void* pages, uint64 numPages = 1);
+
+    void InvalidatePage(void* page);
 
     /**
      * Convert the given physical address to a pointer that can be accessed by the kernel

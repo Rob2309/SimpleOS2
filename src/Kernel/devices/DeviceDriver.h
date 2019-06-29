@@ -21,6 +21,10 @@ public:
      **/
     uint64 GetDriverID() const { return m_ID; }
 
+public:
+    DeviceDriver* next;
+    DeviceDriver* prev;
+
 private:
     Type m_Type;
     uint64 m_ID;
@@ -63,7 +67,7 @@ public:
     /**
      * Removes a Driver from the Registry.
      **/
-    static void UnregisterDriver(uint64 id);
+    static void UnregisterDriver(DeviceDriver* driver);
     /**
      * Retrieves a Driver from the Registry
      **/

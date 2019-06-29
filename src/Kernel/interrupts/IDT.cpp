@@ -4,6 +4,8 @@
 #include "klib/stdio.h"
 #include "arch/GDT.h"
 #include "scheduler/Process.h"
+#include "memory/MemoryManager.h"
+#include "arch/APIC.h"
 
 #define ISRSTUB(vectno) extern "C" void ISRSTUB_##vectno();
 #define ISRSTUBE(vectno) extern "C" void ISRSTUB_##vectno();
@@ -85,7 +87,7 @@ namespace IDT {
             "movq %%cr2, %0"
             : "=r"(cr2)
         );
-        klog_fatal("PANIC", "Unhandled interrupt: CR2=0x%x, ErrorCode=0x%X, RIP=0x%x", cr2, regs->errorCode, regs->rip);
+        klog_fatal("PANIC", "Unhandled interrupt %i: CR2=0x%x, ErrorCode=0x%X, RIP=0x%x", regs->intNumber, cr2, regs->errorCode, regs->rip);
         while(true);
     }
 
@@ -132,6 +134,11 @@ namespace IDT {
         SetISR(29, ISR_Exceptions);
         SetISR(30, ISR_Exceptions);
         SetISR(31, ISR_Exceptions);
+    }
+
+    void InitCore(uint64 coreID) {
+        uint8* interruptBuffer = (uint8*)MemoryManager::PhysToKernelPtr(MemoryManager::AllocatePages(4));
+        GDT::SetIST1(coreID, interruptBuffer + 4 * 4096);
 
         DisableInterrupts();
 

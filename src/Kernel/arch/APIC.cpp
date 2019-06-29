@@ -10,6 +10,8 @@
 
 namespace APIC
 {
+    constexpr uint64 RegID = 0x20;
+
     constexpr uint64 RegSpurious = 0xF0;
     constexpr uint64 RegError = 0x370;
     constexpr uint64 RegEOI = 0xB0;
@@ -19,11 +21,14 @@ namespace APIC
     constexpr uint64 RegTimerCurrentCount = 0x390;
     constexpr uint64 RegTimerInitCount = 0x380;
 
+    constexpr uint64 RegCommandLow = 0x300;
+    constexpr uint64 RegCommandHi = 0x310;
+
     static uint64 g_APICBase;
     static uint64 g_TimerTicksPerMS;
     static TimerEvent g_TimerEvent = nullptr;
 
-    static void SendEOI()
+    void SignalEOI()
     {
         *(volatile uint32*)(g_APICBase + RegEOI) = 0;
     }
@@ -32,11 +37,11 @@ namespace APIC
     {
         if(g_TimerEvent != nullptr)
             g_TimerEvent(regs);
-        SendEOI();
+        SignalEOI();
     }
     static void ISR_Error(IDT::Registers* regs)
     {
-        SendEOI();
+        SignalEOI();
     }
     static void ISR_Spurious(IDT::Registers* regs)
     {
@@ -71,8 +76,7 @@ namespace APIC
         g_TimerEvent = evt;
     }
 
-    void Init()
-    {
+    void Init() {
         uint64 lapicBase = MSR::Read(MSR::RegLAPICBase);    // Physical address of LAPIC memory space
 
         g_APICBase = (uint64)MemoryManager::PhysToKernelPtr((void*)(lapicBase & 0xFFFFFFFFFFFFF000));
@@ -81,12 +85,21 @@ namespace APIC
         IDT::SetISR(ISRNumbers::APICError, ISR_Error);
         IDT::SetISR(ISRNumbers::APICSpurious, ISR_Spurious);
         IDT::SetISR(ISRNumbers::APICTimer, ISR_Timer);
-
+    }
+    void InitBootCore()
+    {
         *(volatile uint32*)(g_APICBase + RegSpurious) = 0x100 | ISRNumbers::APICSpurious;
         *(volatile uint32*)(g_APICBase + RegError) = 0x10000 | ISRNumbers::APICError;
 
         CalibrateTimer();
+
+        MemoryManager::DisableChacheOnLargePage((void*)(g_APICBase & 0xFFFFFFFFFFE00000));
     }
+    void InitCore() {
+        *(volatile uint32*)(g_APICBase + RegSpurious) = 0x100 | ISRNumbers::APICSpurious;
+        *(volatile uint32*)(g_APICBase + RegError) = 0x10000 | ISRNumbers::APICError;
+    }
+
     void StartTimer(uint8 div, uint32 count, bool repeat)
     {
         switch(div)
@@ -108,4 +121,54 @@ namespace APIC
     {
         StartTimer(1, g_TimerTicksPerMS * ms, true);
     }
+    void StartTimerOneshot(uint32 ms) {
+        StartTimer(1, g_TimerTicksPerMS * ms, false);
+    }
+
+    void SendInitIPI(uint8 coreID) {
+        constexpr uint32 cmd = (0b101 << 8) | (1 << 14);
+        *(volatile uint32*)(g_APICBase + RegCommandHi) = (uint32)coreID << 24;
+        *(volatile uint32*)(g_APICBase + RegCommandLow) = cmd;
+    }
+
+    void SendStartupIPI(uint8 coreID, uint64 startPage) {
+        uint32 cmd = (0b110 << 8) | (startPage >> 12);
+        *(volatile uint32*)(g_APICBase + RegCommandHi) = (uint32)coreID << 24;
+        *(volatile uint32*)(g_APICBase + RegCommandLow) = cmd;
+    }
+
+    void SendIPI(IPITargetMode targetMode, uint8 targetID, uint8 vector) {
+        uint32 high = 0;
+        uint32 low = 0;
+
+        switch(targetMode) {
+        case IPI_TARGET_CORE:
+            high = targetID << 24;
+            low = vector;
+            break;
+        case IPI_TARGET_SELF:
+            high = 0xFF << 24;
+            low = vector | (0b01 << 18);
+            break;
+        case IPI_TARGET_ALL:
+            high = 0xFF << 24;
+            low = vector | (0b10 << 18);
+            break;
+        case IPI_TARGET_ALL_BUT_SELF:
+            high = 0xFF << 24;
+            low = vector | (0b11 << 18);
+            break;
+        default:
+            return;
+        }
+
+        *(volatile uint32*)(g_APICBase + RegCommandHi) = high;
+        *(volatile uint32*)(g_APICBase + RegCommandLow) = low;
+    }
+
+    uint64 GetID() {
+        uint64 res = (*(volatile uint32*)(g_APICBase + RegID)) >> 24;
+        return res;
+    }
+
 }
