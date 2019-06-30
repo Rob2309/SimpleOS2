@@ -89,11 +89,11 @@ namespace Scheduler {
      */
     void ProcessExec(uint64 pml4Entry, IDT::Registers* regs);
 
-    void ThreadKillProcessFromInterrupt(IDT::Registers* regs);
-    void ThreadKillProcess();
+    void ThreadKillProcessFromInterrupt(IDT::Registers* regs, const char* reason);
+    void ThreadKillProcess(const char* reason);
 
-    void ThreadSetSticky(bool sticky);
-    bool ThreadGetSticky();
+    void ThreadSetSticky();
+    void ThreadUnsetSticky();
 
     /**
      * Moves the given thread to another Core

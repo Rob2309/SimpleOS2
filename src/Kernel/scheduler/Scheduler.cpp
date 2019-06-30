@@ -89,26 +89,13 @@ namespace Scheduler {
 
         for(auto a = g_CPUData[coreID].threadList.begin(); a != g_CPUData[coreID].threadList.end(); ) {
             if(a->process == pInfo) {
-                if(a->sticky) {
-                    a->killPending = true;
-                    ++a;
-                } else {
-                    ThreadInfo* t = *a;
-                    g_CPUData[coreID].threadList.erase(a++);
-                    g_CPUData[coreID].deadThreads.push_back(t);
-                    numKilled++;
-                }
+                ThreadInfo* t = *a;
+                g_CPUData[coreID].threadList.erase(a++);
+                g_CPUData[coreID].deadThreads.push_back(t);
+                numKilled++;
             } else {
                 ++a;
             }
-        }
-
-        pInfo->mainLock.SpinLock_NoSticky();
-        pInfo->numThreads -= numKilled;
-        if(pInfo->numThreads == 0) {
-            FreeProcess(pInfo);
-        } else {    // another core is still in the process of killing threads of this process
-            pInfo->mainLock.Unlock_NoSticky();
         }
 
         __asm__ __volatile__ (
@@ -116,12 +103,8 @@ namespace Scheduler {
             : : "r"(&g_KillCount)
         );
 
-        if(g_CPUData[coreID].currentThread->sticky) {
-            return;
-        } else {
-            ThreadInfo* next = FindNextThread();
-            SetContext(next, regs);
-        }
+        ThreadInfo* next = FindNextThread();
+        SetContext(next, regs);
     }
 
     static ThreadInfo* CreateThreadStruct()
@@ -306,10 +289,6 @@ namespace Scheduler {
 
     void Tick(IDT::Registers* regs)
     {
-        uint64 coreID = SMP::GetLogicalCoreID();
-        if(g_CPUData[coreID].currentThread->sticky)
-            return;
-
         SaveThreadInfo(regs);
 
         // Find next process to execute
@@ -543,28 +522,13 @@ namespace Scheduler {
         ReturnToThread(regs);
     }
 
-    static void SignalHandler(uint64 signal) {
-        const char* signalName;
-        switch(signal) {
-        case SignalDiv0: signalName = "Div0"; break;
-        case SignalGpFault: signalName = "GPFault"; break;
-        case SignalInvOp: signalName = "InvOp"; break;
-        case SignalPageFault: signalName = "PageFault"; break;
-        case SignalAbort: signalName = "Abort"; break;
-        default: signalName = "UNKNOWN"; break;
-        }
+    void ThreadKillProcessFromInterrupt(IDT::Registers* regs, const char* reason) {
+        klog_error("Scheduler", "Killing process %i because Thread %i caused an exception (%s)", ThreadGetPID(), ThreadGetTID(), reason);
 
-        klog_error("Signal", "%i.%i Received signal %s on Core %i", ThreadGetPID(), ThreadGetTID(), signalName, SMP::GetLogicalCoreID());
-        ThreadExit(1);
-    }
-
-    void ThreadKillProcessFromInterrupt(IDT::Registers* regs) {
         uint64 coreID = SMP::GetLogicalCoreID();
 
         ThreadInfo* tInfo = g_CPUData[coreID].currentThread;
         ProcessInfo* pInfo = tInfo->process;
-
-        uint64 numKilled = 0;
 
         if(pInfo != nullptr) {
             for(auto a = g_CPUData[coreID].threadList.begin(); a != g_CPUData[coreID].threadList.end(); ) {
@@ -572,7 +536,6 @@ namespace Scheduler {
                     ThreadInfo* t = *a;
                     g_CPUData[coreID].threadList.erase(a++);
                     g_CPUData[coreID].deadThreads.push_back(t);
-                    numKilled++;
                 } else {
                     ++a;
                 }
@@ -584,29 +547,29 @@ namespace Scheduler {
             APIC::SendIPI(APIC::IPI_TARGET_ALL_BUT_SELF, 0, ISRNumbers::IPIKillProcess);
             while(g_KillCount < SMP::GetCoreCount()) ;
             g_KillLock.Unlock_NoSticky();
+        } else {
+            // TODO: Kernel panic (KernelThread has caused an exception)
+            klog_fatal("PANIC", "KernelThread has caused an exception (TID=%i)", Scheduler::ThreadGetTID());
+            while(true) 
+                asm("hlt");
         }
 
-        pInfo->mainLock.SpinLock_NoSticky();
-        pInfo->numThreads -= numKilled;
-        if(pInfo->numThreads == 0) {
-            FreeProcess(pInfo);
-        } else {    // another core is still in the process of killing threads of this process
-            pInfo->mainLock.Unlock_NoSticky();
-        }
+        // In this special case we just hope that this cpu does not hold the memory manager lock
+        // if it does something went very wrong and we cannot recover anyways
+        FreeProcess(pInfo);
 
         ThreadInfo* next = FindNextThread();
         SetContext(next, regs);
     }
+    void ThreadKillProcess(const char* reason) {
+        klog_error("Scheduler", "Killing process %i because Thread %i caused an exception (%s)", ThreadGetPID(), ThreadGetTID(), reason);
 
-    void ThreadKillProcess() {
-        IDT::DisableInterrupts();
+        ThreadSetSticky();
 
         uint64 coreID = SMP::GetLogicalCoreID();
 
         ThreadInfo* tInfo = g_CPUData[coreID].currentThread;
         ProcessInfo* pInfo = tInfo->process;
-
-        uint64 numKilled = 0;
 
         if(pInfo != nullptr) {
             for(auto a = g_CPUData[coreID].threadList.begin(); a != g_CPUData[coreID].threadList.end(); ) {
@@ -614,36 +577,46 @@ namespace Scheduler {
                     ThreadInfo* t = *a;
                     g_CPUData[coreID].threadList.erase(a++);
                     g_CPUData[coreID].deadThreads.push_back(t);
-                    numKilled++;
                 } else {
                     ++a;
                 }
             }
+
+            g_KillLock.SpinLock_NoSticky();
+            g_KillCount = 1;
+            g_KillProcess = pInfo;
+            APIC::SendIPI(APIC::IPI_TARGET_ALL_BUT_SELF, 0, ISRNumbers::IPIKillProcess);
+            while(g_KillCount < SMP::GetCoreCount()) ;
+            g_KillLock.Unlock_NoSticky();
+        } else {
+            // This should never ever happen as a KernelThread should never try to kill itself
+            // TODO: Kernel panic (KernelThread has caused an exception)
+            klog_fatal("PANIC", "KernelThread has caused an exception (TID=%i)", Scheduler::ThreadGetTID());
+            while(true) 
+                asm("hlt");
         }
 
-        pInfo->mainLock.SpinLock_NoSticky();
-        pInfo->numThreads -= numKilled;
-        if(pInfo->numThreads == 0) {
-            FreeProcess(pInfo);
-        } else {    // another core is still in the process of killing threads of this process
-            pInfo->mainLock.Unlock_NoSticky();
-        }
+        FreeProcess(pInfo);
 
         IDT::Registers regs;
-
         ThreadInfo* next = FindNextThread();
         SetContext(next, &regs);
         ReturnToThread(&regs);
     }
 
-    void ThreadSetSticky(bool sticky) {
+    void ThreadSetSticky() {
         uint64 coreID = SMP::GetLogicalCoreID();
-        g_CPUData[coreID].currentThread->sticky = sticky;
-    }
 
-    bool ThreadGetSticky() {
+        g_CPUData[coreID].currentThread->stickyCount++;
+        if(g_CPUData[coreID].currentThread->stickyCount == 1)
+            IDT::DisableInterrupts();
+    }
+    void ThreadUnsetSticky() {
         uint64 coreID = SMP::GetLogicalCoreID();
-        return g_CPUData[coreID].currentThread->sticky;
+
+        g_CPUData[coreID].currentThread->stickyCount--;
+        if(g_CPUData[coreID].currentThread->stickyCount == 0)
+            IDT::EnableInterrupts();
     }
 
     void MoveThreadToCPU(uint64 logicalCoreID, uint64 tid) {

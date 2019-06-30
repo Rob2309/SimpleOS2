@@ -59,21 +59,21 @@ namespace IDT {
     {
         switch (regs->intNumber)
         {
-        case ISRNumbers::ExceptionDiv0: Scheduler::ThreadKillProcessFromInterrupt(regs); return; break;
+        case ISRNumbers::ExceptionDiv0: Scheduler::ThreadKillProcessFromInterrupt(regs, "DivideByZero"); return; break;
         case ISRNumbers::ExceptionDebug: klog_error("IDT", "Debug trap"); break;
         case ISRNumbers::ExceptionNMI: klog_error("IDT", "Non maskable interrupt"); break;
         case ISRNumbers::ExceptionBreakpoint: klog_error("IDT", "Breakpoint"); break;
         case ISRNumbers::ExceptionOverflow: klog_error("IDT", "Overflow"); break;
         case ISRNumbers::ExceptionBoundRangeExceeded: klog_error("IDT", "Bound Range exceeded"); break;
-        case ISRNumbers::ExceptionInvalidOpcode: Scheduler::ThreadKillProcessFromInterrupt(regs); return; break;
+        case ISRNumbers::ExceptionInvalidOpcode: Scheduler::ThreadKillProcessFromInterrupt(regs, "InvalidOpcode"); return; break;
         case ISRNumbers::ExceptionDeviceUnavailable: klog_error("IDT", "Device unavailable"); break;
         case ISRNumbers::ExceptionDoubleFault: klog_error("IDT", "Double fault"); break;
         case ISRNumbers::ExceptionCoprocesssorSegmentOverrun: klog_error("IDT", "Coprocessor error"); break;
         case ISRNumbers::ExceptionInvalidTSS: klog_error("IDT", "Invalid TSS"); break;
         case ISRNumbers::ExceptionSegmentNotPresent: klog_error("IDT", "Segment not present"); break;
         case ISRNumbers::ExceptionStackSegmentNotPresent: klog_error("IDT", "Stack segment not present"); break;
-        case ISRNumbers::ExceptionGPFault: Scheduler::ThreadKillProcessFromInterrupt(regs); return; break;
-        case ISRNumbers::ExceptionPageFault: Scheduler::ThreadKillProcessFromInterrupt(regs); return; break;
+        case ISRNumbers::ExceptionGPFault: Scheduler::ThreadKillProcessFromInterrupt(regs, "GeneralProtectionFault"); return; break;
+        case ISRNumbers::ExceptionPageFault: Scheduler::ThreadKillProcessFromInterrupt(regs, "PageFault"); return; break;
         case ISRNumbers::ExceptionFPException: klog_error("IDT", "Floating point exception"); break;
         case ISRNumbers::ExceptionAlignmentCheck: klog_error("IDT", "Alignment check"); break;
         case ISRNumbers::ExceptionMachineCheck: klog_error("IDT", "Machine check"); break;
