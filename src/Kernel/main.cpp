@@ -53,7 +53,7 @@ static VFS::FileSystem* TestFSFactory() {
 static KernelHeader* g_KernelHeader;
 
 static void InitThread() {
-    kprintf("Init Thread running\n");
+    klog_info("Init", "Init Thread starting");
 
     VFS::FileSystemRegistry::RegisterFileSystem("test", TestFSFactory);
 

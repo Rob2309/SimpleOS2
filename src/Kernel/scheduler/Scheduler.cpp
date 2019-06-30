@@ -158,6 +158,8 @@ namespace Scheduler {
     {
         uint64 coreID = SMP::GetLogicalCoreID();
 
+        ThreadSetSticky();
+
         ProcessInfo* pInfo = new ProcessInfo();
         pInfo->pid = g_PIDCounter++;
         pInfo->pml4Entry = pml4Entry;
@@ -171,10 +173,10 @@ namespace Scheduler {
 
         pInfo->numThreads = 1;
         
-        IDT::DisableInterrupts();
         g_CPUData[coreID].threadList.push_back(tInfo);
         uint64 ret = tInfo->tid;
-        IDT::EnableInterrupts();
+
+        ThreadUnsetSticky();
 
         return ret;
     }
@@ -182,6 +184,8 @@ namespace Scheduler {
     uint64 CreateKernelThread(uint64 rip)
     {
         uint64 coreID = SMP::GetLogicalCoreID();
+
+        ThreadSetSticky();
 
         ThreadInfo* tInfo = CreateThreadStruct();
 
@@ -200,10 +204,10 @@ namespace Scheduler {
         tInfo->userGSBase = 0;
         tInfo->registers = regs;
         
-        IDT::DisableInterrupts();
         g_CPUData[coreID].threadList.push_back(tInfo);
         uint64 ret = tInfo->tid;
-        IDT::EnableInterrupts();
+
+        ThreadUnsetSticky();
 
         return ret;
     }
@@ -214,6 +218,8 @@ namespace Scheduler {
 
         ProcessInfo* oldPInfo = g_CPUData[coreID].currentThread->process;
 
+        ThreadSetSticky();
+        
         uint64 pml4Entry = MemoryManager::ForkProcessMap();
 
         ProcessInfo* pInfo = new ProcessInfo();
@@ -242,10 +248,10 @@ namespace Scheduler {
 
         pInfo->numThreads = 1;
         
-        IDT::DisableInterrupts();
         g_CPUData[coreID].threadList.push_back(tInfo);
         uint64 ret = tInfo->tid;
-        IDT::EnableInterrupts();
+
+        ThreadUnsetSticky();
 
         return ret;
     }
@@ -436,6 +442,8 @@ namespace Scheduler {
     {
         uint64 coreID = SMP::GetLogicalCoreID();
 
+        ThreadSetSticky();
+
         ThreadInfo* tInfo = CreateThreadStruct();
         tInfo->tid = g_TIDCounter++;
         tInfo->process = g_CPUData[coreID].currentThread->process;
@@ -453,10 +461,10 @@ namespace Scheduler {
             tInfo->process->mainLock.Unlock();
         }
 
-        IDT::DisableInterrupts();
         g_CPUData[coreID].threadList.push_back(tInfo);
         uint64 res = tInfo->tid;
-        IDT::EnableInterrupts();
+
+        ThreadUnsetSticky();
 
         return res;
     }
@@ -474,11 +482,16 @@ namespace Scheduler {
             }
         }
 
+        ThreadSetSticky();
+
         ProcessFileDescriptor* newDesc = new ProcessFileDescriptor();
         newDesc->id = pInfo->fileDescs.size();
         newDesc->desc = sysDescriptor;
         pInfo->fileDescs.push_back(newDesc);
         pInfo->fileDescLock.Unlock();
+
+        ThreadUnsetSticky();
+
         return newDesc->id;
     };
     void ProcessCloseFileDescriptor(uint64 descID) {
@@ -508,14 +521,12 @@ namespace Scheduler {
     {
         uint64 coreID = SMP::GetLogicalCoreID();
 
-        IDT::DisableInterrupts();
+        ThreadSetSticky();
+
         uint64 oldPML4Entry = g_CPUData[coreID].currentThread->process->pml4Entry;
         g_CPUData[coreID].currentThread->process->pml4Entry = pml4Entry;
-        IDT::EnableInterrupts();
 
         MemoryManager::FreeProcessMap(oldPML4Entry);
-
-        IDT::DisableInterrupts();
 
         SaveThreadInfo(regs);
         SetContext(g_CPUData[coreID].currentThread, regs);
