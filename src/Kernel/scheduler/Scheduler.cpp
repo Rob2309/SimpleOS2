@@ -158,7 +158,7 @@ namespace Scheduler {
     {
         uint64 coreID = SMP::GetLogicalCoreID();
 
-        ThreadSetSticky();
+        ThreadSetSticky(); // pInfo, tInfo
 
         ProcessInfo* pInfo = new ProcessInfo();
         pInfo->pid = g_PIDCounter++;
@@ -185,7 +185,7 @@ namespace Scheduler {
     {
         uint64 coreID = SMP::GetLogicalCoreID();
 
-        ThreadSetSticky();
+        ThreadSetSticky(); // tInfo
 
         ThreadInfo* tInfo = CreateThreadStruct();
 
@@ -218,7 +218,7 @@ namespace Scheduler {
 
         ProcessInfo* oldPInfo = g_CPUData[coreID].currentThread->process;
 
-        ThreadSetSticky();
+        ThreadSetSticky(); // pml4Entry, pInfo, newFD, tInfo
         
         uint64 pml4Entry = MemoryManager::ForkProcessMap();
 
@@ -442,7 +442,7 @@ namespace Scheduler {
     {
         uint64 coreID = SMP::GetLogicalCoreID();
 
-        ThreadSetSticky();
+        ThreadSetSticky(); // tInfo
 
         ThreadInfo* tInfo = CreateThreadStruct();
         tInfo->tid = g_TIDCounter++;
@@ -482,7 +482,7 @@ namespace Scheduler {
             }
         }
 
-        ThreadSetSticky();
+        ThreadSetSticky(); // newDesc
 
         ProcessFileDescriptor* newDesc = new ProcessFileDescriptor();
         newDesc->id = pInfo->fileDescs.size();
@@ -521,12 +521,16 @@ namespace Scheduler {
     {
         uint64 coreID = SMP::GetLogicalCoreID();
 
-        ThreadSetSticky();
+        ThreadSetSticky(); // oldPML4Entry
 
         uint64 oldPML4Entry = g_CPUData[coreID].currentThread->process->pml4Entry;
         g_CPUData[coreID].currentThread->process->pml4Entry = pml4Entry;
 
         MemoryManager::FreeProcessMap(oldPML4Entry);
+
+        ThreadUnsetSticky();
+
+        IDT::DisableInterrupts();
 
         SaveThreadInfo(regs);
         SetContext(g_CPUData[coreID].currentThread, regs);
@@ -575,7 +579,7 @@ namespace Scheduler {
     void ThreadKillProcess(const char* reason) {
         klog_error("Scheduler", "Killing process %i because Thread %i caused an exception (%s)", ThreadGetPID(), ThreadGetTID(), reason);
 
-        ThreadSetSticky();
+        ThreadSetSticky(); // pInfo
 
         uint64 coreID = SMP::GetLogicalCoreID();
 
