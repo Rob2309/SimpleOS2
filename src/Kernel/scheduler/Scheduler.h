@@ -95,6 +95,8 @@ namespace Scheduler {
     void ThreadSetSticky();
     void ThreadUnsetSticky();
 
+    void ThreadSetUnkillable(bool unkillable);
+
     /**
      * Moves the given thread to another Core
      * Can currently only be called from a non-thread context

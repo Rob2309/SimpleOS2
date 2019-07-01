@@ -69,6 +69,9 @@ namespace SyscallHandler {
 
     extern "C" uint64 SyscallDispatcher(uint64 func, uint64 arg1, uint64 arg2, uint64 arg3, uint64 arg4, State* state)
     {
+        Scheduler::ThreadSetUnkillable(true);
+        uint64 res = 0;
+
         switch(func) {
         case Syscall::FunctionPrint: {
                 const char* msg = (const char*)arg1;
@@ -76,22 +79,19 @@ namespace SyscallHandler {
                     Scheduler::ThreadKillProcess("InvalidUserPointer");
 
                 kprintf("%C[%i.%i] %C%s", 200, 50, 50, Scheduler::ThreadGetPID(), Scheduler::ThreadGetTID(), 255, 255, 255, (const char*)arg1);
-                break;
             } break;
         case Syscall::FunctionWait: Scheduler::ThreadWait(arg1); break;
-        case Syscall::FunctionGetPID: return Scheduler::ThreadGetPID(); break;
+        case Syscall::FunctionGetPID: res = Scheduler::ThreadGetPID(); break;
         case Syscall::FunctionExit: 
-            kprintf_colored(200, 50, 50, "[%i.%i] ", Scheduler::ThreadGetPID(), Scheduler::ThreadGetTID());
-            kprintf("Exiting with code %i\n", arg1);
-            Scheduler::ThreadExit(arg1); 
+            Scheduler::ThreadExit(arg1);
             break;
-        case Syscall::FunctionFork: return DoFork(state); break;
+        case Syscall::FunctionFork: res = DoFork(state); break;
         case Syscall::FunctionCreateThread: {
                 uint64 entry = arg1;
                 uint64 stack = arg2;
                 if(!MemoryManager::IsUserPtr((void*)entry) || !MemoryManager::IsUserPtr((void*)stack))
                     Scheduler::ThreadKillProcess("InvalidUserPointer");
-                Scheduler::ThreadCreateThread(entry, stack); 
+                res = Scheduler::ThreadCreateThread(entry, stack); 
             } break;
         case Syscall::FunctionExec: {
                 const char* filePath = (const char*)arg1;
@@ -124,19 +124,19 @@ namespace SyscallHandler {
                 const char* filePath = (const char*)arg1;
                 if(!MemoryManager::IsUserPtr(filePath))
                     Scheduler::ThreadKillProcess("InvalidUserPointer");
-                return VFS::CreateFile(filePath); 
+                res = VFS::CreateFile(filePath); 
             } break;
         case Syscall::FunctionCreateFolder: {
                 const char* filePath = (const char*)arg1;
                 if(!MemoryManager::IsUserPtr(filePath))
                     Scheduler::ThreadKillProcess("InvalidUserPointer");
-                return VFS::CreateFolder(filePath); 
+                res = VFS::CreateFolder(filePath); 
             } break;
         case Syscall::FunctionCreateDeviceFile: {
                 const char* filePath = (const char*)arg1;
                 if(!MemoryManager::IsUserPtr(filePath))
                     Scheduler::ThreadKillProcess("InvalidUserPointer");
-                return VFS::CreateDeviceFile(filePath, arg2, arg3); 
+                res = VFS::CreateDeviceFile(filePath, arg2, arg3); 
             } break;
         case Syscall::FunctionCreatePipe: {
                 uint64 sysRead, sysWrite;
@@ -148,34 +148,36 @@ namespace SyscallHandler {
                 const char* filePath = (const char*)arg1;
                 if(!MemoryManager::IsUserPtr(filePath))
                     Scheduler::ThreadKillProcess("InvalidUserPointer");
-                return VFS::Delete(filePath); 
+                res = VFS::Delete(filePath); 
             } break;
         case Syscall::FunctionOpen: {
                 uint64 sysDesc = VFS::Open((const char*)arg1);
-                if(sysDesc == 0)
-                    return 0;
+                if(sysDesc == 0) {
+                    res = 0;
+                    goto end;
+                }
                 uint64 desc = Scheduler::ProcessAddFileDescriptor(sysDesc);
-                return desc;
+                res = desc;
             } break;
         case Syscall::FunctionClose: Scheduler::ProcessCloseFileDescriptor(arg1); break;
         case Syscall::FunctionRead: {
                 void* buffer = (void*)arg2;
                 if(!MemoryManager::IsUserPtr(buffer))
                     Scheduler::ThreadKillProcess("InvalidUserPointer");
-                return VFS::Read(Scheduler::ProcessGetSystemFileDescriptor(arg1), buffer, arg3); 
+                res = VFS::Read(Scheduler::ProcessGetSystemFileDescriptor(arg1), buffer, arg3); 
             } break;
         case Syscall::FunctionWrite: {
                 const void* buffer = (const void*)arg2;
                 if(!MemoryManager::IsUserPtr(buffer))
                     Scheduler::ThreadKillProcess("InvalidUserPointer");
-                return VFS::Write(Scheduler::ProcessGetSystemFileDescriptor(arg1), buffer, arg3); 
+                res = VFS::Write(Scheduler::ProcessGetSystemFileDescriptor(arg1), buffer, arg3); 
             } break;
         case Syscall::FunctionMount: { 
                 const char* mountPoint = (const char*)arg1;
                 const char* fsID = (const char*)arg2;
                 if(!MemoryManager::IsUserPtr(mountPoint) || !MemoryManager::IsUserPtr(fsID))
                     Scheduler::ThreadKillProcess("InvalidUserPointer");
-                return VFS::Mount(mountPoint, fsID); 
+                res = VFS::Mount(mountPoint, fsID); 
             } break;
         case Syscall::FunctionMountDev: {
                 const char* mountPoint = (const char*)arg1;
@@ -183,7 +185,7 @@ namespace SyscallHandler {
                 const char* devFile = (const char*) arg3;
                 if(!MemoryManager::IsUserPtr(mountPoint) || !MemoryManager::IsUserPtr(fsID) || !MemoryManager::IsUserPtr(devFile))
                     Scheduler::ThreadKillProcess("InvalidUserPointer");
-                return VFS::Mount(mountPoint, fsID, devFile);
+                res = VFS::Mount(mountPoint, fsID, devFile);
             } break;
 
         case Syscall::FunctionAllocPages: {
@@ -193,7 +195,7 @@ namespace SyscallHandler {
                 for(uint64 i = 0; i < arg2; i++) {
                     MemoryManager::MapProcessPage(pageBase + i * 4096);
                 }
-                return true;
+                res = 1;
             } break;
         case Syscall::FunctionFreePages: {
                 char* pageBase = (char*)arg1;
@@ -205,7 +207,9 @@ namespace SyscallHandler {
             } break;
         }
 
-        return 0;
+        end:
+        Scheduler::ThreadSetUnkillable(false);
+        return res;
     }
 
 }

@@ -13,17 +13,12 @@ struct ThreadBlockEvent {
         TYPE_NONE,
         TYPE_WAIT,
         TYPE_QUEUE_LOCK,
-        TYPE_NODE_READ,
-        TYPE_NODE_WRITE,
     } type;
 
     union {
         struct {
             uint64 remainingMillis;
         } wait;
-        struct {
-            uint64 nodeID;
-        } node;
     };
 };
 
@@ -42,6 +37,9 @@ struct ThreadInfo {
     uint64 userGSBase;
 
     uint64 stickyCount;
+    bool unkillable;
+    bool killPending;
+    uint64 killCode;
 
     IDT::Registers registers;
 };
