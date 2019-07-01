@@ -75,8 +75,7 @@ namespace SyscallHandler {
                 if(!MemoryManager::IsUserPtr(msg))
                     Scheduler::ThreadKillProcess("InvalidUserPointer");
 
-                kprintf_colored(200, 50, 50, "[%i.%i] ", Scheduler::ThreadGetPID(), Scheduler::ThreadGetTID());
-                kprintf((const char*)arg1); 
+                kprintf("%C[%i.%i] %C%s", 200, 50, 50, Scheduler::ThreadGetPID(), Scheduler::ThreadGetTID(), 255, 255, 255, (const char*)arg1);
                 break;
             } break;
         case Syscall::FunctionWait: Scheduler::ThreadWait(arg1); break;
