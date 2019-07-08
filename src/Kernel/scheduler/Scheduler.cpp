@@ -647,6 +647,20 @@ namespace Scheduler {
         }
     }
 
+    extern "C" void ThreadSetPageFaultRip(uint64 rip) {
+        g_CPUData[SMP::GetLogicalCoreID()].currentThread->pageFaultRip = rip;
+    }
+    void ThreadSetupPageFaultHandler(IDT::Registers* regs) {
+        uint64 coreID = SMP::GetLogicalCoreID();
+        ThreadInfo* tInfo = g_CPUData[coreID].currentThread;
+
+        if(tInfo->pageFaultRip == 0) {
+            ThreadKillProcessFromInterrupt(regs, "PageFault");
+        } else {
+            regs->rip = tInfo->pageFaultRip;
+        }
+    }
+
     void MoveThreadToCPU(uint64 logicalCoreID, uint64 tid) {
         IDT::DisableInterrupts();
 

@@ -36,3 +36,13 @@ void kmemcpyq(void* dest, const void* src, uint64 count) {
         : "+S"(src), "+D"(dest), "+c"(count)
     );
 }
+
+extern "C" bool _kmemcpy_usersafe(void* dest, const void* src, uint64 count);
+bool kmemcpy_usersafe(void* dest, const void* src, uint64 count) {
+    return _kmemcpy_usersafe(dest, src, count);
+}
+
+extern "C" bool _kmemset_usersafe(void* dest, int value, uint64 count);
+bool kmemset_usersafe(void* dest, int value, uint64 size) {
+    return _kmemset_usersafe(dest, value, size);
+}

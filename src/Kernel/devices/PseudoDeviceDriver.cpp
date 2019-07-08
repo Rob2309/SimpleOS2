@@ -4,7 +4,7 @@
 
 uint64 PseudoDeviceDriver::Read(uint64 subID, void* buffer, uint64 bufferSize) {
     if(subID == DeviceZero) {
-        kmemset(buffer, 0, bufferSize);
+        kmemset_usersafe(buffer, 0, bufferSize);
         return bufferSize;
     } else {
         return 0;

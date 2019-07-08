@@ -84,7 +84,7 @@ void BlockDeviceDriver::GetData(uint64 subID, uint64 pos, void* buffer, uint64 b
         if(rem > bufferSize)
             rem = bufferSize;
 
-        kmemcpy(realBuffer, cb->data + offs, rem);
+        kmemcpy_usersafe(realBuffer, cb->data + offs, rem);
         cb->dataLock.Unlock();
         m_CacheLock.SpinLock();
         ReleaseCachedBlock(cb, m_Cache);
@@ -128,7 +128,7 @@ void BlockDeviceDriver::SetData(uint64 subID, uint64 pos, const void* buffer, ui
         if(rem > bufferSize)
             rem = bufferSize;
 
-        kmemcpy(cb->data + offs, realBuffer, rem);
+        kmemcpy_usersafe(cb->data + offs, realBuffer, rem);
         cb->dataLock.Unlock();
         m_CacheLock.SpinLock();
         ReleaseCachedBlock(cb, m_Cache);

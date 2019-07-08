@@ -73,7 +73,7 @@ namespace IDT {
         case ISRNumbers::ExceptionSegmentNotPresent: klog_error("IDT", "Segment not present"); break;
         case ISRNumbers::ExceptionStackSegmentNotPresent: klog_error("IDT", "Stack segment not present"); break;
         case ISRNumbers::ExceptionGPFault: Scheduler::ThreadKillProcessFromInterrupt(regs, "GeneralProtectionFault"); return; break;
-        case ISRNumbers::ExceptionPageFault: Scheduler::ThreadKillProcessFromInterrupt(regs, "PageFault"); return; break;
+        case ISRNumbers::ExceptionPageFault: Scheduler::ThreadSetupPageFaultHandler(regs); return; break;
         case ISRNumbers::ExceptionFPException: klog_error("IDT", "Floating point exception"); break;
         case ISRNumbers::ExceptionAlignmentCheck: klog_error("IDT", "Alignment check"); break;
         case ISRNumbers::ExceptionMachineCheck: klog_error("IDT", "Machine check"); break;

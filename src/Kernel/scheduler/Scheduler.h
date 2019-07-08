@@ -97,6 +97,9 @@ namespace Scheduler {
 
     void ThreadSetUnkillable(bool unkillable);
 
+    extern "C" void ThreadSetPageFaultRip(uint64 rip);
+    void ThreadSetupPageFaultHandler(IDT::Registers* regs);
+
     /**
      * Moves the given thread to another Core
      * Can currently only be called from a non-thread context

@@ -41,5 +41,7 @@ struct ThreadInfo {
     bool killPending;
     uint64 killCode;
 
+    uint64 pageFaultRip;
+
     IDT::Registers registers;
 };

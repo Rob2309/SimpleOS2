@@ -8,3 +8,6 @@ void kmemcpy(void* dest, const void* src, uint64 size);
 void kmemcpyb(void* dest, const void* src, uint64 count);
 void kmemcpyd(void* dest, const void* src, uint64 count);
 void kmemcpyq(void* dest, const void* src, uint64 count);
+
+bool kmemcpy_usersafe(void* dest, const void* src, uint64 count);
+bool kmemset_usersafe(void* dest, int value, uint64 size);
