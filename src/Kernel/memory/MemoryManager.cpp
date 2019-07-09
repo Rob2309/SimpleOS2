@@ -51,15 +51,17 @@ namespace MemoryManager {
     static volatile uint64* g_KernelPages;
     static volatile uint64* g_KernelVPages;
 
-    static bool g_PageSync_IsKernelPage;
-    static void* g_PageSync_KernelPage;
+    static StickyLock g_PageSyncLock;
+    static void* g_PageSyncPage;
+    static uint64 g_PageSyncFinishCount;
 
     static void ISR_PageSync(IDT::Registers* regs) {
         APIC::SignalEOI();
-
-        if(g_PageSync_IsKernelPage) {
-            InvalidatePage(g_PageSync_KernelPage);
-        }
+        InvalidatePage(g_PageSyncPage);
+        __asm__ __volatile (
+            "lock incq (%0)"
+            : : "r"(&g_PageSyncFinishCount)
+        );
     }
 
     void Init(KernelHeader* header)
@@ -310,38 +312,6 @@ namespace MemoryManager {
             : : "r" (virt)
         );
     }
-    void UnmapKernelPage(void* virt)
-    {
-        volatile uint64* myPML4 = g_CorePageTables[SMP::GetLogicalCoreID()];
-
-        uint64 pml4Index = GET_PML4_INDEX((uint64)virt);
-        uint64 pml3Index = GET_PML3_INDEX((uint64)virt);
-        uint64 pml2Index = GET_PML2_INDEX((uint64)virt);
-        uint64 pml1Index = GET_PML1_INDEX((uint64)virt);
-
-        g_Lock.SpinLock();
-
-        uint64 pml4Entry = myPML4[pml4Entry];
-        volatile uint64* pml3 = (uint64*)PhysToKernelPtr((void*)PML_GET_ADDR(pml4Entry));
-
-        uint64 pml3Entry = pml3[pml3Index];
-        volatile uint64* pml2 = (uint64*)PhysToKernelPtr((void*)PML_GET_ADDR(pml3Entry));
-
-        uint64 pml2Entry = pml2[pml2Index];
-        volatile uint64* pml1 = (uint64*)PhysToKernelPtr((void*)PML_GET_ADDR(pml2Entry));
-
-        pml1[pml1Index] = 0;
-
-        __asm__ __volatile__ (
-            "invlpg (%0)"
-            : : "r"(virt)
-        );
-        g_PageSync_IsKernelPage = true;
-        g_PageSync_KernelPage = virt;
-        APIC::SendIPI(APIC::IPI_TARGET_ALL_BUT_SELF, 0, ISRNumbers::IPIPagingSync);
-
-        g_Lock.Unlock();
-    }
 
     void MapProcessPage(uint64 pml4Entry, void* phys, void* virt, bool invalidate)
     {
@@ -432,7 +402,7 @@ namespace MemoryManager {
         volatile uint64* myPML4 = g_CorePageTables[SMP::GetLogicalCoreID()];
         MapProcessPage(myPML4[0], virt, true);
     }
-    void UnmapProcessPage(uint64 pml4Entry, void* virt, bool invalidate)
+    void UnmapProcessPage(uint64 pml4Entry, void* virt)
     {
         uint64 pml3Index = GET_PML3_INDEX((uint64)virt);
         uint64 pml2Index = GET_PML2_INDEX((uint64)virt);
@@ -448,16 +418,21 @@ namespace MemoryManager {
 
         pml1[pml1Index] = 0;
 
-        if(invalidate) {
-            __asm__ __volatile__ (
-                "invlpg (%0)"
-                : : "r"(virt)
-            );
-        }
+        __asm__ __volatile__ (
+            "invlpg (%0)"
+            : : "r"(virt)
+        );
+
+        g_PageSyncLock.SpinLock();
+        g_PageSyncFinishCount = 1;
+        g_PageSyncPage = virt;
+        APIC::SendIPI(APIC::IPI_TARGET_ALL_BUT_SELF, 0, ISRNumbers::IPIPagingSync);
+        while(g_PageSyncFinishCount < SMP::GetCoreCount()) ;
+        g_PageSyncLock.Unlock();
     }
     void UnmapProcessPage(void* virt) {
         volatile uint64* myPML4 = g_CorePageTables[SMP::GetLogicalCoreID()];
-        UnmapProcessPage(myPML4[0], virt, true);
+        UnmapProcessPage(myPML4[0], virt);
     }
 
     void* UserToKernelPtr(const void* virt)
