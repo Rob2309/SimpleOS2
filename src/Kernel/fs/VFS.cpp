@@ -617,7 +617,10 @@ namespace VFS {
                 return 0;
             
             uint64 devID = node->device.subID;
-            driver->GetData(devID, pos, buffer, bufferSize);
+
+            uint64 error = driver->GetData(devID, pos, buffer, bufferSize);
+            if(error != 0)
+                return error;
             res = bufferSize;
         } else {
             res = node->fs->ReadNodeData(node, pos, buffer, bufferSize);
@@ -629,7 +632,8 @@ namespace VFS {
         FileDescriptor* desc = (FileDescriptor*)descID;
         
         uint64 res = _Read(&desc->node->node, desc->pos, buffer, bufferSize);
-        desc->pos += res;
+        if(res != VFS::ReadWrite_InvalidBuffer)
+            desc->pos += res;
 
         return res;
     }
@@ -653,7 +657,9 @@ namespace VFS {
                 return 0;
 
             uint64 devID = node->device.subID;
-            driver->SetData(devID, pos, buffer, bufferSize);
+            uint64 error = driver->SetData(devID, pos, buffer, bufferSize);
+            if(error != 0)
+                return error;
             res = bufferSize;
         } else {
             res = node->fs->WriteNodeData(node, pos, buffer, bufferSize);
@@ -665,7 +671,8 @@ namespace VFS {
         FileDescriptor* desc = (FileDescriptor*)descID;
         
         uint64 res = _Write(&desc->node->node, desc->pos, buffer, bufferSize);
-        desc->pos += res;
+        if(res != VFS::ReadWrite_InvalidBuffer)
+            desc->pos += res;
 
         return res;
     }

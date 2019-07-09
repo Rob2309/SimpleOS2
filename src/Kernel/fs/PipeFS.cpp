@@ -54,7 +54,10 @@ namespace VFS {
             if(rem > bufferSize)
                 rem = bufferSize;
 
-            kmemcpy_usersafe(realBuffer, p->buffer + p->readPos, rem);
+            if(!kmemcpy_usersafe(realBuffer, p->buffer + p->readPos, rem)) {
+                p->lock.Unlock();
+                return ReadWrite_InvalidBuffer;
+            }
 
             p->readPos += rem;
             p->lock.Unlock();
@@ -69,8 +72,10 @@ namespace VFS {
                 capB = bufferSize - capA;
             }
 
-            kmemcpy_usersafe(realBuffer, p->buffer + p->readPos, capA);
-            kmemcpy_usersafe(realBuffer + capA, p->buffer, capB);
+            if(!kmemcpy_usersafe(realBuffer, p->buffer + p->readPos, capA) || !kmemcpy_usersafe(realBuffer + capA, p->buffer, capB)) {
+                p->lock.Unlock();
+                return ReadWrite_InvalidBuffer;
+            }
 
             if(capB > 0) {
                 p->readPos = capB;
@@ -104,7 +109,10 @@ namespace VFS {
             if(rem > bufferSize)
                 rem = bufferSize;
 
-            kmemcpy_usersafe(p->buffer + p->writePos, realBuffer, rem);
+            if(!kmemcpy_usersafe(p->buffer + p->writePos, realBuffer, rem)) {
+                p->lock.Unlock();
+                return ReadWrite_InvalidBuffer;
+            }
 
             p->writePos += rem;
             p->lock.Unlock();
@@ -114,7 +122,11 @@ namespace VFS {
             if(rem > bufferSize)
                 rem = bufferSize;
 
-            kmemcpy_usersafe(p->buffer + p->writePos, realBuffer, rem);
+            if(!kmemcpy_usersafe(p->buffer + p->writePos, realBuffer, rem)) {
+                p->lock.Unlock();
+                return ReadWrite_InvalidBuffer;
+            }
+
             p->writePos += rem;
             p->writePos %= sizeof(p->buffer);
 
@@ -130,8 +142,10 @@ namespace VFS {
                 capB = bufferSize - capA;
             }
 
-            kmemcpy_usersafe(p->buffer + p->writePos, realBuffer, capA);
-            kmemcpy_usersafe(p->buffer, realBuffer + capA, capB);
+            if(!kmemcpy_usersafe(p->buffer + p->writePos, realBuffer, capA) || kmemcpy_usersafe(p->buffer, realBuffer + capA, capB)) {
+                p->lock.Unlock();
+                return ReadWrite_InvalidBuffer;
+            }
 
             if(capB > 0) {
                 p->writePos = capB;
@@ -155,6 +169,8 @@ namespace VFS {
         while(true) {
             uint64 count = _Write(p, realBuffer + res, bufferSize - res);
             res += count;
+            if(count == ReadWrite_InvalidBuffer)
+                return count;
             if(res == bufferSize)
                 break;
 

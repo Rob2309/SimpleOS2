@@ -164,13 +164,17 @@ namespace SyscallHandler {
                 void* buffer = (void*)arg2;
                 if(!MemoryManager::IsUserPtr(buffer))
                     Scheduler::ThreadKillProcess("InvalidUserPointer");
-                res = VFS::Read(Scheduler::ProcessGetSystemFileDescriptor(arg1), buffer, arg3); 
+                res = VFS::Read(Scheduler::ProcessGetSystemFileDescriptor(arg1), buffer, arg3);
+                if(res == VFS::ReadWrite_InvalidBuffer)
+                    Scheduler::ThreadKillProcess("InvalidUserPointer");
             } break;
         case Syscall::FunctionWrite: {
                 const void* buffer = (const void*)arg2;
                 if(!MemoryManager::IsUserPtr(buffer))
                     Scheduler::ThreadKillProcess("InvalidUserPointer");
-                res = VFS::Write(Scheduler::ProcessGetSystemFileDescriptor(arg1), buffer, arg3); 
+                res = VFS::Write(Scheduler::ProcessGetSystemFileDescriptor(arg1), buffer, arg3);
+                if(res == VFS::ReadWrite_InvalidBuffer)
+                    Scheduler::ThreadKillProcess("InvalidUserPointer");
             } break;
         case Syscall::FunctionMount: { 
                 const char* mountPoint = (const char*)arg1;

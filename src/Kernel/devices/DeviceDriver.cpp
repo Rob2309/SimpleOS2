@@ -4,6 +4,7 @@
 #include "ktl/new.h"
 #include "scheduler/Scheduler.h"
 #include "locks/QueueLock.h"
+#include "fs/VFS.h"
 
 DeviceDriver::DeviceDriver(Type type) 
     : m_Type(type)
@@ -53,7 +54,7 @@ static void ReleaseCachedBlock(CachedBlock* cb, ktl::vector<CachedBlock*>& cache
     }
 }
 
-void BlockDeviceDriver::GetData(uint64 subID, uint64 pos, void* buffer, uint64 bufferSize) {
+uint64 BlockDeviceDriver::GetData(uint64 subID, uint64 pos, void* buffer, uint64 bufferSize) {
     char* realBuffer = (char*)buffer;
 
     uint64 startBlock = pos / GetBlockSize(subID);
@@ -84,7 +85,13 @@ void BlockDeviceDriver::GetData(uint64 subID, uint64 pos, void* buffer, uint64 b
         if(rem > bufferSize)
             rem = bufferSize;
 
-        kmemcpy_usersafe(realBuffer, cb->data + offs, rem);
+        if(!kmemcpy_usersafe(realBuffer, cb->data + offs, rem)) {
+            cb->dataLock.Unlock();
+            m_CacheLock.SpinLock();
+            ReleaseCachedBlock(cb, m_Cache);
+            m_CacheLock.Unlock();
+            return VFS::ReadWrite_InvalidBuffer;
+        }
         cb->dataLock.Unlock();
         m_CacheLock.SpinLock();
         ReleaseCachedBlock(cb, m_Cache);
@@ -94,8 +101,10 @@ void BlockDeviceDriver::GetData(uint64 subID, uint64 pos, void* buffer, uint64 b
         realBuffer += rem;
         bufferSize -= rem;
     }
+
+    return 0;
 }
-void BlockDeviceDriver::SetData(uint64 subID, uint64 pos, const void* buffer, uint64 bufferSize) {
+uint64 BlockDeviceDriver::SetData(uint64 subID, uint64 pos, const void* buffer, uint64 bufferSize) {
     char* realBuffer = (char*)buffer;
 
     uint64 startBlock = pos / GetBlockSize(subID);
@@ -128,7 +137,13 @@ void BlockDeviceDriver::SetData(uint64 subID, uint64 pos, const void* buffer, ui
         if(rem > bufferSize)
             rem = bufferSize;
 
-        kmemcpy_usersafe(cb->data + offs, realBuffer, rem);
+        if(!kmemcpy_usersafe(cb->data + offs, realBuffer, rem)) {
+            cb->dataLock.Unlock();
+            m_CacheLock.SpinLock();
+            ReleaseCachedBlock(cb, m_Cache);
+            m_CacheLock.Unlock();
+            return VFS::ReadWrite_InvalidBuffer;
+        }
         cb->dataLock.Unlock();
         m_CacheLock.SpinLock();
         ReleaseCachedBlock(cb, m_Cache);
@@ -138,6 +153,8 @@ void BlockDeviceDriver::SetData(uint64 subID, uint64 pos, const void* buffer, ui
         realBuffer += rem;
         bufferSize -= rem;
     }
+
+    return 0;
 }
 
 static StickyLock g_DriverLock;

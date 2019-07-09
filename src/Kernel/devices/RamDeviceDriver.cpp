@@ -16,9 +16,9 @@ void RamDeviceDriver::ScheduleOperation(uint64 subID, uint64 startBlock, uint64 
     const DevInfo& dev = m_Devices[subID];
 
     if(write) {
-        kmemcpy_usersafe(dev.buffer + startBlock * GetBlockSize(subID), buffer, GetBlockSize(subID) * numBlocks);
+        kmemcpy(dev.buffer + startBlock * GetBlockSize(subID), buffer, GetBlockSize(subID) * numBlocks);
     } else {
-        kmemcpy_usersafe(buffer, dev.buffer + startBlock * GetBlockSize(subID), GetBlockSize(subID) * numBlocks);
+        kmemcpy(buffer, dev.buffer + startBlock * GetBlockSize(subID), GetBlockSize(subID) * numBlocks);
     }
 
     finishFlag->Write(1);

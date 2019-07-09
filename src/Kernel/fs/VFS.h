@@ -117,6 +117,8 @@ namespace VFS {
      **/
     bool List(const char* path, FileList* list, bool getTypes);
 
+    constexpr uint64 ReadWrite_InvalidBuffer = -1;
+
     /**
      * Reads from the given File and increases the FileDescriptor position by the number of bytes read.
      * This function blocks until at least one byte was read, except for when it is impossible to read further (e.g. end of file).
