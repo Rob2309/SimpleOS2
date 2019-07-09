@@ -115,7 +115,12 @@ namespace Scheduler {
         if(!g_CPUData[coreID].deadThreads.empty()) {
             ThreadInfo* res = g_CPUData[coreID].deadThreads.back();
             g_CPUData[coreID].deadThreads.pop_back();
-            IDT::EnableInterrupts();
+            ThreadUnsetSticky();
+
+            uint64 kernelStack = res->kernelStack;
+            kmemset(res, 0, sizeof(ThreadInfo));
+            res->kernelStack = kernelStack;
+
             return res;
         }
 
@@ -130,7 +135,8 @@ namespace Scheduler {
         uint64 coreID = SMP::GetLogicalCoreID();
 
         ThreadInfo* tInfo = (ThreadInfo*)MemoryManager::PhysToKernelPtr(MemoryManager::EarlyAllocatePages(NUM_PAGES(sizeof(ThreadInfo))));
-        tInfo->kernelStack = (uint64)MemoryManager::PhysToKernelPtr((uint8*)MemoryManager::EarlyAllocatePages(3) + 3 * 4096);
+        kmemset(tInfo, 0, sizeof(ThreadInfo));
+        tInfo->kernelStack = (uint64)MemoryManager::PhysToKernelPtr((uint8*)MemoryManager::EarlyAllocatePages(KernelStackPages) + KernelStackSize);
 
         IDT::Registers regs;
         kmemset(&regs, 0, sizeof(IDT::Registers));
@@ -146,6 +152,7 @@ namespace Scheduler {
         tInfo->blockEvent.type = ThreadBlockEvent::TYPE_NONE;
         tInfo->userGSBase = 0;
         tInfo->registers = regs;
+        tInfo->unkillable = true;
         
         g_CPUData[coreID].threadList.push_back(tInfo);
         uint64 ret = tInfo->tid;
@@ -418,7 +425,6 @@ namespace Scheduler {
         IDT::Registers regs;
         ThreadInfo* next = FindNextThread();
         SetContext(next, &regs);
-        
         ReturnToThread(&regs);
     }
 
@@ -605,7 +611,7 @@ namespace Scheduler {
                 }
             }
             ThreadUnsetSticky();
-            pInfo->mainLock.Unlock_NoSticky();
+            pInfo->mainLock.Unlock();
 
             g_KillLock.SpinLock();
             g_KillCount = 1;

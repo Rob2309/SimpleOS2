@@ -174,7 +174,7 @@ namespace ktl {
          **/
         void pop_back()
         {
-            erase(--end());
+            erase(before_end());
         }
 
         /**
@@ -217,6 +217,7 @@ namespace ktl {
 
         Iterator begin() { return Iterator(m_Head); }
         Iterator end() { return Iterator(nullptr); }
+        Iterator before_end() { return Iterator(m_Tail); }
 
         bool empty() const { return m_Head == nullptr; }
 
