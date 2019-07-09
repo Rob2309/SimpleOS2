@@ -29,6 +29,16 @@ namespace Syscall
     constexpr uint64 FunctionAllocPages = 100;
     constexpr uint64 FunctionFreePages = 101;
 
+    constexpr uint64 FunctionMoveToCore = 500;
+
+    inline void MoveThreadToCore(uint64 coreID) {
+        __asm__ __volatile__ (
+            "syscall"
+            : : "D"(FunctionMoveToCore), "S"(coreID)
+            : "rax", "rcx", "rdx", "r8", "r9", "r10", "r11"
+        );
+    }
+
     /**
      * Print a message onto the screen
      **/

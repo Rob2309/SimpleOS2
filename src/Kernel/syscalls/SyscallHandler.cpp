@@ -209,6 +209,10 @@ namespace SyscallHandler {
                     MemoryManager::UnmapProcessPage(pageBase + i * 4096);
                 }
             } break;
+
+        case Syscall::FunctionMoveToCore:
+            Scheduler::ThreadMoveToCPU(arg1);
+            break;
         }
 
         end:

@@ -263,7 +263,9 @@ namespace Scheduler {
     static void UpdateEvents() {
         uint64 coreID = SMP::GetLogicalCoreID();
 
-        for(auto p : g_CPUData[coreID].threadList) {
+        for(auto a = g_CPUData[coreID].threadList.begin(); a != g_CPUData[coreID].threadList.end(); ) {
+            ThreadInfo* p = *a;
+
             switch(p->blockEvent.type) {
             case ThreadBlockEvent::TYPE_WAIT:
                 if(p->blockEvent.wait.remainingMillis <= 10) {
@@ -271,6 +273,24 @@ namespace Scheduler {
                 } else {
                     p->blockEvent.wait.remainingMillis -= 10;
                 }
+                ++a;
+                break;
+            
+            case ThreadBlockEvent::TYPE_TRANSFER: {
+                    g_CPUData[coreID].threadList.erase(a++);
+
+                    p->blockEvent.type = ThreadBlockEvent::TYPE_NONE;
+
+                    g_TransferLock.SpinLock_NoSticky();
+                    g_TransferComplete = false;
+                    g_TransferThread = p;
+                    APIC::SendIPI(APIC::IPI_TARGET_CORE, SMP::GetApicID(p->blockEvent.transfer.coreID), ISRNumbers::IPIMoveThread);
+                    while(!g_TransferComplete) ;
+                    g_TransferLock.Unlock_NoSticky();
+                }
+                break;
+            default:
+                ++a;
                 break;
             }
         }
@@ -399,7 +419,7 @@ namespace Scheduler {
 
     void ThreadExit(uint64 code)
     {
-        kprintf("%C[%i.%i]%C Exiting with code %i\n", 200, 50, 50, Scheduler::ThreadGetPID(), Scheduler::ThreadGetTID(), 255, 255, 255, code);
+        kprintf("%C[%i.%i]%C Exiting with code %i on Core %i\n", 200, 50, 50, Scheduler::ThreadGetPID(), Scheduler::ThreadGetTID(), 255, 255, 255, code, SMP::GetLogicalCoreID());
 
         uint64 coreID = SMP::GetLogicalCoreID();
 
@@ -667,26 +687,16 @@ namespace Scheduler {
         }
     }
 
-    void MoveThreadToCPU(uint64 logicalCoreID, uint64 tid) {
-        IDT::DisableInterrupts();
+    void ThreadMoveToCPU(uint64 logicalCoreID) {
+        ThreadSetSticky();
 
         uint64 coreID = SMP::GetLogicalCoreID();
-        for(auto a = g_CPUData[coreID].threadList.begin(); a != g_CPUData[coreID].threadList.end(); ++a) {
-            if(a->tid == tid) {
-                g_CPUData[coreID].threadList.erase(a);
+        ThreadInfo* tInfo = g_CPUData[coreID].currentThread;
+        tInfo->blockEvent.type = ThreadBlockEvent::TYPE_TRANSFER;
+        tInfo->blockEvent.transfer.coreID = logicalCoreID;
 
-                g_TransferLock.SpinLock();
-                g_TransferComplete = false;
-                g_TransferThread = *a;
-                APIC::SendIPI(APIC::IPI_TARGET_CORE, SMP::GetApicID(logicalCoreID), ISRNumbers::IPIMoveThread);
-                while(!g_TransferComplete) ;
-                g_TransferLock.Unlock();
-                IDT::EnableInterrupts();
-                return;
-            }
-        }
-
-        IDT::EnableInterrupts();
+        Yield();
+        ThreadUnsetSticky();
     }
 
     ThreadInfo* GetCurrentThreadInfo() {

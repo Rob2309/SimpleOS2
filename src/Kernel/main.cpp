@@ -69,7 +69,6 @@ static void InitThread() {
     VFS::Mount("/initrd", "ext2", "/dev/ram0");
 
     uint64 tid = SetupTestProcess();
-    //Scheduler::MoveThreadToCPU(1, tid);
 
     Scheduler::ThreadExit(0);
 }

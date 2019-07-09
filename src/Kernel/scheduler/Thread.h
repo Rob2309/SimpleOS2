@@ -13,12 +13,16 @@ struct ThreadBlockEvent {
         TYPE_NONE,
         TYPE_WAIT,
         TYPE_QUEUE_LOCK,
+        TYPE_TRANSFER,
     } type;
 
     union {
         struct {
             uint64 remainingMillis;
         } wait;
+        struct {
+            uint64 coreID;
+        } transfer;
     };
 };
 
