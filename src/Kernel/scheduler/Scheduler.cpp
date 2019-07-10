@@ -19,6 +19,7 @@ namespace Scheduler {
     static uint64 g_TIDCounter = 1;
 
     static ThreadInfo* FindNextThread();
+    static ThreadInfo* FindNextThreadFromInterrupt();
 
     extern "C" void ReturnToThread(IDT::Registers* regs);
     extern "C" void ContextSwitchAndReturn(IDT::Registers* from, IDT::Registers* to);
@@ -29,6 +30,7 @@ namespace Scheduler {
         ThreadInfo* idleThread;
         ThreadInfo* currentThread;
 
+        StickyLock threadListLock;
         ktl::nlist<ThreadInfo> threadList;
         ktl::nlist<ThreadInfo> deadThreads;
     };
@@ -70,14 +72,6 @@ namespace Scheduler {
         delete pInfo;
     }
 
-    static void TransferEvent(IDT::Registers* regs) {
-        APIC::SignalEOI();
-
-        uint64 coreID = SMP::GetLogicalCoreID();
-        g_CPUData[coreID].threadList.push_back(g_TransferThread);
-        g_TransferComplete = true;
-    }
-
     static void SetupKillHandler(ThreadInfo* tInfo, uint64 exitCode);
 
     static void KillEvent(IDT::Registers* regs) {
@@ -87,6 +81,7 @@ namespace Scheduler {
 
         ProcessInfo* pInfo = g_KillProcess;
 
+        g_CPUData[coreID].threadListLock.Spinlock_Raw();
         for(ThreadInfo* t : g_CPUData[coreID].threadList) {
             if(t->process == pInfo) {
                 if(t->unkillable) {
@@ -97,6 +92,7 @@ namespace Scheduler {
                 }
             }
         }
+        g_CPUData[coreID].threadListLock.Unlock_Raw();
 
         __asm__ __volatile__ (
             "lock incq (%0)"
@@ -110,12 +106,11 @@ namespace Scheduler {
     {
         uint64 coreID = SMP::GetLogicalCoreID();
 
-        ThreadSetSticky();
-
+        g_CPUData[coreID].threadListLock.Spinlock_Cli();
         if(!g_CPUData[coreID].deadThreads.empty()) {
             ThreadInfo* res = g_CPUData[coreID].deadThreads.back();
             g_CPUData[coreID].deadThreads.pop_back();
-            ThreadUnsetSticky();
+            g_CPUData[coreID].threadListLock.Unlock_Cli();
 
             uint64 kernelStack = res->kernelStack;
             kmemset(res, 0, sizeof(ThreadInfo));
@@ -123,8 +118,7 @@ namespace Scheduler {
 
             return res;
         }
-
-        ThreadUnsetSticky();
+        g_CPUData[coreID].threadListLock.Unlock_Cli();
         
         ThreadInfo* n = new ThreadInfo();
         n->kernelStack = (uint64)MemoryManager::PhysToKernelPtr(MemoryManager::AllocatePages(KernelStackPages)) + KernelStackSize;
@@ -179,10 +173,10 @@ namespace Scheduler {
 
         pInfo->numThreads = 1;
         
-        ThreadSetSticky();
+        g_CPUData[coreID].threadListLock.Spinlock_Cli();
         g_CPUData[coreID].threadList.push_back(tInfo);
         uint64 ret = tInfo->tid;
-        ThreadUnsetSticky();
+        g_CPUData[coreID].threadListLock.Unlock_Cli();
 
         return ret;
     }
@@ -210,10 +204,10 @@ namespace Scheduler {
         tInfo->unkillable = true;
         tInfo->killPending = false;
         
-        ThreadSetSticky();
+        g_CPUData[coreID].threadListLock.Spinlock_Cli();
         g_CPUData[coreID].threadList.push_back(tInfo);
         uint64 ret = tInfo->tid;
-        ThreadUnsetSticky();
+        g_CPUData[coreID].threadListLock.Unlock_Cli();
 
         return ret;
     }
@@ -230,7 +224,7 @@ namespace Scheduler {
         pInfo->pid = g_PIDCounter++;
         pInfo->pml4Entry = pml4Entry;
         
-        oldPInfo->fileDescLock.SpinLock();
+        oldPInfo->fileDescLock.Spinlock();
         for(ProcessFileDescriptor* fd : oldPInfo->fileDescs) {
             if(fd->desc == 0)
                 continue;
@@ -252,10 +246,10 @@ namespace Scheduler {
 
         pInfo->numThreads = 1;
         
-        ThreadSetSticky();
+        g_CPUData[coreID].threadListLock.Spinlock_Cli();
         g_CPUData[coreID].threadList.push_back(tInfo);
         uint64 ret = tInfo->tid;
-        ThreadUnsetSticky();
+        g_CPUData[coreID].threadListLock.Unlock_Cli();
 
         return ret;
     }
@@ -263,9 +257,11 @@ namespace Scheduler {
     static void UpdateEvents() {
         uint64 coreID = SMP::GetLogicalCoreID();
 
+        ktl::nlist<ThreadInfo> transferList;
+
+        g_CPUData[coreID].threadListLock.Spinlock_Raw();
         for(auto a = g_CPUData[coreID].threadList.begin(); a != g_CPUData[coreID].threadList.end(); ) {
             ThreadInfo* p = *a;
-
             switch(p->blockEvent.type) {
             case ThreadBlockEvent::TYPE_WAIT:
                 if(p->blockEvent.wait.remainingMillis <= 10) {
@@ -275,39 +271,64 @@ namespace Scheduler {
                 }
                 ++a;
                 break;
-            
-            case ThreadBlockEvent::TYPE_TRANSFER: {
-                    g_CPUData[coreID].threadList.erase(a++);
-
-                    p->blockEvent.type = ThreadBlockEvent::TYPE_NONE;
-
-                    g_TransferLock.SpinLock_NoSticky();
-                    g_TransferComplete = false;
-                    g_TransferThread = p;
-                    APIC::SendIPI(APIC::IPI_TARGET_CORE, SMP::GetApicID(p->blockEvent.transfer.coreID), ISRNumbers::IPIMoveThread);
-                    while(!g_TransferComplete) ;
-                    g_TransferLock.Unlock_NoSticky();
-                }
+            case ThreadBlockEvent::TYPE_TRANSFER:
+                g_CPUData[coreID].threadList.erase(a++);
+                transferList.push_back(p);
                 break;
+
             default:
                 ++a;
                 break;
             }
+        }
+        g_CPUData[coreID].threadListLock.Unlock_Raw();
+
+        for(auto a = transferList.begin(); a != transferList.end(); ) {
+            uint64 tCoreID = a->blockEvent.transfer.coreID;
+
+            ThreadInfo* p = *a;
+            p->blockEvent.type = ThreadBlockEvent::TYPE_NONE;
+            ++a;
+
+            g_CPUData[tCoreID].threadListLock.Spinlock_Raw();
+            g_CPUData[tCoreID].threadList.push_back(p);
+            g_CPUData[tCoreID].threadListLock.Unlock_Raw();
         }
     }
 
     static ThreadInfo* FindNextThread() {
         uint64 coreID = SMP::GetLogicalCoreID();
 
+        g_CPUData[coreID].threadListLock.Spinlock_Cli();
         for(auto a = g_CPUData[coreID].threadList.begin(); a != g_CPUData[coreID].threadList.end(); ++a) {
             ThreadInfo* p = *a;
             if(p->blockEvent.type == ThreadBlockEvent::TYPE_NONE) {
                 g_CPUData[coreID].threadList.erase(a);
                 g_CPUData[coreID].threadList.push_back(p);
+                g_CPUData[coreID].threadListLock.Unlock_Cli();
                 return p;
             }
         }
 
+        g_CPUData[coreID].threadListLock.Unlock_Cli();
+        return g_CPUData[coreID].idleThread;
+    }
+
+    static ThreadInfo* FindNextThreadFromInterrupt() {
+        uint64 coreID = SMP::GetLogicalCoreID();
+
+        g_CPUData[coreID].threadListLock.Spinlock_Raw();
+        for(auto a = g_CPUData[coreID].threadList.begin(); a != g_CPUData[coreID].threadList.end(); ++a) {
+            ThreadInfo* p = *a;
+            if(p->blockEvent.type == ThreadBlockEvent::TYPE_NONE) {
+                g_CPUData[coreID].threadList.erase(a);
+                g_CPUData[coreID].threadList.push_back(p);
+                g_CPUData[coreID].threadListLock.Unlock_Raw();
+                return p;
+            }
+        }
+
+        g_CPUData[coreID].threadListLock.Unlock_Raw();
         return g_CPUData[coreID].idleThread;
     }
 
@@ -319,11 +340,15 @@ namespace Scheduler {
 
     void Tick(IDT::Registers* regs)
     {
+        uint64 coreID = SMP::GetLogicalCoreID();
+        if(g_CPUData[coreID].currentThread->stickyCount > 0)
+            return;
+
         SaveThreadInfo(regs);
 
         // Find next process to execute
         UpdateEvents();
-        ThreadInfo* nextProcess = FindNextThread();
+        ThreadInfo* nextProcess = FindNextThreadFromInterrupt();
 
         SetContext(nextProcess, regs);
     }
@@ -333,7 +358,6 @@ namespace Scheduler {
         for(uint64 i = 0; i < numCores; i++)
             new(&g_CPUData[i]) CPUData();
 
-        IDT::SetISR(ISRNumbers::IPIMoveThread, TransferEvent);
         IDT::SetISR(ISRNumbers::IPIKillProcess, KillEvent);
     }
 
@@ -392,16 +416,16 @@ namespace Scheduler {
             SetContext(nextThread, &nextRegs);
             ContextSwitchAndReturn(myRegs, &nextRegs);
         }*/
+        ThreadDisableInterrupts();
         IDT::Registers nextRegs;
         SetContext(g_CPUData[coreID].idleThread, &nextRegs);
         ContextSwitchAndReturn(myRegs, &nextRegs);
+        ThreadEnableInterrupts();
     }
 
     void ThreadYield()
     {
-        ThreadSetSticky();
         Yield();
-        ThreadUnsetSticky();
     }
 
     void ThreadWait(uint64 ms)
@@ -414,6 +438,7 @@ namespace Scheduler {
         g_CPUData[coreID].currentThread->blockEvent.wait.remainingMillis = ms;
         
         Yield();
+
         ThreadUnsetSticky();
     }
 
@@ -427,7 +452,7 @@ namespace Scheduler {
         ProcessInfo* pInfo = tInfo->process;
 
         if(pInfo != nullptr) {
-            pInfo->mainLock.SpinLock();
+            pInfo->mainLock.Spinlock();
             pInfo->numThreads--;
             if(pInfo->numThreads == 0) {
                 tInfo->process = nullptr;
@@ -438,11 +463,13 @@ namespace Scheduler {
             }
         }
 
-        ThreadSetSticky();
+        g_CPUData[coreID].threadListLock.Spinlock_Cli();
         g_CPUData[coreID].threadList.erase(tInfo);
         g_CPUData[coreID].deadThreads.push_back(tInfo);
+        g_CPUData[coreID].threadListLock.Unlock_Cli();
         
         IDT::Registers regs;
+        ThreadDisableInterrupts();
         ThreadInfo* next = FindNextThread();
         SetContext(next, &regs);
         ReturnToThread(&regs);
@@ -479,15 +506,15 @@ namespace Scheduler {
         tInfo->registers.userrsp = stack;
 
         if(tInfo->process != nullptr) {
-            tInfo->process->mainLock.SpinLock();
+            tInfo->process->mainLock.Spinlock();
             tInfo->process->numThreads++;
             tInfo->process->mainLock.Unlock();
         }
 
-        ThreadSetSticky();
+        g_CPUData[coreID].threadListLock.Spinlock_Cli();
         g_CPUData[coreID].threadList.push_back(tInfo);
         uint64 res = tInfo->tid;
-        ThreadUnsetSticky();
+        g_CPUData[coreID].threadListLock.Unlock_Cli();
 
         return res;
     }
@@ -496,7 +523,7 @@ namespace Scheduler {
         uint64 coreID = SMP::GetLogicalCoreID();
 
         ProcessInfo* pInfo = g_CPUData[coreID].currentThread->process;
-        pInfo->fileDescLock.SpinLock();
+        pInfo->fileDescLock.Spinlock();
         for(ProcessFileDescriptor* d : pInfo->fileDescs) {
             if(d->desc == 0) {
                 d->desc = sysDescriptor;
@@ -518,7 +545,7 @@ namespace Scheduler {
 
         ProcessInfo* pInfo = g_CPUData[coreID].currentThread->process;
 
-        pInfo->fileDescLock.SpinLock();
+        pInfo->fileDescLock.Spinlock();
         ProcessFileDescriptor* desc = pInfo->fileDescs[descID];
         uint64 sysDesc = desc->desc;
         desc->desc = 0;
@@ -531,7 +558,7 @@ namespace Scheduler {
 
         ProcessInfo* pInfo = g_CPUData[coreID].currentThread->process;
 
-        pInfo->fileDescLock.SpinLock();
+        pInfo->fileDescLock.Spinlock();
         ProcessFileDescriptor* desc = pInfo->fileDescs[descID];
         uint64 res = desc->desc;
         pInfo->fileDescLock.Unlock();
@@ -542,12 +569,14 @@ namespace Scheduler {
     {
         uint64 coreID = SMP::GetLogicalCoreID();
 
+        g_CPUData[coreID].currentThread->process->mainLock.Spinlock();
         uint64 oldPML4Entry = g_CPUData[coreID].currentThread->process->pml4Entry;
         g_CPUData[coreID].currentThread->process->pml4Entry = pml4Entry;
+        g_CPUData[coreID].currentThread->process->mainLock.Unlock();
 
         MemoryManager::FreeProcessMap(oldPML4Entry);
 
-        IDT::DisableInterrupts();
+        ThreadDisableInterrupts();
         SaveThreadInfo(regs);
         SetContext(g_CPUData[coreID].currentThread, regs);
         ReturnToThread(regs);
@@ -560,6 +589,7 @@ namespace Scheduler {
     static void SetupKillHandler(ThreadInfo* tInfo, uint64 exitCode) {
         tInfo->blockEvent.type = ThreadBlockEvent::TYPE_NONE;
         tInfo->stickyCount = 1;
+        tInfo->cliCount = 1;
         tInfo->unkillable = true;
         tInfo->registers.cs = GDT::KernelCode;
         tInfo->registers.ds = GDT::KernelData;
@@ -571,43 +601,18 @@ namespace Scheduler {
     }
 
     void ThreadKillProcessFromInterrupt(IDT::Registers* regs, const char* reason) {
-        klog_error("Scheduler", "Killing process %i because Thread %i caused an exception (%s)", ThreadGetPID(), ThreadGetTID(), reason);
-
         uint64 coreID = SMP::GetLogicalCoreID();
-
         ThreadInfo* tInfo = g_CPUData[coreID].currentThread;
-        ProcessInfo* pInfo = tInfo->process;
 
-        if(pInfo != nullptr) {
-            pInfo->mainLock.SpinLock_NoSticky();
-            for(ThreadInfo* t : g_CPUData[coreID].threadList) {
-                if(t == tInfo) {
-                    SetupKillHandler(t, 123);
-                } else if(t->process == pInfo) {
-                    if(t->unkillable) {
-                        t->killPending = true;
-                        t->killCode = 123;
-                    } else {
-                        SetupKillHandler(t, 123);
-                    }
-                }
-            }
-            pInfo->mainLock.Unlock_NoSticky();
-
-            g_KillLock.SpinLock_NoSticky();
-            g_KillCount = 1;
-            g_KillProcess = pInfo;
-            APIC::SendIPI(APIC::IPI_TARGET_ALL_BUT_SELF, 0, ISRNumbers::IPIKillProcess);
-            while(g_KillCount < SMP::GetCoreCount()) ;
-            g_KillLock.Unlock_NoSticky();
-        } else {
-            // TODO: Kernel panic (KernelThread has caused an exception)
-            klog_fatal("PANIC", "KernelThread has caused an exception (TID=%i)", Scheduler::ThreadGetTID());
-            while(true) 
-                asm("hlt");
-        }
-
-        SetContext(tInfo, regs);
+        tInfo->stickyCount = 0;
+        tInfo->cliCount = 0;
+        regs->cs = GDT::KernelCode;
+        regs->ds = GDT::KernelData;
+        regs->ss = GDT::KernelData;
+        regs->rip = (uint64)&ThreadKillProcess;
+        regs->rflags = CPU::FLAGS_IF;
+        regs->userrsp = tInfo->kernelStack;
+        regs->rdi = (uint64)reason;
     }
     void ThreadKillProcess(const char* reason) {
         klog_error("Scheduler", "Killing process %i because Thread %i requested it (%s)", ThreadGetPID(), ThreadGetTID(), reason);
@@ -618,8 +623,7 @@ namespace Scheduler {
         ProcessInfo* pInfo = tInfo->process;
 
         if(pInfo != nullptr) {
-            pInfo->mainLock.SpinLock();
-            ThreadSetSticky();
+            g_CPUData[coreID].threadListLock.Spinlock_Cli();
             for(ThreadInfo* t : g_CPUData[coreID].threadList) {
                 if(t->process == pInfo && t != tInfo) {
                     if(t->unkillable) {
@@ -630,10 +634,9 @@ namespace Scheduler {
                     }
                 }
             }
-            ThreadUnsetSticky();
-            pInfo->mainLock.Unlock();
+            g_CPUData[coreID].threadListLock.Unlock_Cli();
 
-            g_KillLock.SpinLock();
+            g_KillLock.Spinlock();
             g_KillCount = 1;
             g_KillProcess = pInfo;
             APIC::SendIPI(APIC::IPI_TARGET_ALL_BUT_SELF, 0, ISRNumbers::IPIKillProcess);
@@ -653,14 +656,25 @@ namespace Scheduler {
         uint64 coreID = SMP::GetLogicalCoreID();
 
         g_CPUData[coreID].currentThread->stickyCount++;
-        if(g_CPUData[coreID].currentThread->stickyCount == 1)
-            IDT::DisableInterrupts();
     }
     void ThreadUnsetSticky() {
         uint64 coreID = SMP::GetLogicalCoreID();
 
         g_CPUData[coreID].currentThread->stickyCount--;
-        if(g_CPUData[coreID].currentThread->stickyCount == 0)
+    }
+
+    void ThreadDisableInterrupts() {
+        uint64 coreID = SMP::GetLogicalCoreID();
+        g_CPUData[coreID].currentThread->cliCount++;
+
+        if(g_CPUData[coreID].currentThread->cliCount == 1)
+            IDT::DisableInterrupts();
+    }
+    void ThreadEnableInterrupts() {
+        uint64 coreID = SMP::GetLogicalCoreID();
+        g_CPUData[coreID].currentThread->cliCount--;
+
+        if(g_CPUData[coreID].currentThread->cliCount == 0)
             IDT::EnableInterrupts();
     }
 
@@ -691,11 +705,12 @@ namespace Scheduler {
         ThreadSetSticky();
 
         uint64 coreID = SMP::GetLogicalCoreID();
+
         ThreadInfo* tInfo = g_CPUData[coreID].currentThread;
         tInfo->blockEvent.type = ThreadBlockEvent::TYPE_TRANSFER;
         tInfo->blockEvent.transfer.coreID = logicalCoreID;
 
-        Yield();
+        ThreadYield();
         ThreadUnsetSticky();
     }
 

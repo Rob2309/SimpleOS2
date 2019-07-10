@@ -10,7 +10,7 @@ namespace VFS {
     void PipeFS::GetSuperBlock(SuperBlock* sb) { }
 
     void PipeFS::CreateNode(Node* node) {
-        m_PipesLock.SpinLock();
+        m_PipesLock.Spinlock();
         for(Pipe* p : m_Pipes) {
             if(p->free) {
                 p->free = false;
@@ -36,7 +36,7 @@ namespace VFS {
         node->linkRefCount = 0;
     }
     void PipeFS::DestroyNode(Node* node) {
-        m_PipesLock.SpinLock();
+        m_PipesLock.Spinlock();
         m_Pipes[node->id]->free = true;
         m_PipesLock.Unlock();
     }
@@ -47,7 +47,7 @@ namespace VFS {
     static uint64 _Read(Pipe* p, void* buffer, uint64 bufferSize) {
         char* realBuffer = (char*)buffer;
 
-        p->lock.SpinLock();
+        p->lock.Spinlock();
 
         if(p->readPos <= p->writePos) {
             uint64 rem = p->writePos - p->readPos;
@@ -89,7 +89,7 @@ namespace VFS {
         }
     }
     uint64 PipeFS::ReadNodeData(Node* node, uint64 pos, void* buffer, uint64 bufferSize)  {
-        m_PipesLock.SpinLock();
+        m_PipesLock.Spinlock();
         Pipe* p = m_Pipes[node->id];
         m_PipesLock.Unlock();
 
@@ -102,7 +102,7 @@ namespace VFS {
     static uint64 _Write(Pipe* p, const void* buffer, uint64 bufferSize) {
         char* realBuffer = (char*)buffer;
 
-        p->lock.SpinLock();
+        p->lock.Spinlock();
 
         if(p->writePos < p->readPos) {
             uint64 rem = p->readPos - p->writePos - 1;
@@ -161,7 +161,7 @@ namespace VFS {
     uint64 PipeFS::WriteNodeData(Node* node, uint64 pos, const void* buffer, uint64 bufferSize) {
         char* realBuffer = (char*)buffer;
 
-        m_PipesLock.SpinLock();
+        m_PipesLock.Spinlock();
         Pipe* p = m_Pipes[node->id];
         m_PipesLock.Unlock();
 

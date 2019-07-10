@@ -41,6 +41,8 @@ struct ThreadInfo {
     uint64 userGSBase;
 
     uint64 stickyCount;
+    uint64 cliCount;
+
     bool unkillable;
     bool killPending;
     uint64 killCode;

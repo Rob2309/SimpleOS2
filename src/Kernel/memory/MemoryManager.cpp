@@ -124,27 +124,27 @@ namespace MemoryManager {
     }
 
     void* EarlyAllocatePages(uint64 numPages) {
-        g_Lock.SpinLock_NoSticky();
+        g_Lock.Spinlock_Raw();
         void* res = _AllocatePages(numPages);
-        g_Lock.Unlock_NoSticky();
+        g_Lock.Unlock_Raw();
         return res;
     }
     void EarlyFreePages(void* pages, uint64 numPages) {
-        g_Lock.SpinLock_NoSticky();
+        g_Lock.Spinlock_Raw();
         _FreePages(pages, numPages);
-        g_Lock.Unlock_NoSticky();
+        g_Lock.Unlock_Raw();
     }
 
     void* AllocatePages(uint64 numPages)
     {
-        g_Lock.SpinLock();
+        g_Lock.Spinlock();
         void* res = _AllocatePages(numPages);
         g_Lock.Unlock();
         return res;
     }
     void FreePages(void* pages, uint64 numPages)
     {
-        g_Lock.SpinLock();
+        g_Lock.Spinlock();
         _FreePages(pages, numPages);
         g_Lock.Unlock();
     }
@@ -260,7 +260,7 @@ namespace MemoryManager {
         uint64 pml2Index = GET_PML2_INDEX((uint64)virt);
         uint64 pml1Index = GET_PML1_INDEX((uint64)virt);
 
-        g_Lock.SpinLock();
+        g_Lock.Spinlock();
 
         uint64 pml4Entry = myPML4[pml4Index];
         volatile uint64* pml3 = (uint64*)PhysToKernelPtr((void*)PML_GET_ADDR(pml4Entry));
@@ -423,7 +423,7 @@ namespace MemoryManager {
             : : "r"(virt)
         );
 
-        g_PageSyncLock.SpinLock();
+        g_PageSyncLock.Spinlock();
         g_PageSyncFinishCount = 1;
         g_PageSyncPage = virt;
         APIC::SendIPI(APIC::IPI_TARGET_ALL_BUT_SELF, 0, ISRNumbers::IPIPagingSync);

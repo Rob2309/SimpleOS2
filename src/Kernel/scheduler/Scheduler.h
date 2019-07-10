@@ -95,6 +95,9 @@ namespace Scheduler {
     void ThreadSetSticky();
     void ThreadUnsetSticky();
 
+    void ThreadDisableInterrupts();
+    void ThreadEnableInterrupts();
+
     void ThreadSetUnkillable(bool unkillable);
 
     extern "C" void ThreadSetPageFaultRip(uint64 rip);

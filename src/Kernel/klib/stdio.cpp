@@ -90,7 +90,7 @@ void kprintf(const char* format, ...)
     __builtin_va_list arg;
     __builtin_va_start(arg, format);
 
-    g_PrintLock.SpinLock_NoSticky();
+    g_PrintLock.Spinlock_Raw();
 
     uint32 color = g_TerminalColor;
 
@@ -132,7 +132,7 @@ void kprintf(const char* format, ...)
         }
     }
 
-    g_PrintLock.Unlock_NoSticky();
+    g_PrintLock.Unlock_Raw();
 
     __builtin_va_end(arg);
 }

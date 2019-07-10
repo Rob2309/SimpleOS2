@@ -64,7 +64,7 @@ uint64 BlockDeviceDriver::GetData(uint64 subID, uint64 pos, void* buffer, uint64
     for(uint64 b = 0; b < numBlocks; b++) {
         uint64 blockID = startBlock + b;
         
-        m_CacheLock.SpinLock();
+        m_CacheLock.Spinlock();
         CachedBlock* cb;
         if(!GetCachedBlock(subID, blockID, GetBlockSize(subID), m_Cache, &cb)) {
             m_CacheLock.Unlock();
@@ -87,13 +87,13 @@ uint64 BlockDeviceDriver::GetData(uint64 subID, uint64 pos, void* buffer, uint64
 
         if(!kmemcpy_usersafe(realBuffer, cb->data + offs, rem)) {
             cb->dataLock.Unlock();
-            m_CacheLock.SpinLock();
+            m_CacheLock.Spinlock();
             ReleaseCachedBlock(cb, m_Cache);
             m_CacheLock.Unlock();
             return VFS::ReadWrite_InvalidBuffer;
         }
         cb->dataLock.Unlock();
-        m_CacheLock.SpinLock();
+        m_CacheLock.Spinlock();
         ReleaseCachedBlock(cb, m_Cache);
         m_CacheLock.Unlock();
 
@@ -116,7 +116,7 @@ uint64 BlockDeviceDriver::SetData(uint64 subID, uint64 pos, const void* buffer, 
     for(uint64 b = 0; b < numBlocks; b++) {
         uint64 blockID = startBlock + b;
         
-        m_CacheLock.SpinLock();
+        m_CacheLock.Spinlock();
         CachedBlock* cb;
         if(!GetCachedBlock(subID, blockID, GetBlockSize(subID), m_Cache, &cb)) {
             m_CacheLock.Unlock();
@@ -139,13 +139,13 @@ uint64 BlockDeviceDriver::SetData(uint64 subID, uint64 pos, const void* buffer, 
 
         if(!kmemcpy_usersafe(cb->data + offs, realBuffer, rem)) {
             cb->dataLock.Unlock();
-            m_CacheLock.SpinLock();
+            m_CacheLock.Spinlock();
             ReleaseCachedBlock(cb, m_Cache);
             m_CacheLock.Unlock();
             return VFS::ReadWrite_InvalidBuffer;
         }
         cb->dataLock.Unlock();
-        m_CacheLock.SpinLock();
+        m_CacheLock.Spinlock();
         ReleaseCachedBlock(cb, m_Cache);
         m_CacheLock.Unlock();
 
@@ -162,19 +162,19 @@ static uint64 g_DriverIDCounter = 0;
 static ktl::nlist<DeviceDriver> g_Drivers;
 
 uint64 DeviceDriverRegistry::RegisterDriver(DeviceDriver* driver) {
-    g_DriverLock.SpinLock();
+    g_DriverLock.Spinlock();
     uint64 res = g_DriverIDCounter++;
     g_Drivers.push_back(driver);
     g_DriverLock.Unlock();
     return res;
 }
 void DeviceDriverRegistry::UnregisterDriver(DeviceDriver* driver) {
-    g_DriverLock.SpinLock();
+    g_DriverLock.Spinlock();
     g_Drivers.erase(driver);
     g_DriverLock.Unlock();
 }
 DeviceDriver* DeviceDriverRegistry::GetDriver(uint64 id) {
-    g_DriverLock.SpinLock();
+    g_DriverLock.Spinlock();
     for(DeviceDriver* driver : g_Drivers) {
         if(driver->GetDriverID() == id) {
             g_DriverLock.Unlock();

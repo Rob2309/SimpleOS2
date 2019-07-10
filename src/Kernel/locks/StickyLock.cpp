@@ -6,7 +6,7 @@ StickyLock::StickyLock()
     : m_Val(0)
 { }
 
-void StickyLock::SpinLock() {
+void StickyLock::Spinlock() {
     Scheduler::ThreadSetSticky();
 
     while(!TryLock()) ;
@@ -17,10 +17,21 @@ void StickyLock::Unlock() {
     Scheduler::ThreadUnsetSticky();
 }
 
-void StickyLock::SpinLock_NoSticky() {
+void StickyLock::Spinlock_Cli() {
+    Scheduler::ThreadDisableInterrupts();
+    Scheduler::ThreadSetSticky();
     while(!TryLock()) ;
 }
-void StickyLock::Unlock_NoSticky() {
+void StickyLock::Unlock_Cli() {
+    DoUnlock();
+    Scheduler::ThreadUnsetSticky();
+    Scheduler::ThreadEnableInterrupts();
+}
+
+void StickyLock::Spinlock_Raw() {
+    while(!TryLock()) ;
+}
+void StickyLock::Unlock_Raw() {
     DoUnlock();
 }
 

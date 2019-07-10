@@ -27,7 +27,7 @@ namespace KernelHeap {
     {
         size = (size + sizeof(uint64) * 2 + 63) / 64 * 64;
 
-        g_Lock.SpinLock();
+        g_Lock.Spinlock();
         void* g = g_FreeList.FindFree(size);
         if(g == nullptr) {
             ReserveNew(size);
@@ -47,7 +47,7 @@ namespace KernelHeap {
         uint64* b = (uint64*)block - 2;
         uint64 size = *b;
 
-        g_Lock.SpinLock();
+        g_Lock.Spinlock();
         g_FreeList.MarkFree(b, size);
         g_Lock.Unlock();
     }
