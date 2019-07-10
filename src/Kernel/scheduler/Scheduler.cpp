@@ -408,19 +408,17 @@ namespace Scheduler {
         IDT::Registers* myRegs = &g_CPUData[coreID].currentThread->registers;
 
         // TODO: Find out why this breaks in release mode
-        /*ThreadInfo* nextThread = FindNextThread();
-        if(nextThread == g_CPUData.currentThread) {
+        ThreadDisableInterrupts();
+        ThreadInfo* nextThread = FindNextThread();
+        if(nextThread == g_CPUData[coreID].currentThread) {
+            ThreadEnableInterrupts();
             return;
         } else {
             IDT::Registers nextRegs;
             SetContext(nextThread, &nextRegs);
             ContextSwitchAndReturn(myRegs, &nextRegs);
-        }*/
-        ThreadDisableInterrupts();
-        IDT::Registers nextRegs;
-        SetContext(g_CPUData[coreID].idleThread, &nextRegs);
-        ContextSwitchAndReturn(myRegs, &nextRegs);
-        ThreadEnableInterrupts();
+            ThreadEnableInterrupts();
+        }
     }
 
     void ThreadYield()
