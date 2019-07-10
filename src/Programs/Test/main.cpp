@@ -21,7 +21,7 @@ static void Thread2() {
 
 extern "C" void main()
 {
-    if(Syscall::Fork()) {
+    /*if(Syscall::Fork()) {
         Syscall::CreateThread((uint64)&Thread1, (uint64)&g_Stack1[4096]);
         Syscall::CreateThread((uint64)&Thread2, (uint64)&g_Stack2[4096]);
 
@@ -37,7 +37,10 @@ extern "C" void main()
             Syscall::Print("Alive...\n");
             Syscall::Wait(1000);
         }
-    }
+    }*/
+
+    if(!Syscall::CreateFolder("/someFolder"))
+        Syscall::Print("Permissions denied");
 
     /*if(Syscall::Fork()) {
         Syscall::Print("Parent...\n");

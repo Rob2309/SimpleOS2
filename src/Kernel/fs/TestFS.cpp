@@ -8,6 +8,10 @@ struct TestNode {
     Node::Type type;
     Directory* dir;
     uint64 linkRefCount;
+
+    uint64 uid;
+    uint64 gid;
+    Permissions perms;
     
     uint64 fileSize;
     char* fileData;
@@ -18,6 +22,11 @@ TestFS::TestFS() {
     node->type = Node::TYPE_DIRECTORY;
     node->dir = Directory::Create(10);
     node->linkRefCount = 1;
+    node->uid = 0;
+    node->gid = 0;
+    node->perms.ownerPermissions = Permissions::Read | Permissions::Write;
+    node->perms.groupPermissions = Permissions::Read;
+    node->perms.otherPermissions = Permissions::Read;
     
     m_RootNodeID = (uint64)node;
 }
@@ -53,6 +62,9 @@ void TestFS::ReadNode(uint64 id, VFS::Node* node) {
     node->id = id;
     node->linkRefCount = refNode->linkRefCount;
     node->type = refNode->type;
+    node->ownerGID = refNode->gid;
+    node->ownerUID = refNode->uid;
+    node->permissions = refNode->perms;
 }
 void TestFS::WriteNode(Node* node) {
     TestNode* refNode = (TestNode*)(node->id);
@@ -60,6 +72,9 @@ void TestFS::WriteNode(Node* node) {
     refNode->dir = node->dir;
     refNode->type = node->type;
     refNode->linkRefCount = node->linkRefCount;
+    refNode->gid = node->ownerGID;
+    refNode->uid = node->ownerUID;
+    refNode->perms = node->permissions;
 }
 
 uint64 TestFS::ReadNodeData(Node* node, uint64 pos, void* buffer, uint64 bufferSize) {

@@ -154,13 +154,14 @@ namespace Scheduler {
         return ret;
     }
 
-    uint64 CreateUserThread(uint64 pml4Entry, IDT::Registers* regs)
+    uint64 CreateUserThread(uint64 pml4Entry, IDT::Registers* regs, User* owner)
     {
         uint64 coreID = SMP::GetLogicalCoreID();
 
         ProcessInfo* pInfo = new ProcessInfo();
         pInfo->pid = g_PIDCounter++;
         pInfo->pml4Entry = pml4Entry;
+        pInfo->owner = owner;
 
         ThreadInfo* tInfo = CreateThreadStruct();
         tInfo->tid = g_TIDCounter++;
@@ -223,6 +224,7 @@ namespace Scheduler {
         ProcessInfo* pInfo = new ProcessInfo();
         pInfo->pid = g_PIDCounter++;
         pInfo->pml4Entry = pml4Entry;
+        pInfo->owner = oldPInfo->owner;
         
         oldPInfo->fileDescLock.Spinlock();
         for(ProcessFileDescriptor* fd : oldPInfo->fileDescs) {
@@ -442,7 +444,7 @@ namespace Scheduler {
 
     void ThreadExit(uint64 code)
     {
-        kprintf("%C[%i.%i]%C Exiting with code %i on Core %i\n", 200, 50, 50, Scheduler::ThreadGetPID(), Scheduler::ThreadGetTID(), 255, 255, 255, code, SMP::GetLogicalCoreID());
+        kprintf("%C[%i.%i %s]%C Exiting with code %i on Core %i\n", 200, 50, 50, Scheduler::ThreadGetPID(), Scheduler::ThreadGetTID(), Scheduler::ThreadGetUserName(), 255, 255, 255, code, SMP::GetLogicalCoreID());
 
         uint64 coreID = SMP::GetLogicalCoreID();
 
@@ -486,6 +488,30 @@ namespace Scheduler {
             return g_CPUData[coreID].currentThread->process->pid;
         else
             return 0;    
+    }
+    uint64 ThreadGetUID() {
+        uint64 coreID = SMP::GetLogicalCoreID();
+
+        if(g_CPUData[coreID].currentThread->process != nullptr)
+            return g_CPUData[coreID].currentThread->process->owner->uid;
+        else
+            return 0; 
+    }
+    uint64 ThreadGetGID() {
+        uint64 coreID = SMP::GetLogicalCoreID();
+
+        if(g_CPUData[coreID].currentThread->process != nullptr)
+            return g_CPUData[coreID].currentThread->process->owner->gid;
+        else
+            return 0; 
+    }
+    const char* ThreadGetUserName() {
+        uint64 coreID = SMP::GetLogicalCoreID();
+
+        if(g_CPUData[coreID].currentThread->process != nullptr)
+            return g_CPUData[coreID].currentThread->process->owner->name;
+        else
+            return "-KernelThread-"; 
     }
 
     uint64 ThreadCreateThread(uint64 entry, uint64 stack)
@@ -613,7 +639,7 @@ namespace Scheduler {
         regs->rdi = (uint64)reason;
     }
     void ThreadKillProcess(const char* reason) {
-        klog_error("Scheduler", "Killing process %i because Thread %i requested it (%s)", ThreadGetPID(), ThreadGetTID(), reason);
+        klog_error("Scheduler", "Killing process %i (owner=%s) because Thread %i requested it (%s)", ThreadGetPID(), ThreadGetUserName(), ThreadGetTID(), reason);
 
         uint64 coreID = SMP::GetLogicalCoreID();
 

@@ -8,7 +8,11 @@ using namespace VFS;
 namespace Ext2 {
 
     Ext2Driver::Ext2Driver(const char* dev) {
-        m_Dev = VFS::Open(dev);
+        User fakeRoot;
+        fakeRoot.gid = 0;
+        fakeRoot.uid = 0;
+
+        m_Dev = VFS::Open(&fakeRoot, dev, Permissions::Read);
         if(m_Dev == 0)
             klog_error("Ext2", "Failed to open %s", dev);
 

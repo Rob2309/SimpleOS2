@@ -5,10 +5,20 @@
 #include "atomic/Atomics.h"
 #include "locks/QueueLock.h"
 #include "FileSystem.h"
+#include "user/User.h"
 
 namespace VFS {
 
     class FileSystem;
+
+    struct Permissions {
+        static constexpr uint8 Read = 0x1;
+        static constexpr uint8 Write = 0x2;
+
+        uint8 ownerPermissions;
+        uint8 groupPermissions;
+        uint8 otherPermissions;
+    };
 
     struct Node
     {
@@ -34,11 +44,19 @@ namespace VFS {
             } device;
         };
 
+        uint64 ownerUID;
+        uint64 ownerGID;
+        Permissions permissions;
+
         uint64 id;
         uint64 linkRefCount;    // How often this node is referenced by directory entries
     };
 
     struct NodeStats {
+        uint64 ownerUID;
+        uint64 ownerGID;
+        Permissions permissions;
+
         uint64 size;
     };
 
@@ -51,50 +69,50 @@ namespace VFS {
      * Creates a regular file at the given path. 
      * All directories up to the given path have to exist.
      **/
-    bool CreateFile(const char* path);
+    bool CreateFile(User* user, const char* path, const Permissions& permissions);
     /**
      * Creates an empty directory.
      * All directories up to the given path have to exist.
      **/
-    bool CreateFolder(const char* path);
+    bool CreateFolder(User* user, const char* path, const Permissions& permissions);
     /**
      * Creates a special device file.
      * All directories up to the given path have to exist.
      * @param driverID The ID of the driver the device is handled by.
      * @param subID The ID of the device within the driver.
      **/
-    bool CreateDeviceFile(const char* path, uint64 driverID, uint64 subID);
+    bool CreateDeviceFile(User* user, const char* path, const Permissions& permissions, uint64 driverID, uint64 subID);
     /**
      * Creates an unnamed pipe.
      * @param readDesc Filled with a FileDescriptor that can be used to read from the Pipe.
      * @param writeDesc Filled with a FileDescriptor that can be used to write to the Pipe.
      **/
-    bool CreatePipe(uint64* readDesc, uint64* writeDesc);
+    bool CreatePipe(User* user, uint64* readDesc, uint64* writeDesc);
 
     /**
      * Removes the files directory entry from the containing directory.
      * The node will, however, only be freed if every reference to it is closed.
      **/
-    bool Delete(const char* path);
+    bool Delete(User* user, const char* path);
 
     /**
      * Mount the given FileSystem at the given path.
      * MountPoint has to be an empty folder.
      **/
-    bool Mount(const char* mountPoint, FileSystem* fs);
-    bool Mount(const char* mountPoint, const char* fsID);
-    bool Mount(const char* mountPoint, const char* fsID, const char* dev);
+    bool Mount(User* user, const char* mountPoint, FileSystem* fs);
+    bool Mount(User* user, const char* mountPoint, const char* fsID);
+    bool Mount(User* user, const char* mountPoint, const char* fsID, const char* dev);
 
     /**
      * Unmounts the given path
      **/
-    bool Unmount(const char* mountPoint);
+    bool Unmount(User* user, const char* mountPoint);
 
     /**
      * Opens the given path
      * Returns the FileDescriptor of the opened path, or 0 on error.
      **/
-    uint64 Open(const char* path);
+    uint64 Open(User* user, const char* path, uint8 reqPermissions);
     /**
      * Closes the given FileDescriptor
      **/
@@ -115,9 +133,10 @@ namespace VFS {
     /**
      * Lists the files in a directory, fails if the given path is not a directory.
      **/
-    bool List(const char* path, FileList* list, bool getTypes);
+    bool List(User* user, const char* path, FileList* list, bool getTypes);
 
     constexpr uint64 ReadWrite_InvalidBuffer = -1;
+    constexpr uint64 ReadWrite_NoPermission = -2;
 
     /**
      * Reads from the given File and increases the FileDescriptor position by the number of bytes read.

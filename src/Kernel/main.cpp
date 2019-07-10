@@ -16,9 +16,14 @@
 
 #include "scheduler/Scheduler.h"
 #include "scheduler/ELF.h"
+#include "user/User.h"
+#include "klib/string.h"
+
+static User g_RootUser;
+static User g_TestUser;
 
 static uint64 SetupTestProcess() {
-    uint64 file = VFS::Open("/initrd/Test.elf");
+    uint64 file = VFS::Open(&g_RootUser, "/initrd/Test.elf", VFS::Permissions::Read);
     if(file == 0) {
         klog_error("Test", "Failed to open /initrd/Test.elf");
         return 0;
@@ -41,7 +46,7 @@ static uint64 SetupTestProcess() {
 
     delete[] buffer;
 
-    uint64 tid = Scheduler::CreateUserThread(pml4Entry, &regs);
+    uint64 tid = Scheduler::CreateUserThread(pml4Entry, &regs, &g_TestUser);
     klog_info("Test", "Created test process with TID %i", tid);
     return tid;
 }
@@ -55,18 +60,26 @@ static KernelHeader* g_KernelHeader;
 static void InitThread() {
     klog_info("Init", "Init Thread starting");
 
+    g_RootUser.gid = 0;
+    g_RootUser.uid = 0;
+    kstrcpy(g_RootUser.name, "root");
+
+    g_TestUser.gid = 123;
+    g_TestUser.uid = 456;
+    kstrcpy(g_TestUser.name, "TestUser");
+
     VFS::FileSystemRegistry::RegisterFileSystem("test", TestFSFactory);
 
     VFS::Init(new TestFS());
-    VFS::CreateFolder("/dev");
-    VFS::CreateFolder("/initrd");
+    VFS::CreateFolder(&g_RootUser, "/dev", { VFS::Permissions::Read | VFS::Permissions::Write, VFS::Permissions::Read, VFS::Permissions::Read });
+    VFS::CreateFolder(&g_RootUser, "/initrd", { VFS::Permissions::Read | VFS::Permissions::Write, VFS::Permissions::Read, VFS::Permissions::Read });
 
     auto ramdriver = new RamDeviceDriver();
     uint64 initrdID = ramdriver->AddDevice((char*)g_KernelHeader->ramdiskImage.buffer, 512, g_KernelHeader->ramdiskImage.numPages * 8);
-    VFS::CreateDeviceFile("/dev/ram0", ramdriver->GetDriverID(), initrdID);
+    VFS::CreateDeviceFile(&g_RootUser, "/dev/ram0", { VFS::Permissions::Read, VFS::Permissions::Read, VFS::Permissions::Read }, ramdriver->GetDriverID(), initrdID);
 
     Ext2::Init();
-    VFS::Mount("/initrd", "ext2", "/dev/ram0");
+    VFS::Mount(&g_RootUser, "/initrd", "ext2", "/dev/ram0");
 
     uint64 tid = SetupTestProcess();
 

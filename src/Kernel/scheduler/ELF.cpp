@@ -65,12 +65,12 @@ bool PrepareELF(const uint8* diskImg, uint64& outPML4Entry, IDT::Registers& outR
     return true;
 }
 
-bool RunELF(const uint8* diskImg)
+bool RunELF(const uint8* diskImg, User* user)
 {
     uint64 pml4Entry;
     IDT::Registers regs;
     if(!PrepareELF(diskImg, pml4Entry, regs))
         return false;
-    Scheduler::CreateUserThread(pml4Entry, &regs);
+    Scheduler::CreateUserThread(pml4Entry, &regs, user);
     return true;
 }

@@ -44,6 +44,8 @@ namespace VFS {
         MountPoint* mp;
         CachedNode* node;
 
+        uint8 permissions;
+
         uint64 pos;
     };
 
@@ -226,7 +228,20 @@ namespace VFS {
         }
     }
 
-    static CachedNode* AcquirePath(MountPoint* mp, const char* path) {
+    static bool CheckPermissions(User* user, Node* node, uint8 reqPerms) {
+        if(user->uid == 0)
+            return true;
+            
+        if(user->uid == node->ownerUID) {
+            return (node->permissions.ownerPermissions & reqPerms) == reqPerms;
+        } else if(user->gid == node->ownerGID) {
+            return (node->permissions.groupPermissions & reqPerms) == reqPerms;
+        } else {
+            return (node->permissions.otherPermissions & reqPerms) == reqPerms;
+        }
+    }
+
+    static CachedNode* AcquirePath(User* user, MountPoint* mp, const char* path) {
         CachedNode* current = AcquireNode(mp, mp->sb.rootNode);
 
         if(*path == '\0')
@@ -234,6 +249,10 @@ namespace VFS {
 
         while(true) {
             if(current->node.type != Node::TYPE_DIRECTORY) {
+                ReleaseNode(mp, current);
+                return nullptr;
+            }
+            if(!CheckPermissions(user, &current->node, Permissions::Read)) {
                 ReleaseNode(mp, current);
                 return nullptr;
             }
@@ -284,7 +303,7 @@ namespace VFS {
         g_PipeMount->fs = new PipeFS();
     }
 
-    bool CreateFile(const char* path) {
+    bool CreateFile(User* user, const char* path, const Permissions& perms) {
         char cleanBuffer[255];
         if(!CleanPath(path, cleanBuffer))
             return false;
@@ -296,10 +315,10 @@ namespace VFS {
         MountPoint* mp = AcquireMountPoint(folderPath);
         folderPath = AdvancePath(folderPath, mp->path);
 
-        CachedNode* folderNode = AcquirePath(mp, folderPath);
+        CachedNode* folderNode = AcquirePath(user, mp, folderPath);
         if(folderNode == nullptr)
             return false;
-        if(folderNode->node.type != Node::TYPE_DIRECTORY) {
+        if(folderNode->node.type != Node::TYPE_DIRECTORY || !CheckPermissions(user, &folderNode->node, Permissions::Write)) {
             ReleaseNode(mp, folderNode);
             return false;
         }
@@ -311,6 +330,9 @@ namespace VFS {
         CachedNode* newNode = CreateNode(mp);
         newNode->node.linkRefCount = 1;
         newNode->node.type = Node::TYPE_FILE;
+        newNode->node.ownerGID = user->gid;
+        newNode->node.ownerUID = user->uid;
+        newNode->node.permissions = perms;
         
         newEntry->nodeID = newNode->nodeID;
         kstrcpy(newEntry->name, fileName);
@@ -321,7 +343,7 @@ namespace VFS {
         return true;
     }
 
-    bool CreateFolder(const char* path) {
+    bool CreateFolder(User* user, const char* path, const Permissions& perms) {
         char cleanBuffer[255];
         if(!CleanPath(path, cleanBuffer))
             return false;
@@ -333,10 +355,10 @@ namespace VFS {
         MountPoint* mp = AcquireMountPoint(folderPath);
         folderPath = AdvancePath(folderPath, mp->path);
 
-        CachedNode* folderNode = AcquirePath(mp, folderPath);
+        CachedNode* folderNode = AcquirePath(user, mp, folderPath);
         if(folderNode == nullptr)
             return false;
-        if(folderNode->node.type != Node::TYPE_DIRECTORY) {
+        if(folderNode->node.type != Node::TYPE_DIRECTORY || !CheckPermissions(user, &folderNode->node, Permissions::Write)) {
             ReleaseNode(mp, folderNode);
             return false;
         }
@@ -349,6 +371,9 @@ namespace VFS {
         newNode->node.linkRefCount = 1;
         newNode->node.type = Node::TYPE_DIRECTORY;
         newNode->node.dir = Directory::Create(10);
+        newNode->node.ownerGID = user->gid;
+        newNode->node.ownerUID = user->uid;
+        newNode->node.permissions = perms;
         
         newEntry->nodeID = newNode->nodeID;
         kstrcpy(newEntry->name, fileName);
@@ -359,7 +384,7 @@ namespace VFS {
         return true;
     }
 
-    bool CreateDeviceFile(const char* path, uint64 driverID, uint64 subID) {
+    bool CreateDeviceFile(User* user, const char* path, const Permissions& perms, uint64 driverID, uint64 subID) {
         char cleanBuffer[255];
         if(!CleanPath(path, cleanBuffer))
             return false;
@@ -371,10 +396,10 @@ namespace VFS {
         MountPoint* mp = AcquireMountPoint(folderPath);
         folderPath = AdvancePath(folderPath, mp->path);
 
-        CachedNode* folderNode = AcquirePath(mp, folderPath);
+        CachedNode* folderNode = AcquirePath(user, mp, folderPath);
         if(folderNode == nullptr)
             return false;
-        if(folderNode->node.type != Node::TYPE_DIRECTORY) {
+        if(folderNode->node.type != Node::TYPE_DIRECTORY || !CheckPermissions(user, &folderNode->node, Permissions::Write)) {
             ReleaseNode(mp, folderNode);
             return false;
         }
@@ -390,6 +415,9 @@ namespace VFS {
         newNode->node.type = driver->GetType() == DeviceDriver::TYPE_CHAR ? Node::TYPE_DEVICE_CHAR : Node::TYPE_DEVICE_BLOCK;
         newNode->node.device.driverID = driverID;
         newNode->node.device.subID = subID;
+        newNode->node.ownerGID = user->gid;
+        newNode->node.ownerUID = user->uid;
+        newNode->node.permissions = perms;
         
         newEntry->nodeID = newNode->nodeID;
         kstrcpy(newEntry->name, fileName);
@@ -399,7 +427,7 @@ namespace VFS {
 
         return true;
     }
-    bool CreatePipe(uint64* readDesc, uint64* writeDesc) {
+    bool CreatePipe(User* user, uint64* readDesc, uint64* writeDesc) {
         CachedNode* pipeNode = CreateNode(g_PipeMount, 2);
         pipeNode->node.type = Node::TYPE_PIPE;
         ReleaseNode(g_PipeMount, pipeNode, false);
@@ -409,12 +437,14 @@ namespace VFS {
         descRead->node = pipeNode;
         descRead->pos = 0;
         descRead->refCount = 1;
+        descRead->permissions = Permissions::Read;
 
         FileDescriptor* descWrite = new FileDescriptor();
         descWrite->mp = g_PipeMount;
         descWrite->node = pipeNode;
         descWrite->pos = 0;
         descWrite->refCount = 1;
+        descWrite->permissions = Permissions::Write;
 
         *readDesc = (uint64)descRead;
         *writeDesc = (uint64)descWrite;
@@ -422,7 +452,7 @@ namespace VFS {
         return true;
     }
 
-    bool Delete(const char* path) {
+    bool Delete(User* user, const char* path) {
         char cleanBuffer[255];
         if(!CleanPath(path, cleanBuffer))
             return false;
@@ -436,10 +466,10 @@ namespace VFS {
         const char* fileName;
         SplitFolderAndFile(relPath, &folderPath, &fileName);
 
-        CachedNode* folderNode = AcquirePath(mp, folderPath);
+        CachedNode* folderNode = AcquirePath(user, mp, folderPath);
         if(folderNode == nullptr)
             return false;
-        if(folderNode->node.type != Node::TYPE_DIRECTORY) {
+        if(folderNode->node.type != Node::TYPE_DIRECTORY || !CheckPermissions(user, &folderNode->node, Permissions::Write)) {
             ReleaseNode(mp, folderNode);
             return false;
         }
@@ -472,7 +502,7 @@ namespace VFS {
         return false;
     }
 
-    bool Mount(const char* mountPoint, FileSystem* fs) {
+    bool Mount(User* user, const char* mountPoint, FileSystem* fs) {
         char cleanBuffer[255];
         if(!CleanPath(mountPoint, cleanBuffer))
             return false;
@@ -482,10 +512,10 @@ namespace VFS {
         if(*folderPath == '\0') // Trying to mount onto mountpoint
             return false;
 
-        CachedNode* folderNode = AcquirePath(mp, folderPath);
+        CachedNode* folderNode = AcquirePath(user, mp, folderPath);
         if(folderNode == nullptr)
             return false;
-        if(folderNode->node.type != Node::TYPE_DIRECTORY) {
+        if(folderNode->node.type != Node::TYPE_DIRECTORY || !CheckPermissions(user, &folderNode->node, Permissions::Write)) {
             ReleaseNode(mp, folderNode);
             return false;
         }
@@ -507,26 +537,34 @@ namespace VFS {
 
         return true;
     }
-    bool Mount(const char* mountPoint, const char* fsID) {
+    bool Mount(User* user, const char* mountPoint, const char* fsID) {
         FileSystem* fs = FileSystemRegistry::CreateFileSystem(fsID);
         if(fs == nullptr)
             return false;
 
-        return Mount(mountPoint, fs);
+        if(!Mount(user, mountPoint, fs)) {
+            delete fs;
+            return false;
+        } else 
+            return true;
     }
-    bool Mount(const char* mountPoint, const char* fsID, const char* dev) {
+    bool Mount(User* user, const char* mountPoint, const char* fsID, const char* dev) {
         FileSystem* fs = FileSystemRegistry::CreateFileSystem(fsID, dev);
         if(fs == nullptr)
             return false;
 
-        return Mount(mountPoint, fs);
+        if(!Mount(user, mountPoint, fs)) {
+            delete fs;
+            return false;
+        } else 
+            return true;
     }
 
-    bool Unmount(const char* mountPoint) {
+    bool Unmount(User* user, const char* mountPoint) {
         return false;
     }
 
-    uint64 Open(const char* path) {
+    uint64 Open(User* user, const char* path, uint8 reqPermissions) {
         char cleanBuffer[255];
         if(!CleanPath(path, cleanBuffer))
             return false;
@@ -534,10 +572,10 @@ namespace VFS {
         MountPoint* mp = AcquireMountPoint(cleanBuffer);
         path = AdvancePath(cleanBuffer, mp->path);
 
-        CachedNode* node = AcquirePath(mp, path);
+        CachedNode* node = AcquirePath(user, mp, path);
         if(node == nullptr)
             return 0;
-        if(node->node.type == Node::TYPE_DIRECTORY) {
+        if(node->node.type == Node::TYPE_DIRECTORY || !CheckPermissions(user, &node->node, reqPermissions)) {
             ReleaseNode(mp, node);
             return 0;
         }
@@ -549,6 +587,7 @@ namespace VFS {
         desc->node = node;
         desc->pos = 0;
         desc->refCount = 1;
+        desc->permissions = reqPermissions;
 
         return (uint64)desc;
     }
@@ -572,7 +611,7 @@ namespace VFS {
         desc->refCount++;
     }
 
-    bool List(const char* path, FileList* list, bool getTypes) {
+    bool List(User* user, const char* path, FileList* list, bool getTypes) {
         char cleanBuffer[255];
         if(!CleanPath(path, cleanBuffer))
             return false;
@@ -580,10 +619,10 @@ namespace VFS {
         MountPoint* mp = AcquireMountPoint(cleanBuffer);
         path = AdvancePath(cleanBuffer, mp->path);
 
-        CachedNode* node = AcquirePath(mp, path);
+        CachedNode* node = AcquirePath(user, mp, path);
         if(node == nullptr)
             return false;
-        if(node->node.type != Node::TYPE_DIRECTORY) {
+        if(node->node.type != Node::TYPE_DIRECTORY || !CheckPermissions(user, &node->node, Permissions::Read)) {
             ReleaseNode(mp, node);
             return false;
         }
@@ -630,6 +669,9 @@ namespace VFS {
 
     uint64 Read(uint64 descID, void* buffer, uint64 bufferSize) {
         FileDescriptor* desc = (FileDescriptor*)descID;
+
+        if(!(desc->permissions & Permissions::Read))
+            return ReadWrite_NoPermission;
         
         uint64 res = _Read(&desc->node->node, desc->pos, buffer, bufferSize);
         if(res != VFS::ReadWrite_InvalidBuffer)
@@ -640,6 +682,9 @@ namespace VFS {
 
     uint64 Read(uint64 descID, uint64 pos, void* buffer, uint64 bufferSize) {
         FileDescriptor* desc = (FileDescriptor*)descID;
+
+        if(!(desc->permissions & Permissions::Read))
+            return ReadWrite_NoPermission;
 
         return _Read(&desc->node->node, pos, buffer, bufferSize);
     }
@@ -669,6 +714,9 @@ namespace VFS {
 
     uint64 Write(uint64 descID, const void* buffer, uint64 bufferSize) {
         FileDescriptor* desc = (FileDescriptor*)descID;
+
+        if(!(desc->permissions & Permissions::Write))
+            return ReadWrite_NoPermission;
         
         uint64 res = _Write(&desc->node->node, desc->pos, buffer, bufferSize);
         if(res != VFS::ReadWrite_InvalidBuffer)
@@ -680,6 +728,9 @@ namespace VFS {
     uint64 Write(uint64 descID, uint64 pos, const void* buffer, uint64 bufferSize) {
         FileDescriptor* desc = (FileDescriptor*)descID;
 
+        if(!(desc->permissions & Permissions::Write))
+            return ReadWrite_NoPermission;
+
         return _Write(&desc->node->node, pos, buffer, bufferSize);
     }
 
@@ -687,6 +738,9 @@ namespace VFS {
         FileDescriptor* desc = (FileDescriptor*)descID;
 
         stats->size = desc->node->node.fileSize;
+        stats->ownerGID = desc->node->node.ownerGID;
+        stats->ownerUID = desc->node->node.ownerUID;
+        stats->permissions = desc->node->node.permissions;
     }
 
 }

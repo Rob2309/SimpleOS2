@@ -98,7 +98,10 @@ namespace SyscallHandler {
                 if(!MemoryManager::IsUserPtr(filePath))
                     Scheduler::ThreadKillProcess("InvalidUserPointer");
 
-                uint64 file = VFS::Open(filePath);
+                ThreadInfo* tInfo = Scheduler::GetCurrentThreadInfo();
+                ProcessInfo* pInfo = tInfo->process;
+
+                uint64 file = VFS::Open(pInfo->owner, filePath, VFS::Permissions::Read);
                 if(file == 0)
                     return 0;
                 
@@ -124,23 +127,39 @@ namespace SyscallHandler {
                 const char* filePath = (const char*)arg1;
                 if(!MemoryManager::IsUserPtr(filePath))
                     Scheduler::ThreadKillProcess("InvalidUserPointer");
-                res = VFS::CreateFile(filePath); 
+
+                ThreadInfo* tInfo = Scheduler::GetCurrentThreadInfo();
+                ProcessInfo* pInfo = tInfo->process;
+
+                res = VFS::CreateFile(pInfo->owner, filePath, {3, 3, 3});
             } break;
         case Syscall::FunctionCreateFolder: {
                 const char* filePath = (const char*)arg1;
                 if(!MemoryManager::IsUserPtr(filePath))
                     Scheduler::ThreadKillProcess("InvalidUserPointer");
-                res = VFS::CreateFolder(filePath); 
+
+                ThreadInfo* tInfo = Scheduler::GetCurrentThreadInfo();
+                ProcessInfo* pInfo = tInfo->process;
+
+                res = VFS::CreateFolder(pInfo->owner, filePath, {3, 3, 3}); 
             } break;
         case Syscall::FunctionCreateDeviceFile: {
                 const char* filePath = (const char*)arg1;
                 if(!MemoryManager::IsUserPtr(filePath))
                     Scheduler::ThreadKillProcess("InvalidUserPointer");
-                res = VFS::CreateDeviceFile(filePath, arg2, arg3); 
+
+                ThreadInfo* tInfo = Scheduler::GetCurrentThreadInfo();
+                ProcessInfo* pInfo = tInfo->process;
+
+                res = VFS::CreateDeviceFile(pInfo->owner, filePath, {3, 3, 3}, arg2, arg3); 
             } break;
         case Syscall::FunctionCreatePipe: {
                 uint64 sysRead, sysWrite;
-                VFS::CreatePipe(&sysRead, &sysWrite);
+
+                ThreadInfo* tInfo = Scheduler::GetCurrentThreadInfo();
+                ProcessInfo* pInfo = tInfo->process;
+
+                VFS::CreatePipe(pInfo->owner, &sysRead, &sysWrite);
                 *(uint64*)arg1 = Scheduler::ProcessAddFileDescriptor(sysRead);
                 *(uint64*)arg2 = Scheduler::ProcessAddFileDescriptor(sysWrite);
             } break;
@@ -148,10 +167,17 @@ namespace SyscallHandler {
                 const char* filePath = (const char*)arg1;
                 if(!MemoryManager::IsUserPtr(filePath))
                     Scheduler::ThreadKillProcess("InvalidUserPointer");
-                res = VFS::Delete(filePath); 
+
+                ThreadInfo* tInfo = Scheduler::GetCurrentThreadInfo();
+                ProcessInfo* pInfo = tInfo->process;
+
+                res = VFS::Delete(pInfo->owner, filePath); 
             } break;
         case Syscall::FunctionOpen: {
-                uint64 sysDesc = VFS::Open((const char*)arg1);
+                ThreadInfo* tInfo = Scheduler::GetCurrentThreadInfo();
+                ProcessInfo* pInfo = tInfo->process;
+
+                uint64 sysDesc = VFS::Open(pInfo->owner, (const char*)arg1, 3);
                 if(sysDesc == 0) {
                     res = 0;
                     goto end;
@@ -181,7 +207,11 @@ namespace SyscallHandler {
                 const char* fsID = (const char*)arg2;
                 if(!MemoryManager::IsUserPtr(mountPoint) || !MemoryManager::IsUserPtr(fsID))
                     Scheduler::ThreadKillProcess("InvalidUserPointer");
-                res = VFS::Mount(mountPoint, fsID); 
+
+                ThreadInfo* tInfo = Scheduler::GetCurrentThreadInfo();
+                ProcessInfo* pInfo = tInfo->process;
+
+                res = VFS::Mount(pInfo->owner, mountPoint, fsID); 
             } break;
         case Syscall::FunctionMountDev: {
                 const char* mountPoint = (const char*)arg1;
@@ -189,7 +219,11 @@ namespace SyscallHandler {
                 const char* devFile = (const char*) arg3;
                 if(!MemoryManager::IsUserPtr(mountPoint) || !MemoryManager::IsUserPtr(fsID) || !MemoryManager::IsUserPtr(devFile))
                     Scheduler::ThreadKillProcess("InvalidUserPointer");
-                res = VFS::Mount(mountPoint, fsID, devFile);
+
+                ThreadInfo* tInfo = Scheduler::GetCurrentThreadInfo();
+                ProcessInfo* pInfo = tInfo->process;
+
+                res = VFS::Mount(pInfo->owner, mountPoint, fsID, devFile);
             } break;
 
         case Syscall::FunctionAllocPages: {

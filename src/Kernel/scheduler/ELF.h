@@ -2,6 +2,7 @@
 
 #include "types.h"
 #include "interrupts/IDT.h"
+#include "user/User.h"
 
 typedef unsigned long long Elf64Addr;
 typedef unsigned long long Elf64Offs;
@@ -16,7 +17,7 @@ typedef unsigned short Elf64Section;
 /**
  * Creates a user process from the given elf executable image
  **/
-bool RunELF(const uint8* diskImg);
+bool RunELF(const uint8* diskImg, User* user);
 bool PrepareELF(const uint8* diskImg, uint64& pml4Entry, IDT::Registers& regs);
 
 struct ELFHeader {

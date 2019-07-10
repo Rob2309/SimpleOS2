@@ -2,6 +2,7 @@
 
 #include "types.h"
 #include "interrupts/IDT.h"
+#include "user/User.h"
 
 struct ThreadInfo;
 
@@ -15,7 +16,7 @@ namespace Scheduler {
      * @param regs the initial register values for the created Thread
      * @returns the TID of the created Thread
      **/
-    uint64 CreateUserThread(uint64 pml4Entry, IDT::Registers* regs);
+    uint64 CreateUserThread(uint64 pml4Entry, IDT::Registers* regs, User* owner);
     /**
      * Create a new Kernel Thread that is not associated with any Process
      * @param rip the Entry point of the Thread
@@ -79,6 +80,9 @@ namespace Scheduler {
      * Returns 0 if the current Thread does not belong to a process (KernelThread)
      **/
     uint64 ThreadGetPID();
+    uint64 ThreadGetUID();
+    uint64 ThreadGetGID();
+    const char* ThreadGetUserName();
 
     uint64 ProcessAddFileDescriptor(uint64 sysDescriptor);
     void ProcessCloseFileDescriptor(uint64 desc);
