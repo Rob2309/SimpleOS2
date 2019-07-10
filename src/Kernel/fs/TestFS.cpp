@@ -85,7 +85,7 @@ uint64 TestFS::ReadNodeData(Node* node, uint64 pos, void* buffer, uint64 bufferS
         rem = bufferSize;
 
     if(!kmemcpy_usersafe(buffer, refNode->fileData + pos, rem))
-        return ReadWrite_InvalidBuffer;
+        return ErrorInvalidBuffer;
     return rem;
 }
 uint64 TestFS::WriteNodeData(Node* node, uint64 pos, const void* buffer, uint64 bufferSize) {
@@ -101,7 +101,7 @@ uint64 TestFS::WriteNodeData(Node* node, uint64 pos, const void* buffer, uint64 
     }
 
     if(!kmemcpy_usersafe(refNode->fileData + pos, buffer, bufferSize))
-        return ReadWrite_InvalidBuffer;
+        return ErrorInvalidBuffer;
     return bufferSize;
 }
 

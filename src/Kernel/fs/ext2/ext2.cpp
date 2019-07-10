@@ -12,9 +12,9 @@ namespace Ext2 {
         fakeRoot.gid = 0;
         fakeRoot.uid = 0;
 
-        m_Dev = VFS::Open(&fakeRoot, dev, Permissions::Read);
-        if(m_Dev == 0)
-            klog_error("Ext2", "Failed to open %s", dev);
+        int64 error = VFS::Open(&fakeRoot, dev, Permissions::Read, m_Dev);
+        if(error != OK)
+            klog_error("Ext2", "Failed to open %s (%i)", dev, error);
 
         VFS::Read(m_Dev, 1024, &m_SB, sizeof(SuperBlock));
 
@@ -91,9 +91,9 @@ namespace Ext2 {
             if(leftInBlock > bufferSize)
                 leftInBlock = bufferSize;
 
-            if(VFS::Read(m_Dev, blockPos + offset, realBuffer, leftInBlock) == ReadWrite_InvalidBuffer) {
-                return ReadWrite_InvalidBuffer;
-            }
+            int64 error = VFS::Read(m_Dev, blockPos + offset, realBuffer, leftInBlock);
+            if(error < 0)
+                return error;
 
             realBuffer += leftInBlock;
             bufferSize -= leftInBlock;

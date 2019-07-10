@@ -117,13 +117,16 @@ namespace Syscall
         return ret;
     }
 
-    inline void Exec(const char* file)
+    inline int64 Exec(const char* file)
     {
+        int64 res;
         __asm__ __volatile__ (
             "syscall"
-            : : "D"(FunctionExec), "S"(file)
+            : "=a"(res) 
+            : "D"(FunctionExec), "S"(file)
             : "rax", "rcx", "rdx", "r8", "r9", "r10", "r11"
         );
+        return res;
     }
 
     /**
@@ -138,8 +141,8 @@ namespace Syscall
         );
     }
 
-    inline bool CreateFile(const char* path) {
-        bool ret;
+    inline int64 CreateFile(const char* path) {
+        int64 ret;
         __asm__ __volatile__ (
             "syscall"
             : "=a"(ret)
@@ -149,8 +152,8 @@ namespace Syscall
         return ret;
     }
 
-    inline bool CreateFolder(const char* path) {
-        bool ret;
+    inline int64 CreateFolder(const char* path) {
+        int64 ret;
         __asm__ __volatile__ (
             "syscall"
             : "=a"(ret)
@@ -160,8 +163,8 @@ namespace Syscall
         return ret;
     }
 
-    inline bool CreateDeviceFile(const char* path, uint64 driverID, uint64 subID) {
-        bool ret;
+    inline int64 CreateDeviceFile(const char* path, uint64 driverID, uint64 subID) {
+        int64 ret;
         register uint64 r8 asm("r8") = subID;
         __asm__ __volatile__ (
             "syscall"
@@ -180,8 +183,8 @@ namespace Syscall
         );
     }
 
-    inline bool Delete(const char* path) {
-        bool ret;
+    inline int64 Delete(const char* path) {
+        int64 ret;
         __asm__ __volatile__ (
             "syscall"
             : "=a"(ret)
@@ -191,8 +194,8 @@ namespace Syscall
         return ret;
     }
 
-    inline uint64 Open(const char* path) {
-        uint64 ret;
+    inline int64 Open(const char* path) {
+        int64 ret;
         __asm__ __volatile__ (
             "syscall"
             : "=a"(ret)
@@ -202,16 +205,19 @@ namespace Syscall
         return ret;
     }
 
-    inline void Close(uint64 desc) {
+    inline int64 Close(uint64 desc) {
+        int64 ret;
         __asm__ __volatile__ (
             "syscall"
-            : : "D"(FunctionClose), "S"(desc)
-            : "rax", "rcx", "rdx", "r8", "r9", "r10", "r11"
+            : "=a"(ret)
+            : "D"(FunctionClose), "S"(desc)
+            : "rcx", "rdx", "r8", "r9", "r10", "r11"
         );
+        return ret;
     }
 
-    inline uint64 Read(uint64 desc, void* buffer, uint64 bufferSize) {
-        uint64 res;
+    inline int64 Read(uint64 desc, void* buffer, uint64 bufferSize) {
+        int64 res;
         register uint64 r8 asm("r8") = bufferSize;
         __asm__ __volatile__ (
             "syscall"
@@ -222,8 +228,8 @@ namespace Syscall
         return res;
     }
 
-    inline uint64 Write(uint64 desc, const void* buffer, uint64 bufferSize) {
-        uint64 res;
+    inline int64 Write(uint64 desc, const void* buffer, uint64 bufferSize) {
+        int64 res;
         register uint64 r8 asm("r8") = bufferSize;
         __asm__ __volatile__ (
             "syscall"
@@ -234,8 +240,8 @@ namespace Syscall
         return res;
     }
     
-    inline uint64 Mount(const char* mountPoint, const char* fsID) {
-        uint64 res;
+    inline int64 Mount(const char* mountPoint, const char* fsID) {
+        int64 res;
         __asm__ __volatile__ (
             "syscall"
             : "=a"(res)
@@ -245,8 +251,8 @@ namespace Syscall
         return res;
     }
 
-    inline uint64 Mount(const char* mountPoint, const char* fsID, const char* dev) {
-        uint64 res;
+    inline int64 Mount(const char* mountPoint, const char* fsID, const char* dev) {
+        int64 res;
         register uint64 r8 asm("r8") = (uint64)dev;
         __asm__ __volatile__ (
             "syscall"

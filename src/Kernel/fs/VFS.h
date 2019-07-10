@@ -65,62 +65,70 @@ namespace VFS {
      **/
     void Init(FileSystem* rootFS);
     
+    constexpr int64 OK = 0;
+    constexpr int64 ErrorFileNotFound = -1;
+    constexpr int64 ErrorPermissionDenied = -2;
+    constexpr int64 ErrorInvalidFD = -3;
+    constexpr int64 ErrorInvalidBuffer = -4;
+    constexpr int64 ErrorInvalidPath = -5;
+    constexpr int64 ErrorInvalidFileSystem = -6;
+
     /**
      * Creates a regular file at the given path. 
      * All directories up to the given path have to exist.
      **/
-    bool CreateFile(User* user, const char* path, const Permissions& permissions);
+    int64 CreateFile(User* user, const char* path, const Permissions& permissions);
     /**
      * Creates an empty directory.
      * All directories up to the given path have to exist.
      **/
-    bool CreateFolder(User* user, const char* path, const Permissions& permissions);
+    int64 CreateFolder(User* user, const char* path, const Permissions& permissions);
     /**
      * Creates a special device file.
      * All directories up to the given path have to exist.
      * @param driverID The ID of the driver the device is handled by.
      * @param subID The ID of the device within the driver.
      **/
-    bool CreateDeviceFile(User* user, const char* path, const Permissions& permissions, uint64 driverID, uint64 subID);
+    int64 CreateDeviceFile(User* user, const char* path, const Permissions& permissions, uint64 driverID, uint64 subID);
     /**
      * Creates an unnamed pipe.
      * @param readDesc Filled with a FileDescriptor that can be used to read from the Pipe.
      * @param writeDesc Filled with a FileDescriptor that can be used to write to the Pipe.
      **/
-    bool CreatePipe(User* user, uint64* readDesc, uint64* writeDesc);
+    int64 CreatePipe(User* user, uint64* readDesc, uint64* writeDesc);
 
     /**
      * Removes the files directory entry from the containing directory.
      * The node will, however, only be freed if every reference to it is closed.
      **/
-    bool Delete(User* user, const char* path);
+    int64 Delete(User* user, const char* path);
 
     /**
      * Mount the given FileSystem at the given path.
      * MountPoint has to be an empty folder.
      **/
-    bool Mount(User* user, const char* mountPoint, FileSystem* fs);
-    bool Mount(User* user, const char* mountPoint, const char* fsID);
-    bool Mount(User* user, const char* mountPoint, const char* fsID, const char* dev);
+    int64 Mount(User* user, const char* mountPoint, FileSystem* fs);
+    int64 Mount(User* user, const char* mountPoint, const char* fsID);
+    int64 Mount(User* user, const char* mountPoint, const char* fsID, const char* dev);
 
     /**
      * Unmounts the given path
      **/
-    bool Unmount(User* user, const char* mountPoint);
+    int64 Unmount(User* user, const char* mountPoint);
 
     /**
      * Opens the given path
      * Returns the FileDescriptor of the opened path, or 0 on error.
      **/
-    uint64 Open(User* user, const char* path, uint8 reqPermissions);
+    int64 Open(User* user, const char* path, uint8 reqPermissions, uint64& fileDesc);
     /**
      * Closes the given FileDescriptor
      **/
-    void Close(uint64 desc);
+    int64 Close(uint64 desc);
     /**
      * Increments the refCount of the given filedescriptor
      */
-    void AddRef(uint64 desc);
+    int64 AddRef(uint64 desc);
 
     struct FileList {
         uint64 numEntries;
@@ -133,10 +141,7 @@ namespace VFS {
     /**
      * Lists the files in a directory, fails if the given path is not a directory.
      **/
-    bool List(User* user, const char* path, FileList* list, bool getTypes);
-
-    constexpr uint64 ReadWrite_InvalidBuffer = -1;
-    constexpr uint64 ReadWrite_NoPermission = -2;
+    int64 List(User* user, const char* path, FileList* list, bool getTypes);
 
     /**
      * Reads from the given File and increases the FileDescriptor position by the number of bytes read.
@@ -145,7 +150,7 @@ namespace VFS {
      * @param bufferSize The maximum number of bytes that fit into the given buffer
      * @returns the number of bytes read.
      **/
-    uint64 Read(uint64 desc, void* buffer, uint64 bufferSize);
+    int64 Read(uint64 desc, void* buffer, uint64 bufferSize);
     /**
      * Reads from the given File.
      * This function blocks until at least one byte was read, except for when it is impossible to read further (e.g. end of file).
@@ -154,7 +159,7 @@ namespace VFS {
      * @param bufferSize The maximum number of bytes that fit into the given buffer
      * @returns the number of bytes read.
      **/
-    uint64 Read(uint64 desc, uint64 pos, void* buffer, uint64 bufferSize);
+    int64 Read(uint64 desc, uint64 pos, void* buffer, uint64 bufferSize);
     /**
      * Writes to the given File and increases the FileDescriptor position by the number of bytes written.
      * This function blocks until at least one byte was written, except for when it is impossible to write further.
@@ -162,7 +167,7 @@ namespace VFS {
      * @param bufferSize The number of bytes contained in the given buffer
      * @returns the number of bytes written.
      **/
-    uint64 Write(uint64 desc, const void* buffer, uint64 bufferSize);
+    int64 Write(uint64 desc, const void* buffer, uint64 bufferSize);
     /**
      * Writes to the given File.
      * This function blocks until at least one byte was written, except for when it is impossible to write further.
@@ -171,13 +176,13 @@ namespace VFS {
      * @param bufferSize The number of bytes contained in the given buffer
      * @returns the number of bytes written.
      **/
-    uint64 Write(uint64 desc, uint64 pos, const void* buffer, uint64 bufferSize);
+    int64 Write(uint64 desc, uint64 pos, const void* buffer, uint64 bufferSize);
 
     /**
      * Retrieves information about the node associated with a FileDescriptor
      * @param desc The FileDescriptor to retrieve information from
      * @param stats The buffer to write the stats into
      **/
-    void Stat(uint64 desc, NodeStats* stats);
+    int64 Stat(uint64 desc, NodeStats* stats);
 
 }
