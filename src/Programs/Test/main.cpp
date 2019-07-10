@@ -4,6 +4,7 @@ static char g_Stack1[4096];
 static char g_Stack2[4096];
 
 static void Thread1() {
+    Syscall::MoveThreadToCore(1);
     while(true) {
         Syscall::Print("Thread 1 alive...\n");
         Syscall::Wait(1000);
@@ -11,6 +12,7 @@ static void Thread1() {
 }
 
 static void Thread2() {
+    Syscall::MoveThreadToCore(2);
     while(true) {
         Syscall::Print("Thread 2 alive...\n");
         Syscall::Wait(1000);

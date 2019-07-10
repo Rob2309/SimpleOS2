@@ -62,10 +62,6 @@ namespace MemoryManager {
      **/
     void MapKernelPage(void* phys, void* virt);
     /**
-     * Unmap a kernel page
-     **/
-    void UnmapKernelPage(void* virt);
-    /**
      * Map a physical page into the given User Memory Space
      **/
     void MapProcessPage(uint64 pml4Entry, void* phys, void* virt, bool invalidate = true);
@@ -77,7 +73,7 @@ namespace MemoryManager {
     /**
      * Remove a page from the given User Memory Space
      **/
-    void UnmapProcessPage(uint64 pml4Entry, void* virt, bool invalidate = true);
+    void UnmapProcessPage(uint64 pml4Entry, void* virt);
     void UnmapProcessPage(void* virt);
 
     /**

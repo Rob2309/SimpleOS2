@@ -6,26 +6,32 @@ StickyLock::StickyLock()
     : m_Val(0)
 { }
 
-void StickyLock::SpinLock() {
-    bool stickyBefore = Scheduler::ThreadGetSticky();
-
-    Scheduler::ThreadSetSticky(true);
+void StickyLock::Spinlock() {
+    Scheduler::ThreadSetSticky();
 
     while(!TryLock()) ;
-
-    m_StickyBefore = stickyBefore;
 }
 void StickyLock::Unlock() {
     DoUnlock();
 
-    if(!m_StickyBefore)
-        Scheduler::ThreadSetSticky(false);
+    Scheduler::ThreadUnsetSticky();
 }
 
-void StickyLock::SpinLock_NoSticky() {
+void StickyLock::Spinlock_Cli() {
+    Scheduler::ThreadDisableInterrupts();
+    Scheduler::ThreadSetSticky();
     while(!TryLock()) ;
 }
-void StickyLock::Unlock_NoSticky() {
+void StickyLock::Unlock_Cli() {
+    DoUnlock();
+    Scheduler::ThreadUnsetSticky();
+    Scheduler::ThreadEnableInterrupts();
+}
+
+void StickyLock::Spinlock_Raw() {
+    while(!TryLock()) ;
+}
+void StickyLock::Unlock_Raw() {
     DoUnlock();
 }
 

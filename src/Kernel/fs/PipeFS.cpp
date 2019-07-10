@@ -10,7 +10,7 @@ namespace VFS {
     void PipeFS::GetSuperBlock(SuperBlock* sb) { }
 
     void PipeFS::CreateNode(Node* node) {
-        m_PipesLock.SpinLock();
+        m_PipesLock.Spinlock();
         for(Pipe* p : m_Pipes) {
             if(p->free) {
                 p->free = false;
@@ -36,7 +36,7 @@ namespace VFS {
         node->linkRefCount = 0;
     }
     void PipeFS::DestroyNode(Node* node) {
-        m_PipesLock.SpinLock();
+        m_PipesLock.Spinlock();
         m_Pipes[node->id]->free = true;
         m_PipesLock.Unlock();
     }
@@ -47,14 +47,17 @@ namespace VFS {
     static uint64 _Read(Pipe* p, void* buffer, uint64 bufferSize) {
         char* realBuffer = (char*)buffer;
 
-        p->lock.SpinLock();
+        p->lock.Spinlock();
 
         if(p->readPos <= p->writePos) {
             uint64 rem = p->writePos - p->readPos;
             if(rem > bufferSize)
                 rem = bufferSize;
 
-            kmemcpy(realBuffer, p->buffer + p->readPos, rem);
+            if(!kmemcpy_usersafe(realBuffer, p->buffer + p->readPos, rem)) {
+                p->lock.Unlock();
+                return ReadWrite_InvalidBuffer;
+            }
 
             p->readPos += rem;
             p->lock.Unlock();
@@ -69,8 +72,10 @@ namespace VFS {
                 capB = bufferSize - capA;
             }
 
-            kmemcpy(realBuffer, p->buffer + p->readPos, capA);
-            kmemcpy(realBuffer + capA, p->buffer, capB);
+            if(!kmemcpy_usersafe(realBuffer, p->buffer + p->readPos, capA) || !kmemcpy_usersafe(realBuffer + capA, p->buffer, capB)) {
+                p->lock.Unlock();
+                return ReadWrite_InvalidBuffer;
+            }
 
             if(capB > 0) {
                 p->readPos = capB;
@@ -84,7 +89,7 @@ namespace VFS {
         }
     }
     uint64 PipeFS::ReadNodeData(Node* node, uint64 pos, void* buffer, uint64 bufferSize)  {
-        m_PipesLock.SpinLock();
+        m_PipesLock.Spinlock();
         Pipe* p = m_Pipes[node->id];
         m_PipesLock.Unlock();
 
@@ -97,14 +102,17 @@ namespace VFS {
     static uint64 _Write(Pipe* p, const void* buffer, uint64 bufferSize) {
         char* realBuffer = (char*)buffer;
 
-        p->lock.SpinLock();
+        p->lock.Spinlock();
 
         if(p->writePos < p->readPos) {
             uint64 rem = p->readPos - p->writePos - 1;
             if(rem > bufferSize)
                 rem = bufferSize;
 
-            kmemcpy(p->buffer + p->writePos, realBuffer, rem);
+            if(!kmemcpy_usersafe(p->buffer + p->writePos, realBuffer, rem)) {
+                p->lock.Unlock();
+                return ReadWrite_InvalidBuffer;
+            }
 
             p->writePos += rem;
             p->lock.Unlock();
@@ -114,7 +122,11 @@ namespace VFS {
             if(rem > bufferSize)
                 rem = bufferSize;
 
-            kmemcpy(p->buffer + p->writePos, realBuffer, rem);
+            if(!kmemcpy_usersafe(p->buffer + p->writePos, realBuffer, rem)) {
+                p->lock.Unlock();
+                return ReadWrite_InvalidBuffer;
+            }
+
             p->writePos += rem;
             p->writePos %= sizeof(p->buffer);
 
@@ -130,8 +142,10 @@ namespace VFS {
                 capB = bufferSize - capA;
             }
 
-            kmemcpy(p->buffer + p->writePos, realBuffer, capA);
-            kmemcpy(p->buffer, realBuffer + capA, capB);
+            if(!kmemcpy_usersafe(p->buffer + p->writePos, realBuffer, capA) || kmemcpy_usersafe(p->buffer, realBuffer + capA, capB)) {
+                p->lock.Unlock();
+                return ReadWrite_InvalidBuffer;
+            }
 
             if(capB > 0) {
                 p->writePos = capB;
@@ -147,7 +161,7 @@ namespace VFS {
     uint64 PipeFS::WriteNodeData(Node* node, uint64 pos, const void* buffer, uint64 bufferSize) {
         char* realBuffer = (char*)buffer;
 
-        m_PipesLock.SpinLock();
+        m_PipesLock.Spinlock();
         Pipe* p = m_Pipes[node->id];
         m_PipesLock.Unlock();
 
@@ -155,6 +169,8 @@ namespace VFS {
         while(true) {
             uint64 count = _Write(p, realBuffer + res, bufferSize - res);
             res += count;
+            if(count == ReadWrite_InvalidBuffer)
+                return count;
             if(res == bufferSize)
                 break;
 

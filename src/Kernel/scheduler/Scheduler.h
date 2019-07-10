@@ -89,17 +89,21 @@ namespace Scheduler {
      */
     void ProcessExec(uint64 pml4Entry, IDT::Registers* regs);
 
-    void ThreadKillProcessFromInterrupt(IDT::Registers* regs);
-    void ThreadKillProcess();
+    void ThreadKillProcessFromInterrupt(IDT::Registers* regs, const char* reason);
+    void ThreadKillProcess(const char* reason);
 
-    void ThreadSetSticky(bool sticky);
-    bool ThreadGetSticky();
+    void ThreadSetSticky();
+    void ThreadUnsetSticky();
 
-    /**
-     * Moves the given thread to another Core
-     * Can currently only be called from a non-thread context
-     */
-    void MoveThreadToCPU(uint64 logicalCoreID, uint64 tid);
+    void ThreadDisableInterrupts();
+    void ThreadEnableInterrupts();
+
+    void ThreadSetUnkillable(bool unkillable);
+
+    extern "C" void ThreadSetPageFaultRip(uint64 rip);
+    void ThreadSetupPageFaultHandler(IDT::Registers* regs);
+
+    void ThreadMoveToCPU(uint64 logicalCoreID);
 
     ThreadInfo* GetCurrentThreadInfo();
 

@@ -53,7 +53,7 @@ static VFS::FileSystem* TestFSFactory() {
 static KernelHeader* g_KernelHeader;
 
 static void InitThread() {
-    kprintf("Init Thread running\n");
+    klog_info("Init", "Init Thread starting");
 
     VFS::FileSystemRegistry::RegisterFileSystem("test", TestFSFactory);
 
@@ -69,7 +69,6 @@ static void InitThread() {
     VFS::Mount("/initrd", "ext2", "/dev/ram0");
 
     uint64 tid = SetupTestProcess();
-    Scheduler::MoveThreadToCPU(1, tid);
 
     Scheduler::ThreadExit(0);
 }

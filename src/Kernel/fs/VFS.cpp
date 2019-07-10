@@ -118,7 +118,7 @@ namespace VFS {
 
     static MountPoint* AcquireMountPoint(const char* path) {
         MountPoint* current = g_RootMount;
-        current->childMountLock.SpinLock();
+        current->childMountLock.Spinlock();
 
         while(true) {
             MountPoint* next = nullptr;
@@ -131,7 +131,7 @@ namespace VFS {
 
             if(next != nullptr) {
                 current->childMountLock.Unlock();
-                next->childMountLock.SpinLock();
+                next->childMountLock.Spinlock();
                 current = next;
             } else {
                 current->childMountLock.Unlock();
@@ -153,7 +153,7 @@ namespace VFS {
     }
 
     static CachedNode* AcquireNode(MountPoint* mp, uint64 nodeID) {
-        mp->nodeCacheLock.SpinLock();
+        mp->nodeCacheLock.Spinlock();
         for(CachedNode* n : mp->nodeCache) {
             if(n->nodeID == nodeID) {
                 n->softRefCount++;
@@ -175,7 +175,7 @@ namespace VFS {
     }
 
     static void ReleaseNode(MountPoint* mp, CachedNode* node, bool decrement = true) {
-        mp->nodeCacheLock.SpinLock();
+        mp->nodeCacheLock.Spinlock();
 
         if(decrement)
             node->softRefCount--;
@@ -266,7 +266,7 @@ namespace VFS {
         newNode->softRefCount = softRefs;
         newNode->node.lock.SetLocked();
 
-        mp->nodeCacheLock.SpinLock();
+        mp->nodeCacheLock.Spinlock();
         mp->nodeCache.push_back(newNode);
         mp->nodeCacheLock.Unlock();
 
@@ -501,7 +501,7 @@ namespace VFS {
         newMP->fs = fs;
         fs->GetSuperBlock(&newMP->sb);
         
-        mp->childMountLock.SpinLock();
+        mp->childMountLock.Spinlock();
         mp->childMounts.push_back(newMP);
         mp->childMountLock.Unlock();
 
@@ -617,7 +617,10 @@ namespace VFS {
                 return 0;
             
             uint64 devID = node->device.subID;
-            driver->GetData(devID, pos, buffer, bufferSize);
+
+            uint64 error = driver->GetData(devID, pos, buffer, bufferSize);
+            if(error != 0)
+                return error;
             res = bufferSize;
         } else {
             res = node->fs->ReadNodeData(node, pos, buffer, bufferSize);
@@ -629,7 +632,8 @@ namespace VFS {
         FileDescriptor* desc = (FileDescriptor*)descID;
         
         uint64 res = _Read(&desc->node->node, desc->pos, buffer, bufferSize);
-        desc->pos += res;
+        if(res != VFS::ReadWrite_InvalidBuffer)
+            desc->pos += res;
 
         return res;
     }
@@ -653,7 +657,9 @@ namespace VFS {
                 return 0;
 
             uint64 devID = node->device.subID;
-            driver->SetData(devID, pos, buffer, bufferSize);
+            uint64 error = driver->SetData(devID, pos, buffer, bufferSize);
+            if(error != 0)
+                return error;
             res = bufferSize;
         } else {
             res = node->fs->WriteNodeData(node, pos, buffer, bufferSize);
@@ -665,7 +671,8 @@ namespace VFS {
         FileDescriptor* desc = (FileDescriptor*)descID;
         
         uint64 res = _Write(&desc->node->node, desc->pos, buffer, bufferSize);
-        desc->pos += res;
+        if(res != VFS::ReadWrite_InvalidBuffer)
+            desc->pos += res;
 
         return res;
     }

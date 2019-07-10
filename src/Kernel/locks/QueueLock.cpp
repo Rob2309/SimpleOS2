@@ -3,7 +3,7 @@
 #include "scheduler/Scheduler.h"
 
 void QueueLock::Lock() {
-    m_Lock.SpinLock();
+    m_Lock.Spinlock();
     if(!m_Locked) {
         m_Locked = true;
         m_Lock.Unlock();
@@ -21,7 +21,7 @@ void QueueLock::Lock() {
 }
 
 void QueueLock::Unlock() {
-    m_Lock.SpinLock();
+    m_Lock.Spinlock();
     if(m_Queue.empty()) {
         m_Locked = false;
         m_Lock.Unlock();

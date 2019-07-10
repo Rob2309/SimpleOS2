@@ -44,8 +44,8 @@ class BlockDeviceDriver : public DeviceDriver {
 public:
     BlockDeviceDriver();
 
-    void GetData(uint64 subID, uint64 pos, void* buffer, uint64 bufferSize);
-    void SetData(uint64 subID, uint64 pos, const void* buffer, uint64 bufferSize);
+    uint64 GetData(uint64 subID, uint64 pos, void* buffer, uint64 bufferSize);
+    uint64 SetData(uint64 subID, uint64 pos, const void* buffer, uint64 bufferSize);
 
     virtual uint64 GetBlockSize(uint64 subID) const = 0;
 

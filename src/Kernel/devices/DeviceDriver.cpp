@@ -4,6 +4,7 @@
 #include "ktl/new.h"
 #include "scheduler/Scheduler.h"
 #include "locks/QueueLock.h"
+#include "fs/VFS.h"
 
 DeviceDriver::DeviceDriver(Type type) 
     : m_Type(type)
@@ -53,7 +54,7 @@ static void ReleaseCachedBlock(CachedBlock* cb, ktl::vector<CachedBlock*>& cache
     }
 }
 
-void BlockDeviceDriver::GetData(uint64 subID, uint64 pos, void* buffer, uint64 bufferSize) {
+uint64 BlockDeviceDriver::GetData(uint64 subID, uint64 pos, void* buffer, uint64 bufferSize) {
     char* realBuffer = (char*)buffer;
 
     uint64 startBlock = pos / GetBlockSize(subID);
@@ -63,7 +64,7 @@ void BlockDeviceDriver::GetData(uint64 subID, uint64 pos, void* buffer, uint64 b
     for(uint64 b = 0; b < numBlocks; b++) {
         uint64 blockID = startBlock + b;
         
-        m_CacheLock.SpinLock();
+        m_CacheLock.Spinlock();
         CachedBlock* cb;
         if(!GetCachedBlock(subID, blockID, GetBlockSize(subID), m_Cache, &cb)) {
             m_CacheLock.Unlock();
@@ -84,9 +85,15 @@ void BlockDeviceDriver::GetData(uint64 subID, uint64 pos, void* buffer, uint64 b
         if(rem > bufferSize)
             rem = bufferSize;
 
-        kmemcpy(realBuffer, cb->data + offs, rem);
+        if(!kmemcpy_usersafe(realBuffer, cb->data + offs, rem)) {
+            cb->dataLock.Unlock();
+            m_CacheLock.Spinlock();
+            ReleaseCachedBlock(cb, m_Cache);
+            m_CacheLock.Unlock();
+            return VFS::ReadWrite_InvalidBuffer;
+        }
         cb->dataLock.Unlock();
-        m_CacheLock.SpinLock();
+        m_CacheLock.Spinlock();
         ReleaseCachedBlock(cb, m_Cache);
         m_CacheLock.Unlock();
 
@@ -94,8 +101,10 @@ void BlockDeviceDriver::GetData(uint64 subID, uint64 pos, void* buffer, uint64 b
         realBuffer += rem;
         bufferSize -= rem;
     }
+
+    return 0;
 }
-void BlockDeviceDriver::SetData(uint64 subID, uint64 pos, const void* buffer, uint64 bufferSize) {
+uint64 BlockDeviceDriver::SetData(uint64 subID, uint64 pos, const void* buffer, uint64 bufferSize) {
     char* realBuffer = (char*)buffer;
 
     uint64 startBlock = pos / GetBlockSize(subID);
@@ -107,7 +116,7 @@ void BlockDeviceDriver::SetData(uint64 subID, uint64 pos, const void* buffer, ui
     for(uint64 b = 0; b < numBlocks; b++) {
         uint64 blockID = startBlock + b;
         
-        m_CacheLock.SpinLock();
+        m_CacheLock.Spinlock();
         CachedBlock* cb;
         if(!GetCachedBlock(subID, blockID, GetBlockSize(subID), m_Cache, &cb)) {
             m_CacheLock.Unlock();
@@ -128,9 +137,15 @@ void BlockDeviceDriver::SetData(uint64 subID, uint64 pos, const void* buffer, ui
         if(rem > bufferSize)
             rem = bufferSize;
 
-        kmemcpy(cb->data + offs, realBuffer, rem);
+        if(!kmemcpy_usersafe(cb->data + offs, realBuffer, rem)) {
+            cb->dataLock.Unlock();
+            m_CacheLock.Spinlock();
+            ReleaseCachedBlock(cb, m_Cache);
+            m_CacheLock.Unlock();
+            return VFS::ReadWrite_InvalidBuffer;
+        }
         cb->dataLock.Unlock();
-        m_CacheLock.SpinLock();
+        m_CacheLock.Spinlock();
         ReleaseCachedBlock(cb, m_Cache);
         m_CacheLock.Unlock();
 
@@ -138,6 +153,8 @@ void BlockDeviceDriver::SetData(uint64 subID, uint64 pos, const void* buffer, ui
         realBuffer += rem;
         bufferSize -= rem;
     }
+
+    return 0;
 }
 
 static StickyLock g_DriverLock;
@@ -145,19 +162,19 @@ static uint64 g_DriverIDCounter = 0;
 static ktl::nlist<DeviceDriver> g_Drivers;
 
 uint64 DeviceDriverRegistry::RegisterDriver(DeviceDriver* driver) {
-    g_DriverLock.SpinLock();
+    g_DriverLock.Spinlock();
     uint64 res = g_DriverIDCounter++;
     g_Drivers.push_back(driver);
     g_DriverLock.Unlock();
     return res;
 }
 void DeviceDriverRegistry::UnregisterDriver(DeviceDriver* driver) {
-    g_DriverLock.SpinLock();
+    g_DriverLock.Spinlock();
     g_Drivers.erase(driver);
     g_DriverLock.Unlock();
 }
 DeviceDriver* DeviceDriverRegistry::GetDriver(uint64 id) {
-    g_DriverLock.SpinLock();
+    g_DriverLock.Spinlock();
     for(DeviceDriver* driver : g_Drivers) {
         if(driver->GetDriverID() == id) {
             g_DriverLock.Unlock();

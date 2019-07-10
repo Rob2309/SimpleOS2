@@ -13,8 +13,7 @@ struct ThreadBlockEvent {
         TYPE_NONE,
         TYPE_WAIT,
         TYPE_QUEUE_LOCK,
-        TYPE_NODE_READ,
-        TYPE_NODE_WRITE,
+        TYPE_TRANSFER,
     } type;
 
     union {
@@ -22,8 +21,8 @@ struct ThreadBlockEvent {
             uint64 remainingMillis;
         } wait;
         struct {
-            uint64 nodeID;
-        } node;
+            uint64 coreID;
+        } transfer;
     };
 };
 
@@ -41,16 +40,14 @@ struct ThreadInfo {
     uint64 kernelStack;
     uint64 userGSBase;
 
-    bool sticky;
+    uint64 stickyCount;
+    uint64 cliCount;
+
+    bool unkillable;
     bool killPending;
+    uint64 killCode;
+
+    uint64 pageFaultRip;
 
     IDT::Registers registers;
 };
-
-constexpr uint64 SignalNone = 0;
-constexpr uint64 SignalDiv0 = 0x1;
-constexpr uint64 SignalInvOp = 0x2;
-constexpr uint64 SignalGpFault = 0x4;
-constexpr uint64 SignalPageFault = 0x8;
-constexpr uint64 SignalAbort = 0x10;
-

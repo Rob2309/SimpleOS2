@@ -6,11 +6,14 @@ class StickyLock {
 public:
     StickyLock();
 
-    void SpinLock();
+    void Spinlock();
     void Unlock();
 
-    void SpinLock_NoSticky();
-    void Unlock_NoSticky();
+    void Spinlock_Cli();
+    void Unlock_Cli();
+
+    void Spinlock_Raw();
+    void Unlock_Raw();
 
 private:
     bool TryLock();
@@ -18,5 +21,4 @@ private:
 
 private:
     uint64 m_Val;
-    bool m_StickyBefore;
 };

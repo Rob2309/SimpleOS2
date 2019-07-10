@@ -74,13 +74,13 @@ static char* UInt64ToHexStringPadded(uint64 num) {
     return &buffer[0];
 }
 
-static void PrintString(const char* str) {
+static void PrintString(const char* str, uint32 color) {
     int i = 0;
     while(str[i] != '\0') {
         if(str[i] == '\n')
             Terminal::NewLine();
         else
-            Terminal::PutChar(str[i], g_TerminalColor);
+            Terminal::PutChar(str[i], color);
         i++;    
     }
 }
@@ -90,7 +90,9 @@ void kprintf(const char* format, ...)
     __builtin_va_list arg;
     __builtin_va_start(arg, format);
 
-    g_PrintLock.SpinLock_NoSticky();
+    g_PrintLock.Spinlock_Raw();
+
+    uint32 color = g_TerminalColor;
 
     uint32 i = 0;
     char c;
@@ -102,27 +104,35 @@ void kprintf(const char* format, ...)
 
             if(f == 'i') {
                 char* num = Int64ToString(__builtin_va_arg(arg, int64));
-                PrintString(num);
+                PrintString(num, color);
             } else if(f == 'X') {
                 char* num = UInt64ToHexString(__builtin_va_arg(arg, uint64));
-                PrintString(num);
+                PrintString(num, color);
             } else if(f == 'x') {
                 char* num = UInt64ToHexStringPadded(__builtin_va_arg(arg, uint64));
-                PrintString(num);
+                PrintString(num, color);
             } else if(f == 's') {
                 char* str = __builtin_va_arg(arg, char*);
-                PrintString(str);
+                PrintString(str, color);
+            } else if(f == 'c') {
+                uint32 col = __builtin_va_arg(arg, uint64);
+                color = col;
+            } else if(f == 'C') {
+                uint8 r = __builtin_va_arg(arg, uint64);
+                uint8 g = __builtin_va_arg(arg, uint64);
+                uint8 b = __builtin_va_arg(arg, uint64);
+                color = (r << 16) | (g << 8) | b;
             }
         } else if(c == '\n') {
             Terminal::NewLine();
             i++;
         } else {
-            Terminal::PutChar(c, g_TerminalColor);
+            Terminal::PutChar(c, color);
             i++;
         }
     }
 
-    g_PrintLock.Unlock_NoSticky();
+    g_PrintLock.Unlock_Raw();
 
     __builtin_va_end(arg);
 }

@@ -81,7 +81,10 @@ namespace Ext2 {
             if(leftInBlock > bufferSize)
                 leftInBlock = bufferSize;
 
-            VFS::Read(m_Dev, blockPos + offset, realBuffer, leftInBlock);
+            if(VFS::Read(m_Dev, blockPos + offset, realBuffer, leftInBlock) == ReadWrite_InvalidBuffer) {
+                return ReadWrite_InvalidBuffer;
+            }
+
             realBuffer += leftInBlock;
             bufferSize -= leftInBlock;
             pos += leftInBlock;
