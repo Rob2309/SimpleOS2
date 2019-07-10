@@ -557,7 +557,7 @@ namespace Scheduler {
         }
 
         ProcessFileDescriptor* newDesc = new ProcessFileDescriptor();
-        newDesc->id = pInfo->fileDescs.size();
+        newDesc->id = pInfo->fileDescs.size() + 1;
         newDesc->desc = sysDescriptor;
         pInfo->fileDescs.push_back(newDesc);
         pInfo->fileDescLock.Unlock();
@@ -570,7 +570,7 @@ namespace Scheduler {
         ProcessInfo* pInfo = g_CPUData[coreID].currentThread->process;
 
         pInfo->fileDescLock.Spinlock();
-        ProcessFileDescriptor* desc = pInfo->fileDescs[descID];
+        ProcessFileDescriptor* desc = pInfo->fileDescs[descID - 1];
         uint64 sysDesc = desc->desc;
         desc->desc = 0;
         pInfo->fileDescLock.Unlock();
@@ -583,7 +583,7 @@ namespace Scheduler {
         ProcessInfo* pInfo = g_CPUData[coreID].currentThread->process;
 
         pInfo->fileDescLock.Spinlock();
-        ProcessFileDescriptor* desc = pInfo->fileDescs[descID];
+        ProcessFileDescriptor* desc = pInfo->fileDescs[descID - 1];
         uint64 res = desc->desc;
         pInfo->fileDescLock.Unlock();
         return res;

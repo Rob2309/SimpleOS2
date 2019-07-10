@@ -60,6 +60,12 @@ namespace Ext2 {
             node->fileSize = inode->size;
         node->linkRefCount = inode->hardlinkCount;
 
+        node->ownerUID = 0;
+        node->ownerGID = 0;
+        node->permissions.ownerPermissions = Permissions::Read;
+        node->permissions.groupPermissions = Permissions::Read;
+        node->permissions.otherPermissions = Permissions::Read;
+
         node->fsData = inode;
     }
     void Ext2Driver::WriteNode(Node* node) {

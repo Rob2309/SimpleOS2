@@ -39,8 +39,8 @@ extern "C" void main()
         }
     }*/
 
-    if(!Syscall::CreateFolder("/someFolder"))
-        Syscall::Print("Permissions denied");
+    if(!Syscall::Open("/initrd/Test.elf"))
+        Syscall::Print("Permission denied\n");
 
     /*if(Syscall::Fork()) {
         Syscall::Print("Parent...\n");
