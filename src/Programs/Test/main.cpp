@@ -21,46 +21,37 @@ static void Thread2() {
 
 extern "C" void main()
 {
-    /*if(Syscall::Fork()) {
-        Syscall::CreateThread((uint64)&Thread1, (uint64)&g_Stack1[4096]);
-        Syscall::CreateThread((uint64)&Thread2, (uint64)&g_Stack2[4096]);
+    Syscall::MoveThreadToCore(1);
 
-        for(int i = 0; i < 5; i++) {
-            Syscall::Print("Thread 0 alive...\n");
-            Syscall::Wait(1000);
-        }
+    int64 error = Syscall::CreateFile("/dev/test");
+    if(error < 0)
+        Syscall::Print("Failed to create /dev/test (expected)\n");
 
-        Syscall::Print("Lets allocate pages in the kernel memory space!\n");
-        Syscall::AllocPages((void*)0xFFFFFF8000123000, 10);
-    } else {
-        while(true) {
-            Syscall::Print("Alive...\n");
-            Syscall::Wait(1000);
-        }
-    }*/
+    error = Syscall::CreateFile("/user/testFile");
+    if(error < 0)
+        Syscall::Print("Failed to create /user/testFile\n");
 
-    if(!Syscall::Open("/initrd/Test.elf"))
-        Syscall::Print("Permission denied\n");
+    int64 fd = Syscall::Open("/dev/ram0", 1);
+    if(fd < 0)
+        Syscall::Print("Failed to open /dev/ram0 for reading\n");
 
-    /*if(Syscall::Fork()) {
-        Syscall::Print("Parent...\n");
+    int64 fd2 = Syscall::Open("/dev/ram0", 3);
+    if(fd2 < 0)
+        Syscall::Print("Failed to open /dev/ram0 for writing (expected)\n");
 
-        for(int i = 0; i < 5; i++) {
-            Syscall::Wait(2000);
-            Syscall::Print("Parent alive...\n");
-        }
+    int64 fd3 = Syscall::Open("/user/testFile", 3);
+    if(fd3 < 0)
+        Syscall::Print("Failed to open /user/testFile\n");
 
-        Syscall::Print("Lets allocate pages in the kernel memory space!\n");
-        Syscall::AllocPages((void*)0xFFFFFF8000123000, 10);
-    } else {
-        Syscall::Print("Child...\n");
+    char buffer[255];
+    
+    error = Syscall::Write(fd, buffer, sizeof(buffer));
+    if(error < 0)
+        Syscall::Print("Failed to write to readonly fd (expected)\n");
 
-        Syscall::Exec("/initrd/Test2.elf");
-
-        Syscall::Print("Failed to exec...\n");
-    }*/
-
-
+    error = Syscall::Write(fd3, buffer, sizeof(buffer));
+    if(error < 0)
+        Syscall::Print("Failed to write to writable fd\n");
 
     Syscall::Exit(0);
 }

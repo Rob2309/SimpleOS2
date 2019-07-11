@@ -72,8 +72,10 @@ static void InitThread() {
     VFS::FileSystemRegistry::RegisterFileSystem("test", TestFSFactory);
 
     VFS::Init(new TestFS());
-    VFS::CreateFolder(&g_RootUser, "/dev", { VFS::Permissions::Read | VFS::Permissions::Write, VFS::Permissions::Read, VFS::Permissions::Read });
-    VFS::CreateFolder(&g_RootUser, "/initrd", { VFS::Permissions::Read | VFS::Permissions::Write, VFS::Permissions::Read, VFS::Permissions::Read });
+    VFS::CreateFolder(&g_RootUser, "/dev", { VFS::Permissions::Read, VFS::Permissions::Read, VFS::Permissions::Read });
+    VFS::CreateFolder(&g_RootUser, "/initrd", { VFS::Permissions::Read, VFS::Permissions::Read, VFS::Permissions::Read });
+    VFS::CreateFolder(&g_RootUser, "/user", { 1, 1, 1 });
+    VFS::ChangePermissions(&g_RootUser, "/user", { 3, 3, 3 });
 
     auto ramdriver = new RamDeviceDriver();
     uint64 initrdID = ramdriver->AddDevice((char*)g_KernelHeader->ramdiskImage.buffer, 512, g_KernelHeader->ramdiskImage.numPages * 8);
