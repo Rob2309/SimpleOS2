@@ -68,6 +68,11 @@ namespace Scheduler {
 
     static void FreeProcess(ProcessInfo* pInfo)
     {
+        for(ProcessFileDescriptor* fd : pInfo->fileDescs) {
+            VFS::Close(fd->desc);
+            delete fd;
+        }
+
         MemoryManager::FreeProcessMap(pInfo->pml4Entry);
         delete pInfo;
     }
