@@ -233,9 +233,6 @@ namespace Scheduler {
         
         oldPInfo->fileDescLock.Spinlock();
         for(ProcessFileDescriptor* fd : oldPInfo->fileDescs) {
-            if(fd->desc == 0)
-                continue;
-
             ProcessFileDescriptor* newFD = new ProcessFileDescriptor();
             newFD->desc = fd->desc;
             newFD->id = pInfo->fileDescs.size();
