@@ -25,6 +25,8 @@ namespace Syscall
     constexpr uint64 FunctionWrite = 59;
     constexpr uint64 FunctionMount = 60;
     constexpr uint64 FunctionMountDev = 61;
+    constexpr uint64 FunctionChangeOwner = 62;
+    constexpr uint64 FunctionChangePermissions = 63;
 
     constexpr uint64 FunctionAllocPages = 100;
     constexpr uint64 FunctionFreePages = 101;
@@ -190,6 +192,19 @@ namespace Syscall
             : "=a"(ret)
             : "D"(FunctionDelete), "S"(path)
             : "rcx", "rdx", "r8", "r9", "r10", "r11"
+        );
+        return ret;
+    }
+
+    inline int64 ChangePermissions(const char* path, uint8 ownerPerm, uint8 groupPerm, uint8 otherPerm) {
+        int64 ret;
+        register uint64 r8 asm("r8") = groupPerm;
+        register uint64 r9 asm("r9") = otherPerm;
+        __asm__ __volatile__ (
+            "syscall"
+            : "=a"(ret)
+            : "D"(FunctionChangePermissions), "S"(path), "d"(ownerPerm), "r"(r8), "r"(r9)
+            : "rcx", "r10", "r11"
         );
         return ret;
     }
