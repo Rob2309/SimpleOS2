@@ -200,6 +200,7 @@ namespace SyscallHandler {
                 uint64 desc = Scheduler::ProcessAddFileDescriptor(sysDesc);
                 res = desc;
             } break;
+        case Syscall::FunctionReplaceFD: res = Scheduler::ProcessReplaceFileDescriptor(arg1, arg2); break;
         case Syscall::FunctionClose: res = Scheduler::ProcessCloseFileDescriptor(arg1); break;
         case Syscall::FunctionRead: {
                 void* buffer = (void*)arg2;

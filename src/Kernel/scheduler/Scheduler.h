@@ -85,6 +85,7 @@ namespace Scheduler {
     const char* ThreadGetUserName();
 
     int64 ProcessAddFileDescriptor(uint64 sysDescriptor);
+    int64 ProcessReplaceFileDescriptor(uint64 oldPDesc, uint64 newPDesc);
     int64 ProcessCloseFileDescriptor(uint64 desc);
     int64 ProcessGetSystemFileDescriptor(uint64 pDesc, uint64& sysDesc);
 

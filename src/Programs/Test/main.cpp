@@ -1,57 +1,40 @@
 #include "Syscall.h"
 
-static char g_Stack1[4096];
-static char g_Stack2[4096];
-
-static void Thread1() {
-    Syscall::MoveThreadToCore(1);
-    while(true) {
-        Syscall::Print("Thread 1 alive...\n");
-        Syscall::Wait(1000);
-    }
-}
-
-static void Thread2() {
-    Syscall::MoveThreadToCore(2);
-    while(true) {
-        Syscall::Print("Thread 2 alive...\n");
-        Syscall::Wait(1000);
-    }
-}
-
 extern "C" void main()
 {
-    Syscall::MoveThreadToCore(1);
+    Syscall::Print("Test program starting...\n");
 
-    int64 error = Syscall::CreateFile("/dev/test");
-    if(error < 0)
-        Syscall::Print("Failed to create /dev/test (expected)\n");
+    uint64 readDesc, writeDesc;
+    Syscall::CreatePipe(&readDesc, &writeDesc);
 
-    error = Syscall::CreateFile("/user/testFile");
-    if(error < 0)
-        Syscall::Print("Failed to create /user/testFile\n");
+    Syscall::Print("Created communication pipe\n");
 
-    int64 fd = Syscall::Open("/dev/ram0", 1);
-    if(fd < 0)
-        Syscall::Print("Failed to open /dev/ram0 for reading\n");
+    int64 stdout = Syscall::Open("/initrd/Test.elf", 1);
+    if(stdout < 0)
+        Syscall::Print("Failed to open /initrd/Test.elf\n");
 
-    int64 fd2 = Syscall::Open("/dev/ram0", 3);
-    if(fd2 < 0)
-        Syscall::Print("Failed to open /dev/ram0 for writing (expected)\n");
-
-    int64 fd3 = Syscall::Open("/user/testFile", 3);
-    if(fd3 < 0)
-        Syscall::Print("Failed to open /user/testFile\n");
-
-    char buffer[255];
+    Syscall::Print("Forking...\n");
     
-    error = Syscall::Write(fd, buffer, sizeof(buffer));
-    if(error < 0)
-        Syscall::Print("Failed to write to readonly fd (expected)\n");
+    if(Syscall::Fork()) {
+        // parent
+        Syscall::Print("Replacing FD\n");
+        if(Syscall::ReplaceFD(stdout, writeDesc) < 0)
+            Syscall::Print("Failed to replace fd\n");
 
-    error = Syscall::Write(fd3, buffer, sizeof(buffer));
-    if(error < 0)
-        Syscall::Print("Failed to write to writable fd\n");
+        Syscall::Print("Writing to pipe\n");
+        const char msg[] = "Hello World\n";
+        if(Syscall::Write(stdout, msg, sizeof(msg)) < 0) 
+            Syscall::Print("Failed to write to pipe\n");
+
+        Syscall::Print("Written to pipe\n");
+    } else {
+        // child
+        Syscall::Print("Reading from pipe\n");
+        char buffer[256];
+        if(Syscall::Read(readDesc, buffer, sizeof(buffer)) < 0)
+            Syscall::Print("Failed to read from pipe\n");
+        Syscall::Print(buffer);
+    }
 
     Syscall::Exit(0);
 }
