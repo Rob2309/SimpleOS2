@@ -105,6 +105,9 @@ namespace VFS {
      **/
     int64 Delete(User* user, const char* path);
 
+    int64 ChangeOwner(User* user, const char* path);
+    int64 ChangePermissions(User* user, const char* path, const Permissions& permissions);
+
     /**
      * Mount the given FileSystem at the given path.
      * MountPoint has to be an empty folder.

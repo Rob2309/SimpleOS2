@@ -539,6 +539,53 @@ namespace VFS {
         return ErrorFileNotFound;
     }
 
+    int64 ChangeOwner(User* user, const char* path) {
+        char cleanBuffer[255];
+        if(!CleanPath(path, cleanBuffer))
+            return ErrorInvalidPath;
+
+        MountPoint* mp = AcquireMountPoint(cleanBuffer);
+        path = AdvancePath(cleanBuffer, mp->path);
+
+        CachedNode* node;
+        int64 error = AcquirePath(user, mp, path, &node);
+        if(error != OK)
+            return error;
+        if(user->uid != 0 && user->uid != node->node.ownerUID) {
+            ReleaseNode(mp, node);
+            return ErrorPermissionDenied;
+        }
+        
+        node->node.ownerUID = user->uid;
+        node->node.ownerGID = user->gid;
+        ReleaseNode(mp, node);
+
+        return OK;
+    }
+
+    int64 ChangePermissions(User* user, const char* path, const Permissions& permissions) {
+        char cleanBuffer[255];
+        if(!CleanPath(path, cleanBuffer))
+            return ErrorInvalidPath;
+
+        MountPoint* mp = AcquireMountPoint(cleanBuffer);
+        path = AdvancePath(cleanBuffer, mp->path);
+
+        CachedNode* node;
+        int64 error = AcquirePath(user, mp, path, &node);
+        if(error != OK)
+            return error;
+        if(user->uid != 0 && user->uid != node->node.ownerUID) {
+            ReleaseNode(mp, node);
+            return ErrorPermissionDenied;
+        }
+        
+        node->node.permissions = permissions;
+        ReleaseNode(mp, node);
+
+        return OK;
+    }
+
     int64 Mount(User* user, const char* mountPoint, FileSystem* fs) {
         char cleanBuffer[255];
         if(!CleanPath(mountPoint, cleanBuffer))
