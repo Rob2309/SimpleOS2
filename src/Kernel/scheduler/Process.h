@@ -8,7 +8,7 @@
 #include "user/User.h"
 
 struct ProcessFileDescriptor {
-    uint64 id;
+    int64 id;
     uint64 desc;
 };
 

@@ -85,9 +85,9 @@ namespace Scheduler {
     const char* ThreadGetUserName();
 
     int64 ProcessAddFileDescriptor(uint64 sysDescriptor);
-    int64 ProcessReplaceFileDescriptor(uint64 oldPDesc, uint64 newPDesc);
-    int64 ProcessCloseFileDescriptor(uint64 desc);
-    int64 ProcessGetSystemFileDescriptor(uint64 pDesc, uint64& sysDesc);
+    int64 ProcessReplaceFileDescriptor(int64 oldPDesc, int64 newPDesc);
+    int64 ProcessCloseFileDescriptor(int64 desc);
+    int64 ProcessGetSystemFileDescriptor(int64 pDesc, uint64& sysDesc);
 
     /**
      * Replaces the Memory space of the current Process with the given pml4Entry

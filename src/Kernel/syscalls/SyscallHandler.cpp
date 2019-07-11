@@ -161,8 +161,8 @@ namespace SyscallHandler {
                 ProcessInfo* pInfo = tInfo->process;
 
                 VFS::CreatePipe(pInfo->owner, &sysRead, &sysWrite);
-                *(uint64*)arg1 = Scheduler::ProcessAddFileDescriptor(sysRead);
-                *(uint64*)arg2 = Scheduler::ProcessAddFileDescriptor(sysWrite);
+                *(int64*)arg1 = Scheduler::ProcessAddFileDescriptor(sysRead);
+                *(int64*)arg2 = Scheduler::ProcessAddFileDescriptor(sysWrite);
             } break;
         case Syscall::FunctionDelete: {
                 const char* filePath = (const char*)arg1;
@@ -197,7 +197,7 @@ namespace SyscallHandler {
                     res = error;
                     break;
                 }
-                uint64 desc = Scheduler::ProcessAddFileDescriptor(sysDesc);
+                int64 desc = Scheduler::ProcessAddFileDescriptor(sysDesc);
                 res = desc;
             } break;
         case Syscall::FunctionReplaceFD: res = Scheduler::ProcessReplaceFileDescriptor(arg1, arg2); break;
