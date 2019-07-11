@@ -539,7 +539,7 @@ namespace VFS {
         return ErrorFileNotFound;
     }
 
-    int64 ChangeOwner(User* user, const char* path) {
+    int64 ChangeOwner(User* user, const char* path, uint64 newUID, uint64 newGID) {
         char cleanBuffer[255];
         if(!CleanPath(path, cleanBuffer))
             return ErrorInvalidPath;
@@ -556,8 +556,8 @@ namespace VFS {
             return ErrorPermissionDenied;
         }
         
-        node->node.ownerUID = user->uid;
-        node->node.ownerGID = user->gid;
+        node->node.ownerUID = newUID;
+        node->node.ownerGID = newGID;
         ReleaseNode(mp, node);
 
         return OK;

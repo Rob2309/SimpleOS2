@@ -105,7 +105,7 @@ namespace VFS {
      **/
     int64 Delete(User* user, const char* path);
 
-    int64 ChangeOwner(User* user, const char* path);
+    int64 ChangeOwner(User* user, const char* path, uint64 newUID, uint64 newGID);
     int64 ChangePermissions(User* user, const char* path, const Permissions& permissions);
 
     /**

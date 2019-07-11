@@ -187,6 +187,18 @@ namespace SyscallHandler {
 
                 res = VFS::ChangePermissions(pInfo->owner, filePath, { ownerPerm, groupPerm, otherPerm });
             } break;
+        case Syscall::FunctionChangeOwner: {
+                const char* filePath = (const char*)arg1;
+                uint64 uid = arg2;
+                uint64 gid = arg3;
+                if(!MemoryManager::IsUserPtr(filePath))
+                    Scheduler::ThreadKillProcess("InvalidUserPointer");
+
+                ThreadInfo* tInfo = Scheduler::GetCurrentThreadInfo();
+                ProcessInfo* pInfo = tInfo->process;
+
+                res = VFS::ChangeOwner(pInfo->owner, filePath, uid, gid);
+            } break;
         case Syscall::FunctionOpen: {
                 ThreadInfo* tInfo = Scheduler::GetCurrentThreadInfo();
                 ProcessInfo* pInfo = tInfo->process;
