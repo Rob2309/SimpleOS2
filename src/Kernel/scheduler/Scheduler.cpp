@@ -548,7 +548,7 @@ namespace Scheduler {
         return res;
     }
 
-    uint64 ProcessAddFileDescriptor(uint64 sysDescriptor) {
+    int64 ProcessAddFileDescriptor(uint64 sysDescriptor) {
         uint64 coreID = SMP::GetLogicalCoreID();
 
         ProcessInfo* pInfo = g_CPUData[coreID].currentThread->process;
@@ -569,29 +569,46 @@ namespace Scheduler {
 
         return newDesc->id;
     };
-    void ProcessCloseFileDescriptor(uint64 descID) {
+    int64 ProcessCloseFileDescriptor(uint64 descID) {
         uint64 coreID = SMP::GetLogicalCoreID();
 
         ProcessInfo* pInfo = g_CPUData[coreID].currentThread->process;
 
         pInfo->fileDescLock.Spinlock();
+        if(descID == 0 || descID > pInfo->fileDescs.size()) {
+            pInfo->fileDescLock.Unlock();
+            return VFS::ErrorInvalidFD;
+        }
+
         ProcessFileDescriptor* desc = pInfo->fileDescs[descID - 1];
         uint64 sysDesc = desc->desc;
         desc->desc = 0;
         pInfo->fileDescLock.Unlock();
-
-        VFS::Close(desc->desc);
+        
+        if(sysDesc == 0)
+            return VFS::ErrorInvalidFD;
+        return VFS::Close(sysDesc);
     }
-    uint64 ProcessGetSystemFileDescriptor(uint64 descID) {
+    int64 ProcessGetSystemFileDescriptor(uint64 pDesc, uint64& sysDesc) {
         uint64 coreID = SMP::GetLogicalCoreID();
 
         ProcessInfo* pInfo = g_CPUData[coreID].currentThread->process;
 
         pInfo->fileDescLock.Spinlock();
-        ProcessFileDescriptor* desc = pInfo->fileDescs[descID - 1];
+        if(pDesc == 0 || pDesc > pInfo->fileDescs.size()) {
+            pInfo->fileDescLock.Unlock();
+            return VFS::ErrorInvalidFD;
+        }
+
+        ProcessFileDescriptor* desc = pInfo->fileDescs[pDesc - 1];
         uint64 res = desc->desc;
         pInfo->fileDescLock.Unlock();
-        return res;
+
+        sysDesc = res;
+        if(res == 0)
+            return VFS::ErrorInvalidFD;
+        
+        return VFS::OK;
     }
 
     void ProcessExec(uint64 pml4Entry, IDT::Registers* regs)

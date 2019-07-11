@@ -195,17 +195,25 @@ namespace SyscallHandler {
                 int64 error = VFS::Open(pInfo->owner, (const char*)arg1, arg2, sysDesc);
                 if(error != VFS::OK) {
                     res = error;
-                    goto end;
+                    break;
                 }
                 uint64 desc = Scheduler::ProcessAddFileDescriptor(sysDesc);
                 res = desc;
             } break;
-        case Syscall::FunctionClose: Scheduler::ProcessCloseFileDescriptor(arg1); break;
+        case Syscall::FunctionClose: res = Scheduler::ProcessCloseFileDescriptor(arg1); break;
         case Syscall::FunctionRead: {
                 void* buffer = (void*)arg2;
                 if(!MemoryManager::IsUserPtr(buffer))
                     Scheduler::ThreadKillProcess("InvalidUserPointer");
-                res = VFS::Read(Scheduler::ProcessGetSystemFileDescriptor(arg1), buffer, arg3);
+
+                uint64 sysDesc;
+                int64 error = Scheduler::ProcessGetSystemFileDescriptor(arg1, sysDesc);
+                if(error != VFS::OK) {
+                    res = error;
+                    break;
+                }
+
+                res = VFS::Read(sysDesc, buffer, arg3);
                 if(res == VFS::ErrorInvalidBuffer)
                     Scheduler::ThreadKillProcess("InvalidUserPointer");
             } break;
@@ -213,7 +221,15 @@ namespace SyscallHandler {
                 const void* buffer = (const void*)arg2;
                 if(!MemoryManager::IsUserPtr(buffer))
                     Scheduler::ThreadKillProcess("InvalidUserPointer");
-                res = VFS::Write(Scheduler::ProcessGetSystemFileDescriptor(arg1), buffer, arg3);
+
+                uint64 sysDesc;
+                int64 error = Scheduler::ProcessGetSystemFileDescriptor(arg1, sysDesc);
+                if(error != VFS::OK) {
+                    res = error;
+                    break;
+                }
+
+                res = VFS::Write(sysDesc, buffer, arg3);
                 if(res == VFS::ErrorInvalidBuffer)
                     Scheduler::ThreadKillProcess("InvalidUserPointer");
             } break;
@@ -264,7 +280,6 @@ namespace SyscallHandler {
             break;
         }
 
-        end:
         Scheduler::ThreadSetUnkillable(false);
         return res;
     }
