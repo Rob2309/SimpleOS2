@@ -194,13 +194,13 @@ namespace Syscall
         return ret;
     }
 
-    inline int64 Open(const char* path) {
+    inline int64 Open(const char* path, uint8 perm) {
         int64 ret;
         __asm__ __volatile__ (
             "syscall"
             : "=a"(ret)
-            : "D"(FunctionOpen), "S"(path)
-            : "rcx", "rdx", "r8", "r9", "r10", "r11"
+            : "D"(FunctionOpen), "S"(path), "d"(perm)
+            : "rcx", "r8", "r9", "r10", "r11"
         );
         return ret;
     }

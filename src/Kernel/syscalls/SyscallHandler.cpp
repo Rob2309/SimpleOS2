@@ -179,7 +179,7 @@ namespace SyscallHandler {
                 ProcessInfo* pInfo = tInfo->process;
 
                 uint64 sysDesc;
-                int64 error = VFS::Open(pInfo->owner, (const char*)arg1, 3, sysDesc);
+                int64 error = VFS::Open(pInfo->owner, (const char*)arg1, arg2, sysDesc);
                 if(error != VFS::OK) {
                     res = error;
                     goto end;

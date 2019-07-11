@@ -26,7 +26,7 @@ static uint64 SetupTestProcess() {
     uint64 file;
     int64 error = VFS::Open(&g_RootUser, "/initrd/Test.elf", VFS::Permissions::Read, file);
     if(error != VFS::OK) {
-        klog_error("Test", "Failed to open /initrd/Test.elf");
+        klog_error("Test", "Failed to open /initrd/Test.elf (%s)", VFS::ErrorToString(error));
         return 0;
     }
     

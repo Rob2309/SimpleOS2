@@ -73,6 +73,8 @@ namespace VFS {
     constexpr int64 ErrorInvalidPath = -5;
     constexpr int64 ErrorInvalidFileSystem = -6;
 
+    const char* ErrorToString(int64 error);
+
     /**
      * Creates a regular file at the given path. 
      * All directories up to the given path have to exist.

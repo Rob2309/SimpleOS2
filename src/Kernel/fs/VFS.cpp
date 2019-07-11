@@ -307,6 +307,19 @@ namespace VFS {
         g_PipeMount->fs = new PipeFS();
     }
 
+    const char* ErrorToString(int64 error) {
+        switch(error) {
+        case OK: return "OK";
+        case ErrorFileNotFound: return "File not found";
+        case ErrorInvalidBuffer: return "Invalid user buffer";
+        case ErrorInvalidFD: return "Invalid file descriptor";
+        case ErrorInvalidFileSystem: return "Invalid file system id";
+        case ErrorInvalidPath: return "Invalid path";
+        case ErrorPermissionDenied: return "Permission denied";
+        default: return "unknown error";
+        }
+    }
+
     int64 CreateFile(User* user, const char* path, const Permissions& perms) {
         char cleanBuffer[255];
         if(!CleanPath(path, cleanBuffer))
