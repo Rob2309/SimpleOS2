@@ -178,7 +178,7 @@ namespace Syscall
         return ret;
     }
 
-    inline void CreatePipe(uint64* readDesc, uint64* writeDesc) {
+    inline void CreatePipe(int64* readDesc, int64* writeDesc) {
         __asm__ __volatile__ (
             "syscall"
             : : "D"(FunctionCreatePipe), "S"(readDesc), "d"(writeDesc)

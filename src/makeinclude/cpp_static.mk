@@ -12,9 +12,9 @@ cpp_objects := $(addprefix $(int_dir)/, $(subst .cpp,.cpp.o, $(cpp_sources)))
 asm_objects := $(addprefix $(int_dir)/, $(subst .asm,.asm.o, $(asm_sources)))
 
 $(bin_dir)/$(out_file): $(c_objects) $(cpp_objects) $(asm_objects)
-	@ printf "\e[33mLinking executable\e[0m\n"
+	@ printf "\e[33mCreating static lib\e[0m\n"
 	@ mkdir -p $(dir $@)
-	@ $(cpp_compiler) $(link_flags) -o $@ $^ $(libs)
+	@ ar r $@ $^
 
 $(int_dir)/%.c.o: ./%.c $(c_headers) $(cross_headers)
 	@ printf "\e[33mCompiling $<\e[0m\n"

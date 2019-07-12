@@ -65,10 +65,13 @@ $(bin_dir)/initrd: $(RD_BUILDER) $(ramdisk_files)
 $(bin_dir)/Kernel/Kernel.sys: FORCE
 	@ printf "\e[32mBuilding kernel\e[0m\n"
 	@ make -s -C src/Kernel
+$(bin_dir)/libc/libc.a: FORCE
+	@ printf "\e[32mBuilding libc\e[0m\n"
+	@ make -s -C src/libc
 $(bin_dir)/Programs/Init/Init.elf: FORCE
 	@ printf "\e[32mBuilding Init\e[0m\n"
 	@ make -s -C src/Programs/Init
-$(bin_dir)/Programs/Test2/Test2.elf: FORCE
+$(bin_dir)/Programs/Test2/Test2.elf: $(bin_dir)/libc/libc.a FORCE
 	@ printf "\e[32mBuilding Test2\e[0m\n"
 	@ make -s -C src/Programs/Test2
 $(bin_dir)/Bootloader/BOOTX64.EFI: FORCE

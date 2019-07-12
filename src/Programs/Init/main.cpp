@@ -9,9 +9,24 @@ extern "C" void main()
     CHECK_ERROR(Syscall::CreateDeviceFile("/dev/zero", 0, 0), "Failed to create /dev/zero");
     CHECK_ERROR(Syscall::CreateDeviceFile("/dev/ram0", 1, 0), "Failed to create /dev/ram0");
 
-    Syscall::Print("Executing test program\n");
-    Syscall::Exec("/boot/Test2.elf");
+    int64 stdinRead, stdinWrite, stdoutRead, stdoutWrite;
+    Syscall::CreatePipe(&stdinRead, &stdinWrite);
+    Syscall::CreatePipe(&stdoutRead, &stdoutWrite);
 
-    Syscall::Print("Exec failed!");
-    Syscall::Exit(1);
+    if(Syscall::Fork()) {
+        Syscall::Close(stdinRead);
+        Syscall::Close(stdoutWrite);
+
+        while(true) {
+            char buffer[128];
+            int64 len = Syscall::Read(stdoutRead, buffer, sizeof(buffer)-1);
+            buffer[len] = 0;
+            Syscall::Print(buffer);
+        }
+    } else {
+        Syscall::ReplaceFD(1, stdoutWrite);
+
+        Syscall::Exec("/boot/Test2.elf");
+        Syscall::Exit(1);
+    }
 }
