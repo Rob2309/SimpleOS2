@@ -15,7 +15,7 @@
 
 #include "fs/VFS.h"
 
-#include "scheduler/ELF.h"
+#include "exec/ExecHandler.h"
 
 namespace SyscallHandler {
 
@@ -113,10 +113,11 @@ namespace SyscallHandler {
                 VFS::Read(file, buffer, stats.size);
                 VFS::Close(file);
 
-                uint64 pml4Entry;
+                uint64 pml4Entry = MemoryManager::CreateProcessMap();
                 IDT::Registers regs;
-                if(!PrepareELF(buffer, pml4Entry, regs)) {
+                if(!ExecHandlerRegistry::Prepare(buffer, stats.size, pml4Entry, &regs)) {
                     delete[] buffer;
+                    MemoryManager::FreeProcessMap(pml4Entry);
                     return 0;
                 }
 
