@@ -72,6 +72,7 @@ namespace VFS {
     constexpr int64 ErrorInvalidBuffer = -4;
     constexpr int64 ErrorInvalidPath = -5;
     constexpr int64 ErrorInvalidFileSystem = -6;
+    constexpr int64 ErrorInvalidDevice = -7;
 
     const char* ErrorToString(int64 error);
 
@@ -114,7 +115,8 @@ namespace VFS {
      **/
     int64 Mount(User* user, const char* mountPoint, FileSystem* fs);
     int64 Mount(User* user, const char* mountPoint, const char* fsID);
-    int64 Mount(User* user, const char* mountPoint, const char* fsID, const char* dev);
+    int64 Mount(User* user, const char* mountPoint, const char* fsID, const char* devFile);
+    int64 Mount(User* user, const char* mountPoint, const char* fsID, uint64 driverID, uint64 devID);
 
     /**
      * Unmounts the given path

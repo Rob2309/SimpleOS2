@@ -1,4 +1,4 @@
-#include "TestFS.h"
+#include "TempFS.h"
 
 #include "klib/memory.h"
 
@@ -17,7 +17,15 @@ struct TestNode {
     char* fileData;
 };
 
-TestFS::TestFS() {
+static FileSystem* TempFSFactory() {
+    return new TempFS();
+}
+
+void TempFS::Init() {
+    FileSystemRegistry::RegisterFileSystem("tempfs", TempFSFactory);
+}
+
+TempFS::TempFS() {
     TestNode* node = new TestNode();
     node->type = Node::TYPE_DIRECTORY;
     node->dir = Directory::Create(10);
@@ -31,11 +39,11 @@ TestFS::TestFS() {
     m_RootNodeID = (uint64)node;
 }
 
-void TestFS::GetSuperBlock(SuperBlock* sb) {
+void TempFS::GetSuperBlock(SuperBlock* sb) {
     sb->rootNode = m_RootNodeID;
 }
 
-void TestFS::CreateNode(Node* node) {
+void TempFS::CreateNode(Node* node) {
     TestNode* newNode = new TestNode();
     newNode->dir = nullptr;
     newNode->linkRefCount = 0;
@@ -47,14 +55,14 @@ void TestFS::CreateNode(Node* node) {
     node->fs = this;
     node->linkRefCount = newNode->linkRefCount;
 }
-void TestFS::DestroyNode(Node* node) {
+void TempFS::DestroyNode(Node* node) {
     TestNode* oldNode = (TestNode*)(node->id);
     if(oldNode->type == Node::TYPE_FILE && oldNode->fileData != nullptr)
         delete[] oldNode->fileData;
     delete oldNode;
 }
 
-void TestFS::ReadNode(uint64 id, VFS::Node* node) {
+void TempFS::ReadNode(uint64 id, VFS::Node* node) {
     TestNode* refNode = (TestNode*)id;
 
     node->dir = refNode->dir;
@@ -66,7 +74,7 @@ void TestFS::ReadNode(uint64 id, VFS::Node* node) {
     node->ownerUID = refNode->uid;
     node->permissions = refNode->perms;
 }
-void TestFS::WriteNode(Node* node) {
+void TempFS::WriteNode(Node* node) {
     TestNode* refNode = (TestNode*)(node->id);
 
     refNode->dir = node->dir;
@@ -77,7 +85,7 @@ void TestFS::WriteNode(Node* node) {
     refNode->perms = node->permissions;
 }
 
-uint64 TestFS::ReadNodeData(Node* node, uint64 pos, void* buffer, uint64 bufferSize) {
+uint64 TempFS::ReadNodeData(Node* node, uint64 pos, void* buffer, uint64 bufferSize) {
     TestNode* refNode = (TestNode*)(node->id);
 
     uint64 rem = refNode->fileSize - pos;
@@ -88,7 +96,7 @@ uint64 TestFS::ReadNodeData(Node* node, uint64 pos, void* buffer, uint64 bufferS
         return ErrorInvalidBuffer;
     return rem;
 }
-uint64 TestFS::WriteNodeData(Node* node, uint64 pos, const void* buffer, uint64 bufferSize) {
+uint64 TempFS::WriteNodeData(Node* node, uint64 pos, const void* buffer, uint64 bufferSize) {
     TestNode* refNode = (TestNode*)(node->id);
 
     uint64 cap = refNode->fileSize - pos;
@@ -105,11 +113,11 @@ uint64 TestFS::WriteNodeData(Node* node, uint64 pos, const void* buffer, uint64 
     return bufferSize;
 }
 
-Directory* TestFS::ReadDirEntries(Node* node) {
+Directory* TempFS::ReadDirEntries(Node* node) {
     TestNode* refNode = (TestNode*)(node->id);
     return refNode->dir;
 }
-void TestFS::WriteDirEntries(Node* node) {
+void TempFS::WriteDirEntries(Node* node) {
     TestNode* refNode = (TestNode*)(node->id);
     refNode->dir = node->dir;
 }

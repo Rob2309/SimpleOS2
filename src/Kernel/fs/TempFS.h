@@ -2,9 +2,12 @@
 
 #include "FileSystem.h"
 
-class TestFS : public VFS::FileSystem {
+class TempFS : public VFS::FileSystem {
 public:
-    TestFS();
+    static void Init();
+
+public:
+    TempFS();
 
     void GetSuperBlock(VFS::SuperBlock* sb) override;
 

@@ -316,6 +316,7 @@ namespace VFS {
         case ErrorInvalidFileSystem: return "Invalid file system id";
         case ErrorInvalidPath: return "Invalid path";
         case ErrorPermissionDenied: return "Permission denied";
+        case ErrorInvalidDevice: return "Invalid device";
         default: return "unknown error";
         }
     }
@@ -639,18 +640,49 @@ namespace VFS {
 
         return OK;
     }
-    int64 Mount(User* user, const char* mountPoint, const char* fsID, const char* dev) {
-        FileSystem* fs = FileSystemRegistry::CreateFileSystem(fsID, dev);
+    int64 Mount(User* user, const char* mountPoint, const char* fsID, const char* devFile) {
+        char cleanBuffer[255];
+        if(!CleanPath(devFile, cleanBuffer))
+            return ErrorInvalidPath;
+
+        MountPoint* mp = AcquireMountPoint(cleanBuffer);
+        devFile = AdvancePath(cleanBuffer, mp->path);
+
+        CachedNode* node;
+        int64 error = AcquirePath(user, mp, devFile, &node);
+        if(error != OK)
+            return error;
+        if(node->node.type != Node::TYPE_DEVICE_BLOCK) {
+            ReleaseNode(mp, node);
+            return ErrorInvalidDevice;
+        }
+        if(!CheckPermissions(user, &node->node, Permissions::Read)) {
+            ReleaseNode(mp, node);
+            return ErrorPermissionDenied;
+        }
+        
+        uint64 driverID = node->node.device.driverID;
+        uint64 subID = node->node.device.subID;
+
+        ReleaseNode(mp, node);
+
+        return Mount(user, mountPoint, fsID, driverID, subID);
+    }
+    int64 Mount(User* user, const char* mountPoint, const char* fsID, uint64 driverID, uint64 devID) {
+        DeviceDriver* driver = DeviceDriverRegistry::GetDriver(driverID);
+        if(driver->GetType() != DeviceDriver::TYPE_BLOCK)
+            return ErrorInvalidDevice;
+
+        FileSystem* fs = FileSystemRegistry::CreateFileSystem(fsID, (BlockDeviceDriver*)driver, devID);
         if(fs == nullptr)
             return ErrorInvalidFileSystem;
 
         int64 error = Mount(user, mountPoint, fs);
         if(error != OK) {
             delete fs;
-            return error;
         }
 
-        return OK;
+        return error;
     }
 
     int64 Unmount(User* user, const char* mountPoint) {

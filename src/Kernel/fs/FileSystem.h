@@ -3,6 +3,7 @@
 #include "types.h"
 #include "VFS.h"
 #include "Directory.h"
+#include "devices/DeviceDriver.h"
 
 namespace VFS {
 
@@ -66,7 +67,7 @@ namespace VFS {
     };
 
     typedef FileSystem* (*FileSystemFactory)();
-    typedef FileSystem* (*FileSystemFactoryDev)(const char* devFile);
+    typedef FileSystem* (*FileSystemFactoryDev)(BlockDeviceDriver* dev, uint64 subID);
 
     class FileSystemRegistry {
     public:
@@ -75,7 +76,7 @@ namespace VFS {
         static void UnregisterFileSystem(const char* id);
 
         static FileSystem* CreateFileSystem(const char* id);
-        static FileSystem* CreateFileSystem(const char* id, const char* dev);
+        static FileSystem* CreateFileSystem(const char* id, BlockDeviceDriver* dev, uint64 subID);
     };
 
 }

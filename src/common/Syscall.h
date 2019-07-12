@@ -28,7 +28,6 @@ namespace Syscall
     constexpr uint64 FunctionChangeOwner = 62;
     constexpr uint64 FunctionChangePermissions = 63;
     constexpr uint64 FunctionReplaceFD = 64;
-    constexpr uint64 FunctionChangeOwner = 65;
 
     constexpr uint64 FunctionAllocPages = 100;
     constexpr uint64 FunctionFreePages = 101;
@@ -128,7 +127,7 @@ namespace Syscall
             "syscall"
             : "=a"(res) 
             : "D"(FunctionExec), "S"(file)
-            : "rax", "rcx", "rdx", "r8", "r9", "r10", "r11"
+            : "rcx", "rdx", "r8", "r9", "r10", "r11"
         );
         return res;
     }

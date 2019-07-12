@@ -10,7 +10,7 @@
 #include "multicore/SMP.h"
 
 #include "fs/VFS.h"
-#include "fs/TestFS.h"
+#include "fs/TempFS.h"
 #include "devices/RamDeviceDriver.h"
 #include "fs/ext2/ext2.h"
 
@@ -19,14 +19,15 @@
 #include "user/User.h"
 #include "klib/string.h"
 
-static User g_RootUser;
-static User g_TestUser;
+#include "Config.h"
 
-static uint64 SetupTestProcess() {
+static User g_RootUser;
+
+static uint64 SetupInitProcess() {
     uint64 file;
-    int64 error = VFS::Open(&g_RootUser, "/initrd/Test.elf", VFS::Permissions::Read, file);
+    int64 error = VFS::Open(&g_RootUser, config_Init_Command, VFS::Permissions::Read, file);
     if(error != VFS::OK) {
-        klog_error("Test", "Failed to open /initrd/Test.elf (%s)", VFS::ErrorToString(error));
+        klog_fatal("Init", "Failed to open %s (%s), aborting boot", config_Init_Command, VFS::ErrorToString(error));
         return 0;
     }
     
@@ -40,20 +41,16 @@ static uint64 SetupTestProcess() {
     uint64 pml4Entry;
     IDT::Registers regs;
     if(!PrepareELF(buffer, pml4Entry, regs)) {
-        klog_error("Test", "Failed to setup test process");
+        klog_error("Init", "Failed to setup init process, aborting boot");
         delete[] buffer;
         return 0;
     }
 
     delete[] buffer;
 
-    uint64 tid = Scheduler::CreateUserThread(pml4Entry, &regs, &g_TestUser);
-    klog_info("Test", "Created test process with TID %i", tid);
+    uint64 tid = Scheduler::CreateUserThread(pml4Entry, &regs, &g_RootUser);
+    klog_info("Init", "Created init process with TID %i", tid);
     return tid;
-}
-
-static VFS::FileSystem* TestFSFactory() {
-    return new TestFS();
 }
 
 static KernelHeader* g_KernelHeader;
@@ -65,26 +62,38 @@ static void InitThread() {
     g_RootUser.uid = 0;
     kstrcpy(g_RootUser.name, "root");
 
-    g_TestUser.gid = 123;
-    g_TestUser.uid = 456;
-    kstrcpy(g_TestUser.name, "TestUser");
+    for(uint64 i = 0; i < sizeof(config_DeviceDriverInitFuncs) / sizeof(InitFunc); i++) {
+        config_DeviceDriverInitFuncs[i]();
+    }
+    for(uint64 i = 0; i < sizeof(config_FSDriverInitFuncs) / sizeof(InitFunc); i++) {
+        config_FSDriverInitFuncs[i]();
+    }
 
-    VFS::FileSystemRegistry::RegisterFileSystem("test", TestFSFactory);
+    if(g_KernelHeader->ramdiskImage.numPages != 0) {
+        RamDeviceDriver* driver = (RamDeviceDriver*)DeviceDriverRegistry::GetDriver(config_RamDeviceDriverID);
+        driver->AddDevice((char*)g_KernelHeader->ramdiskImage.buffer, 512, g_KernelHeader->ramdiskImage.numPages * 8);
+    }
 
-    VFS::Init(new TestFS());
-    VFS::CreateFolder(&g_RootUser, "/dev", { VFS::Permissions::Read, VFS::Permissions::Read, VFS::Permissions::Read });
-    VFS::CreateFolder(&g_RootUser, "/initrd", { VFS::Permissions::Read, VFS::Permissions::Read, VFS::Permissions::Read });
-    VFS::CreateFolder(&g_RootUser, "/user", { 1, 1, 1 });
-    VFS::ChangePermissions(&g_RootUser, "/user", { 3, 3, 3 });
+    DeviceDriver* driver = DeviceDriverRegistry::GetDriver(config_BootFS_DriverID);
+    if(driver == nullptr || driver->GetType() != DeviceDriver::TYPE_BLOCK) {
+        klog_fatal("Init", "BootFS Driver ID is invalid, aborting boot");
+        Scheduler::ThreadExit(1);
+    }
+    VFS::FileSystem* bootFS = VFS::FileSystemRegistry::CreateFileSystem(config_BootFS_FSID, (BlockDeviceDriver*)driver, config_BootFS_DevID);
+    if(bootFS == nullptr) {
+        klog_fatal("Init", "Could not create BootFS, aborting boot");
+        Scheduler::ThreadExit(1);
+    }
 
-    auto ramdriver = new RamDeviceDriver();
-    uint64 initrdID = ramdriver->AddDevice((char*)g_KernelHeader->ramdiskImage.buffer, 512, g_KernelHeader->ramdiskImage.numPages * 8);
-    VFS::CreateDeviceFile(&g_RootUser, "/dev/ram0", { VFS::Permissions::Read, VFS::Permissions::Read, VFS::Permissions::Read }, ramdriver->GetDriverID(), initrdID);
+    if constexpr (config_BootFS_MountToRoot) {
+        VFS::Init(bootFS);
+    } else {
+        VFS::Init(new TempFS());
+        VFS::CreateFolder(&g_RootUser, "/boot", { 3, 1, 1 });
+        VFS::Mount(&g_RootUser, "/boot", bootFS);
+    }
 
-    Ext2::Init();
-    VFS::Mount(&g_RootUser, "/initrd", "ext2", "/dev/ram0");
-
-    uint64 tid = SetupTestProcess();
+    uint64 tid = SetupInitProcess();
 
     Scheduler::ThreadExit(0);
 }

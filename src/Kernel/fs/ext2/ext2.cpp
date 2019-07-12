@@ -7,16 +7,11 @@ using namespace VFS;
 
 namespace Ext2 {
 
-    Ext2Driver::Ext2Driver(const char* dev) {
-        User fakeRoot;
-        fakeRoot.gid = 0;
-        fakeRoot.uid = 0;
+    Ext2Driver::Ext2Driver(BlockDeviceDriver* driver, uint64 subID) {
+        m_Driver = driver;
+        m_Dev = subID;
 
-        int64 error = VFS::Open(&fakeRoot, dev, Permissions::Read, m_Dev);
-        if(error != OK)
-            klog_error("Ext2", "Failed to open %s (%i)", dev, error);
-
-        VFS::Read(m_Dev, 1024, &m_SB, sizeof(SuperBlock));
+        m_Driver->GetData(m_Dev, 1024, &m_SB, sizeof(SuperBlock));
 
         klog_info("Ext2", "Ramdisk has version %i.%i", m_SB.versionMajor, m_SB.versionMinor);
         klog_info("Ext2", "Volume name: %s", m_SB.volumeName);
@@ -38,13 +33,13 @@ namespace Ext2 {
         uint64 group = (id - 1) / m_SB.inodesPerGroup;
         
         BlockGroupDesc desc;
-        VFS::Read(m_Dev, group * 32 + 2048, &desc, sizeof(BlockGroupDesc));
+        m_Driver->GetData(m_Dev, group * 32 + 2048, &desc, sizeof(BlockGroupDesc));
 
         uint64 relID = (id - 1) % m_SB.inodesPerGroup;
 
         uint64 inodePos = desc.inodeTableBlock * (1024 << m_SB.blockSizeShift) + relID * m_SB.inodeSize;
         INode* inode = new INode();
-        VFS::Read(m_Dev, inodePos, inode, sizeof(INode));
+        m_Driver->GetData(m_Dev, inodePos, inode, sizeof(INode));
 
         uint16 type = inode->typePermissions & INode_TypeMask;
         switch(type) {
@@ -91,9 +86,7 @@ namespace Ext2 {
             if(leftInBlock > bufferSize)
                 leftInBlock = bufferSize;
 
-            int64 error = VFS::Read(m_Dev, blockPos + offset, realBuffer, leftInBlock);
-            if(error < 0)
-                return error;
+            m_Driver->GetData(m_Dev, blockPos + offset, realBuffer, leftInBlock);
 
             realBuffer += leftInBlock;
             bufferSize -= leftInBlock;
@@ -118,13 +111,13 @@ namespace Ext2 {
             uint64 entryOffset = pos % (1024 << m_SB.blockSizeShift);
             
             DirEntry ext2Entry;
-            VFS::Read(m_Dev, entryBlockPos + entryOffset, &ext2Entry, sizeof(DirEntry));
+            m_Driver->GetData(m_Dev, entryBlockPos + entryOffset, &ext2Entry, sizeof(DirEntry));
 
             DirectoryEntry* vfsEntry;
             Directory::AddEntry(&dir, &vfsEntry);
 
             vfsEntry->nodeID = ext2Entry.inode;
-            VFS::Read(m_Dev, entryBlockPos + entryOffset + sizeof(DirEntry), vfsEntry->name, ext2Entry.nameLengthLow);
+            m_Driver->GetData(m_Dev, entryBlockPos + entryOffset + sizeof(DirEntry), vfsEntry->name, ext2Entry.nameLengthLow);
             vfsEntry->name[ext2Entry.nameLengthLow] = '\0';
 
             pos += ext2Entry.entrySize;
@@ -137,11 +130,11 @@ namespace Ext2 {
 
     }
 
-    static FileSystem* Ext2Factory(const char* dev) {
-        return new Ext2Driver(dev);
+    static FileSystem* Ext2Factory(BlockDeviceDriver* driver, uint64 subID) {
+        return new Ext2Driver(driver, subID);
     }
 
-    void Init() {
+    void Ext2Driver::Init() {
         FileSystemRegistry::RegisterFileSystem("ext2", Ext2Factory);
     }
 

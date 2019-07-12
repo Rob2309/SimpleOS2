@@ -74,7 +74,7 @@ namespace VFS {
         g_Lock.Unlock();
         return nullptr;
     }
-    FileSystem* FileSystemRegistry::CreateFileSystem(const char* id, const char* dev) {
+    FileSystem* FileSystemRegistry::CreateFileSystem(const char* id, BlockDeviceDriver* devDriver, uint64 devID) {
         g_Lock.Spinlock();
         for(const FSEntry* entry : g_FileSystems) {
             if(kstrcmp(entry->id, id) == 0) {
@@ -85,7 +85,7 @@ namespace VFS {
 
                 FileSystemFactoryDev factory = entry->factoryDev;
                 g_Lock.Unlock();
-                FileSystem* res = factory(dev);
+                FileSystem* res = factory(devDriver, devID);
                 return res;
             }
         }
