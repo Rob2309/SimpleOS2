@@ -1,23 +1,28 @@
 #include "ELF.h"
+#include "ELFDefines.h"
 
 #include "memory/MemoryManager.h"
-#include "interrupts/IDT.h"
-#include "Scheduler.h"
+#include "klib/memory.h"
 #include "arch/GDT.h"
 
-bool PrepareELF(const uint8* diskImg, uint64& outPML4Entry, IDT::Registers& outRegs)
+void ELFExecHandler::Init() {
+    ExecHandlerRegistry::RegisterHandler(new ELFExecHandler());
+}
+
+bool ELFExecHandler::CheckAndPrepare(uint8* buffer, uint64 bufferSize, uint64 pml4Entry, IDT::Registers* regs)
 {
     constexpr uint64 stackBase = 0x1000;
 
-    ELFHeader* header = (ELFHeader*)diskImg;
+    ELFHeader* header = (ELFHeader*)buffer;
 
-    uint64 pml4Entry = MemoryManager::CreateProcessMap();
+    if(header->magic[0] != 0x7F || header->magic[1] != 'E' || header->magic[2] != 'L' || header->magic[3] != 'F')
+        return false;
 
-    ElfSegmentHeader* segList = (ElfSegmentHeader*)(diskImg + header->phOffset);
+    ElfSegmentHeader* segList = (ElfSegmentHeader*)(buffer + header->phOffset);
     for(int s = 0; s < header->phEntryCount; s++) {
         ElfSegmentHeader* segment = &segList[s];
         if(segment->type == PT_LOAD) {
-            const uint8* src = diskImg + segment->dataOffset;
+            const uint8* src = buffer + segment->dataOffset;
             uint8* dest = (uint8*)segment->virtualAddress;
 
             uint64 lastPage = 0;
@@ -53,24 +58,13 @@ bool PrepareELF(const uint8* diskImg, uint64& outPML4Entry, IDT::Registers& outR
     for(int i = 0; i < 16; i++)
         MemoryManager::MapProcessPage(pml4Entry, (void*)((uint64)physStack + i * 4096), (void*)(stackBase + i * 4096), false);
 
-    outRegs = { 0 };
-    outRegs.cs = GDT::UserCode;
-    outRegs.ds = GDT::UserData;
-    outRegs.ss = GDT::UserData;
-    outRegs.rflags = 0b000000000001000000000;
-    outRegs.rip = entryPoint;
-    outRegs.userrsp = stackBase + 16 * 4096;
+    kmemset(regs, 0, sizeof(IDT::Registers));
+    regs->cs = GDT::UserCode;
+    regs->ds = GDT::UserData;
+    regs->ss = GDT::UserData;
+    regs->rflags = 0b000000000001000000000;
+    regs->rip = entryPoint;
+    regs->userrsp = stackBase + 16 * 4096;
 
-    outPML4Entry = pml4Entry;
-    return true;
-}
-
-bool RunELF(const uint8* diskImg, User* user)
-{
-    uint64 pml4Entry;
-    IDT::Registers regs;
-    if(!PrepareELF(diskImg, pml4Entry, regs))
-        return false;
-    Scheduler::CreateUserThread(pml4Entry, &regs, user);
     return true;
 }

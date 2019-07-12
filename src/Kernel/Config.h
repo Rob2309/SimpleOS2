@@ -5,6 +5,8 @@
 
 #include "fs/ext2/ext2.h"
 
+#include "exec/elf/ELF.h"
+
 typedef void (*InitFunc)();
 
 static InitFunc config_DeviceDriverInitFuncs[] = {
@@ -15,6 +17,10 @@ static InitFunc config_DeviceDriverInitFuncs[] = {
 static InitFunc config_FSDriverInitFuncs[] = {
     &TempFS::Init,
     &Ext2::Ext2Driver::Init,
+};
+
+static InitFunc config_ExecInitFuncs[] = {
+    &ELFExecHandler::Init,
 };
 
 constexpr uint64 config_RamDeviceDriverID = 1;

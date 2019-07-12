@@ -15,9 +15,10 @@
 #include "fs/ext2/ext2.h"
 
 #include "scheduler/Scheduler.h"
-#include "scheduler/ELF.h"
 #include "user/User.h"
 #include "klib/string.h"
+
+#include "exec/ExecHandler.h"
 
 #include "Config.h"
 
@@ -38,10 +39,11 @@ static uint64 SetupInitProcess() {
     VFS::Read(file, buffer, stats.size);
     VFS::Close(file);
 
-    uint64 pml4Entry;
+    uint64 pml4Entry = MemoryManager::CreateProcessMap();
     IDT::Registers regs;
-    if(!PrepareELF(buffer, pml4Entry, regs)) {
-        klog_error("Init", "Failed to setup init process, aborting boot");
+    if(!ExecHandlerRegistry::Prepare(buffer, stats.size, pml4Entry, &regs)) {
+        klog_error("Init", "Failed to execute init process, aborting boot");
+        MemoryManager::FreeProcessMap(pml4Entry);
         delete[] buffer;
         return 0;
     }
@@ -67,6 +69,9 @@ static void InitThread() {
     }
     for(uint64 i = 0; i < sizeof(config_FSDriverInitFuncs) / sizeof(InitFunc); i++) {
         config_FSDriverInitFuncs[i]();
+    }
+    for(uint64 i = 0; i < sizeof(config_ExecInitFuncs) / sizeof(InitFunc); i++) {
+        config_ExecInitFuncs[i]();
     }
 
     if(g_KernelHeader->ramdiskImage.numPages != 0) {
