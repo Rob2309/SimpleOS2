@@ -16,7 +16,7 @@ namespace Scheduler {
     extern "C" void IdleThread();
 
     static uint64 g_PIDCounter = 1;
-    static uint64 g_TIDCounter = 1;
+    static uint64 g_TIDCounter = 0;
 
     static ThreadInfo* FindNextThread();
     static ThreadInfo* FindNextThreadFromInterrupt();
@@ -68,6 +68,11 @@ namespace Scheduler {
 
     static void FreeProcess(ProcessInfo* pInfo)
     {
+        for(ProcessFileDescriptor* fd : pInfo->fileDescs) {
+            VFS::Close(fd->desc);
+            delete fd;
+        }
+
         MemoryManager::FreeProcessMap(pInfo->pml4Entry);
         delete pInfo;
     }
@@ -154,13 +159,14 @@ namespace Scheduler {
         return ret;
     }
 
-    uint64 CreateUserThread(uint64 pml4Entry, IDT::Registers* regs)
+    uint64 CreateUserThread(uint64 pml4Entry, IDT::Registers* regs, User* owner)
     {
         uint64 coreID = SMP::GetLogicalCoreID();
 
         ProcessInfo* pInfo = new ProcessInfo();
         pInfo->pid = g_PIDCounter++;
         pInfo->pml4Entry = pml4Entry;
+        pInfo->owner = owner;
 
         ThreadInfo* tInfo = CreateThreadStruct();
         tInfo->tid = g_TIDCounter++;
@@ -223,12 +229,10 @@ namespace Scheduler {
         ProcessInfo* pInfo = new ProcessInfo();
         pInfo->pid = g_PIDCounter++;
         pInfo->pml4Entry = pml4Entry;
+        pInfo->owner = oldPInfo->owner;
         
         oldPInfo->fileDescLock.Spinlock();
         for(ProcessFileDescriptor* fd : oldPInfo->fileDescs) {
-            if(fd->desc == 0)
-                continue;
-
             ProcessFileDescriptor* newFD = new ProcessFileDescriptor();
             newFD->desc = fd->desc;
             newFD->id = pInfo->fileDescs.size();
@@ -442,7 +446,7 @@ namespace Scheduler {
 
     void ThreadExit(uint64 code)
     {
-        kprintf("%C[%i.%i]%C Exiting with code %i on Core %i\n", 200, 50, 50, Scheduler::ThreadGetPID(), Scheduler::ThreadGetTID(), 255, 255, 255, code, SMP::GetLogicalCoreID());
+        kprintf("%C[%i.%i %s]%C Exiting with code %i on Core %i\n", 200, 50, 50, Scheduler::ThreadGetPID(), Scheduler::ThreadGetTID(), Scheduler::ThreadGetUserName(), 255, 255, 255, code, SMP::GetLogicalCoreID());
 
         uint64 coreID = SMP::GetLogicalCoreID();
 
@@ -487,6 +491,30 @@ namespace Scheduler {
         else
             return 0;    
     }
+    uint64 ThreadGetUID() {
+        uint64 coreID = SMP::GetLogicalCoreID();
+
+        if(g_CPUData[coreID].currentThread->process != nullptr)
+            return g_CPUData[coreID].currentThread->process->owner->uid;
+        else
+            return 0; 
+    }
+    uint64 ThreadGetGID() {
+        uint64 coreID = SMP::GetLogicalCoreID();
+
+        if(g_CPUData[coreID].currentThread->process != nullptr)
+            return g_CPUData[coreID].currentThread->process->owner->gid;
+        else
+            return 0; 
+    }
+    const char* ThreadGetUserName() {
+        uint64 coreID = SMP::GetLogicalCoreID();
+
+        if(g_CPUData[coreID].currentThread->process != nullptr)
+            return g_CPUData[coreID].currentThread->process->owner->name;
+        else
+            return "-KernelThread-"; 
+    }
 
     uint64 ThreadCreateThread(uint64 entry, uint64 stack)
     {
@@ -517,7 +545,7 @@ namespace Scheduler {
         return res;
     }
 
-    uint64 ProcessAddFileDescriptor(uint64 sysDescriptor) {
+    int64 ProcessAddFileDescriptor(uint64 sysDescriptor) {
         uint64 coreID = SMP::GetLogicalCoreID();
 
         ProcessInfo* pInfo = g_CPUData[coreID].currentThread->process;
@@ -538,29 +566,72 @@ namespace Scheduler {
 
         return newDesc->id;
     };
-    void ProcessCloseFileDescriptor(uint64 descID) {
+    int64 ProcessReplaceFileDescriptor(int64 oldPDesc, int64 newPDesc) {
+        uint64 coreID = SMP::GetLogicalCoreID();
+
+        ProcessInfo* pInfo = g_CPUData[coreID].currentThread->process;
+        pInfo->fileDescLock.Spinlock();
+        if(oldPDesc < 0 || oldPDesc >= pInfo->fileDescs.size() || newPDesc < 0 || newPDesc >= pInfo->fileDescs.size()) {
+            pInfo->fileDescLock.Unlock();
+            return VFS::ErrorInvalidFD;
+        }
+
+        uint64 oldSysDesc = pInfo->fileDescs[oldPDesc]->desc;
+        uint64 newSysDesc = pInfo->fileDescs[newPDesc]->desc;
+
+        if(newSysDesc == 0) {
+            pInfo->fileDescLock.Unlock();
+            return VFS::ErrorInvalidFD;
+        }
+        if(oldSysDesc != 0) {
+            VFS::Close(oldSysDesc);
+        }
+
+        pInfo->fileDescs[oldPDesc]->desc = newSysDesc;
+        pInfo->fileDescLock.Unlock();
+        VFS::AddRef(newSysDesc);
+        return VFS::OK;
+    }
+    int64 ProcessCloseFileDescriptor(int64 descID) {
         uint64 coreID = SMP::GetLogicalCoreID();
 
         ProcessInfo* pInfo = g_CPUData[coreID].currentThread->process;
 
         pInfo->fileDescLock.Spinlock();
+        if(descID < 0 || descID >= pInfo->fileDescs.size()) {
+            pInfo->fileDescLock.Unlock();
+            return VFS::ErrorInvalidFD;
+        }
+
         ProcessFileDescriptor* desc = pInfo->fileDescs[descID];
         uint64 sysDesc = desc->desc;
         desc->desc = 0;
         pInfo->fileDescLock.Unlock();
-
-        VFS::Close(desc->desc);
+        
+        if(sysDesc == 0)
+            return VFS::ErrorInvalidFD;
+        return VFS::Close(sysDesc);
     }
-    uint64 ProcessGetSystemFileDescriptor(uint64 descID) {
+    int64 ProcessGetSystemFileDescriptor(int64 pDesc, uint64& sysDesc) {
         uint64 coreID = SMP::GetLogicalCoreID();
 
         ProcessInfo* pInfo = g_CPUData[coreID].currentThread->process;
 
         pInfo->fileDescLock.Spinlock();
-        ProcessFileDescriptor* desc = pInfo->fileDescs[descID];
+        if(pDesc < 0 || pDesc >= pInfo->fileDescs.size()) {
+            pInfo->fileDescLock.Unlock();
+            return VFS::ErrorInvalidFD;
+        }
+
+        ProcessFileDescriptor* desc = pInfo->fileDescs[pDesc];
         uint64 res = desc->desc;
         pInfo->fileDescLock.Unlock();
-        return res;
+
+        sysDesc = res;
+        if(res == 0)
+            return VFS::ErrorInvalidFD;
+        
+        return VFS::OK;
     }
 
     void ProcessExec(uint64 pml4Entry, IDT::Registers* regs)
@@ -613,7 +684,7 @@ namespace Scheduler {
         regs->rdi = (uint64)reason;
     }
     void ThreadKillProcess(const char* reason) {
-        klog_error("Scheduler", "Killing process %i because Thread %i requested it (%s)", ThreadGetPID(), ThreadGetTID(), reason);
+        klog_error("Scheduler", "Killing process %i (owner=%s) because Thread %i requested it (%s)", ThreadGetPID(), ThreadGetUserName(), ThreadGetTID(), reason);
 
         uint64 coreID = SMP::GetLogicalCoreID();
 

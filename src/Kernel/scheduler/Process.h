@@ -5,9 +5,10 @@
 #include "ktl/vector.h"
 #include "ktl/list.h"
 #include "Thread.h"
+#include "user/User.h"
 
 struct ProcessFileDescriptor {
-    uint64 id;
+    int64 id;
     uint64 desc;
 };
 
@@ -21,4 +22,6 @@ struct ProcessInfo {
 
     StickyLock mainLock;
     uint64 numThreads;
+
+    User* owner;
 };

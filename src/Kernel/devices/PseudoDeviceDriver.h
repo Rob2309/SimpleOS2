@@ -7,6 +7,9 @@
  **/
 class PseudoDeviceDriver : public CharDeviceDriver {
 public:
+    static void Init();
+
+public:
     /**
      * SubID of the Zero device. 
      * This device returns endless zeroes when read from and discards any data when written to.

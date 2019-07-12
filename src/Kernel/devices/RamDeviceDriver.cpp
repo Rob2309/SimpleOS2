@@ -2,6 +2,10 @@
 
 #include "klib/memory.h"
 
+void RamDeviceDriver::Init() {
+    RamDeviceDriver* driver = new RamDeviceDriver();
+}
+
 uint64 RamDeviceDriver::AddDevice(char* buffer, uint64 blockSize, uint64 numBlocks) {
     uint64 res = m_Devices.size();
     m_Devices.push_back({ buffer, blockSize, numBlocks });

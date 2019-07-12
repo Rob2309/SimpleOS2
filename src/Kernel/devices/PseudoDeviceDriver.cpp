@@ -3,10 +3,14 @@
 #include "klib/memory.h"
 #include "fs/VFS.h"
 
+void PseudoDeviceDriver::Init() {
+    PseudoDeviceDriver* driver = new PseudoDeviceDriver();
+}
+
 uint64 PseudoDeviceDriver::Read(uint64 subID, void* buffer, uint64 bufferSize) {
     if(subID == DeviceZero) {
         if(!kmemset_usersafe(buffer, 0, bufferSize))
-            return VFS::ReadWrite_InvalidBuffer;
+            return VFS::ErrorInvalidBuffer;
         return bufferSize;
     } else {
         return 0;
