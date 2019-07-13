@@ -76,9 +76,24 @@ namespace Ext2 {
 
         uint64 res = bufferSize;
 
+        bool indirectBufferLoaded = false;
+        uint8* indirectBuffer = nullptr;
+
         while(bufferSize > 0) {
             uint64 blockIndex = pos / (1024 << m_SB.blockSizeShift);
-            uint64 blockID = inode->directPointers[blockIndex];
+            uint64 blockID;
+
+            if(blockIndex < 12) {
+                blockID = inode->directPointers[blockIndex];
+            } else {
+                if(!indirectBufferLoaded) {
+                    indirectBuffer = new uint8[1024 << m_SB.blockSizeShift];
+                    m_Driver->GetData(m_Dev, inode->indirectPointer * (1024 << m_SB.blockSizeShift), indirectBuffer, 1024 << m_SB.blockSizeShift);
+                    indirectBufferLoaded = true;
+                }
+                blockID = ((uint32*)indirectBuffer)[blockIndex - 12];
+            }
+
             uint64 blockPos = blockID * (1024 << m_SB.blockSizeShift);
             uint64 offset = pos % (1024 << m_SB.blockSizeShift);
 
@@ -92,6 +107,9 @@ namespace Ext2 {
             bufferSize -= leftInBlock;
             pos += leftInBlock;
         }
+
+        if(indirectBufferLoaded)
+            delete[] indirectBuffer;
 
         return res;
     }

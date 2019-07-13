@@ -5,6 +5,8 @@
 #include "klib/memory.h"
 #include "arch/GDT.h"
 
+#include "klib/stdio.h"
+
 void ELFExecHandler::Init() {
     ExecHandlerRegistry::RegisterHandler(new ELFExecHandler());
 }

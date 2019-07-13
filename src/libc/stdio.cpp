@@ -2,6 +2,7 @@
 
 #include "Syscall.h"
 #include "string.h"
+#include "stdlib.h"
 
 FILE stdinFD = 0;
 FILE stdoutFD = 1;
@@ -15,11 +16,11 @@ int64 remove(const char* path) {
     return Syscall::Delete(path);
 }
 
-static int64 g_FileDescIndex = 0;
-static FILE g_FileDescs[200];
-
 int64 fclose(FILE* file) {
-    return Syscall::Close(*file);
+    int64 error = Syscall::Close(*file);
+    if(error != 0)
+        free(file);
+    return error;
 }
 FILE* fopen(const char* path, const char* mode) {
     uint8 perm = 0;
@@ -33,9 +34,8 @@ FILE* fopen(const char* path, const char* mode) {
     if(desc < 0)
         return nullptr;
     
-    g_FileDescs[g_FileDescIndex] = desc;
-    FILE* res = &g_FileDescs[g_FileDescIndex];
-    g_FileDescIndex++;
+    FILE* res = (FILE*)malloc(sizeof(FILE));
+    *res = desc;
     return res;
 }
 
