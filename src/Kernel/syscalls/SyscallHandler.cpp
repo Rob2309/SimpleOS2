@@ -73,6 +73,11 @@ namespace SyscallHandler {
         uint64 res = 0;
 
         switch(func) {
+        case Syscall::FunctionSetFS: 
+            Scheduler::ThreadSetFS(arg1); 
+            MSR::Write(MSR::RegFSBase, arg1);
+            break;
+
         case Syscall::FunctionPrint: {
                 const char* msg = (const char*)arg1;
                 if(!MemoryManager::IsUserPtr(msg))
@@ -89,9 +94,10 @@ namespace SyscallHandler {
         case Syscall::FunctionCreateThread: {
                 uint64 entry = arg1;
                 uint64 stack = arg2;
+                uint64 arg = arg3;
                 if(!MemoryManager::IsUserPtr((void*)entry) || !MemoryManager::IsUserPtr((void*)stack))
                     Scheduler::ThreadKillProcess("InvalidUserPointer");
-                res = Scheduler::ThreadCreateThread(entry, stack); 
+                res = Scheduler::ThreadCreateThread(entry, stack, arg); 
             } break;
         case Syscall::FunctionExec: {
                 const char* filePath = (const char*)arg1;

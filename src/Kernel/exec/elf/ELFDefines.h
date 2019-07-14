@@ -97,6 +97,7 @@ struct ElfSegmentHeader {
 #define PT_DYNAMIC 2
 #define PT_INTERP 3
 #define PT_NOTE 4
+#define PT_TLS 7
 
 #define PF_EXEC 1
 #define PF_WRITABLE 2

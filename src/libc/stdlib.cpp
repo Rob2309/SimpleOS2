@@ -184,3 +184,7 @@ void free(void* block)
 
     g_FreeList.MarkFree(b, size);
 }
+
+void abort() {
+    Syscall::Exit(1);
+}

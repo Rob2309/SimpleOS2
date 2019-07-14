@@ -4,3 +4,5 @@
 
 void* malloc(int64 size);
 void free(void* block);
+
+void abort();

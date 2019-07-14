@@ -49,7 +49,10 @@ namespace VFS {
 
         p->lock.Spinlock();
 
-        if(p->readPos <= p->writePos) {
+        if(p->readPos == p->writePos) {
+            p->lock.Unlock();
+            return 0;
+        } else if(p->readPos < p->writePos) {
             uint64 rem = p->writePos - p->readPos;
             if(rem > bufferSize)
                 rem = bufferSize;
@@ -63,29 +66,28 @@ namespace VFS {
             p->lock.Unlock();
             return rem;
         } else {
-            uint64 capA = sizeof(p->buffer) - p->readPos;
-            uint64 capB = p->writePos;
-            if(capA > bufferSize) {
-                capA = bufferSize;
-                capB = 0;
-            } else if(capA + capB > bufferSize) {
-                capB = bufferSize - capA;
-            }
+            uint64 remA = sizeof(p->buffer) - p->readPos;
+            uint64 remB = p->writePos;
 
-            if(!kmemcpy_usersafe(realBuffer, p->buffer + p->readPos, capA) || !kmemcpy_usersafe(realBuffer + capA, p->buffer, capB)) {
+            if(remA > bufferSize) {
+                remA = bufferSize;
+                remB = 0;
+            } else if(remA + remB > bufferSize)
+                remB = bufferSize - remA;
+
+            if(!kmemcpy_usersafe(realBuffer, p->buffer + p->readPos, remA)) {
+                p->lock.Unlock();
+                return ErrorInvalidBuffer;
+            }
+            if(!kmemcpy_usersafe(realBuffer + remA, p->buffer, remB)) {
                 p->lock.Unlock();
                 return ErrorInvalidBuffer;
             }
 
-            if(capB > 0) {
-                p->readPos = capB;
-            } else {
-                p->readPos += capA;
-                p->readPos %= sizeof(p->buffer);
-            }
-
+            p->readPos += remA + remB;
+            p->readPos %= sizeof(p->buffer);
             p->lock.Unlock();
-            return capA + capB;
+            return remA + remB;
         }
     }
     uint64 PipeFS::ReadNodeData(Node* node, uint64 pos, void* buffer, uint64 bufferSize)  {
@@ -117,45 +119,43 @@ namespace VFS {
             p->writePos += rem;
             p->lock.Unlock();
             return rem;
-        } else if(p->readPos == 0) {
-            uint64 rem = sizeof(p->buffer) - p->writePos;
-            if(rem > bufferSize)
-                rem = bufferSize;
-
-            if(!kmemcpy_usersafe(p->buffer + p->writePos, realBuffer, rem)) {
-                p->lock.Unlock();
-                return ErrorInvalidBuffer;
-            }
-
-            p->writePos += rem;
-            p->writePos %= sizeof(p->buffer);
-
-            p->lock.Unlock();
-            return rem;
         } else {
-            uint64 capA = sizeof(p->buffer) - p->writePos;
-            uint64 capB = p->readPos - 1;
-            if(capA > bufferSize) {
-                capA = bufferSize;
-                capB = 0;
-            } else if(capA + capB > bufferSize) {
-                capB = bufferSize - capA;
-            }
+            if(p->readPos > 0) {
+                uint64 remA = sizeof(p->buffer) - p->writePos;
+                uint64 remB = p->readPos - 1;
+                if(remA > bufferSize) {
+                    remA = bufferSize;
+                    remB = 0;
+                } else if(remA + remB > bufferSize)
+                    remB = bufferSize - remA;
 
-            if(!kmemcpy_usersafe(p->buffer + p->writePos, realBuffer, capA) || kmemcpy_usersafe(p->buffer, realBuffer + capA, capB)) {
-                p->lock.Unlock();
-                return ErrorInvalidBuffer;
-            }
+                if(!kmemcpy_usersafe(p->buffer + p->writePos, realBuffer, remA)) {
+                    p->lock.Unlock();
+                    return ErrorInvalidBuffer;
+                }
+                if(!kmemcpy_usersafe(p->buffer, realBuffer + remA, remB)) {
+                    p->lock.Unlock();
+                    return ErrorInvalidBuffer;
+                }
 
-            if(capB > 0) {
-                p->writePos = capB;
-            } else {
-                p->writePos += capA;
+                p->writePos += remA + remB;
                 p->writePos %= sizeof(p->buffer);
-            }
+                p->lock.Unlock();
+                return remA + remB;
+            } else {
+                uint64 rem = sizeof(p->buffer) - p->writePos - 1;
+                if(rem > bufferSize)
+                    rem = bufferSize;
 
-            p->lock.Unlock();
-            return capA + capB;
+                if(!kmemcpy_usersafe(p->buffer + p->writePos, realBuffer, rem)) {
+                    p->lock.Unlock();
+                    return ErrorInvalidBuffer;
+                }
+
+                p->writePos += rem;
+                p->lock.Unlock();
+                return rem;
+            }
         }
     }
     uint64 PipeFS::WriteNodeData(Node* node, uint64 pos, const void* buffer, uint64 bufferSize) {

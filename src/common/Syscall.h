@@ -34,6 +34,25 @@ namespace Syscall
 
     constexpr uint64 FunctionMoveToCore = 500;
 
+    constexpr uint64 FunctionSetFS = 600;
+    constexpr uint64 FunctionSetGS = 601;
+
+    inline void SetFS(uint64 addr) {
+        __asm__ __volatile__ (
+            "syscall"
+            : : "D"(FunctionSetFS), "S"(addr)
+            : "rax", "rcx", "rdx", "r8", "r9", "r10", "r11"
+        );
+    }
+
+    inline void SetGS(uint64 addr) {
+        __asm__ __volatile__ (
+            "syscall"
+            : : "D"(FunctionSetGS), "S"(addr)
+            : "rax", "rcx", "rdx", "r8", "r9", "r10", "r11"
+        );
+    }
+
     inline void MoveThreadToCore(uint64 coreID) {
         __asm__ __volatile__ (
             "syscall"
@@ -135,12 +154,13 @@ namespace Syscall
     /**
      * Create a new thread at the given entrypoint
      **/
-    inline void CreateThread(uint64 entry, uint64 stack)
+    inline void CreateThread(uint64 entry, uint64 stack, uint64 arg)
     {
+        register uint64 r8 asm("r8") = arg;
         __asm__ __volatile__ (
             "syscall"
-            : : "D"(FunctionCreateThread), "S"(entry), "d"(stack)
-            : "rax", "rcx", "r8", "r9", "r10", "r11"
+            : : "D"(FunctionCreateThread), "S"(entry), "d"(stack), "r"(r8)
+            : "rax", "rcx", "r9", "r10", "r11"
         );
     }
 

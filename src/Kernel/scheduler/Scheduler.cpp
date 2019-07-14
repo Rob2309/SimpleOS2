@@ -64,6 +64,8 @@ namespace Scheduler {
         bool inKernelMode = ((g_CPUData[coreID].currentThread->registers.cs & 0b11) == 0);
         MSR::Write(MSR::RegKernelGSBase, inKernelMode ? g_CPUData[coreID].currentThread->userGSBase : (uint64)&g_CPUData[coreID]);
         MSR::Write(MSR::RegGSBase, inKernelMode ? (uint64)&g_CPUData[coreID] : g_CPUData[coreID].currentThread->userGSBase);
+        if(!inKernelMode)
+            MSR::Write(MSR::RegFSBase, g_CPUData[coreID].currentThread->userFSBase);
     }
 
     static void FreeProcess(ProcessInfo* pInfo)
@@ -516,7 +518,7 @@ namespace Scheduler {
             return "-KernelThread-"; 
     }
 
-    uint64 ThreadCreateThread(uint64 entry, uint64 stack)
+    uint64 ThreadCreateThread(uint64 entry, uint64 stack, uint64 arg)
     {
         uint64 coreID = SMP::GetLogicalCoreID();
 
@@ -530,6 +532,7 @@ namespace Scheduler {
         tInfo->registers.rflags = CPU::FLAGS_IF;
         tInfo->registers.rip = entry;
         tInfo->registers.userrsp = stack;
+        tInfo->registers.rdi = arg;
 
         if(tInfo->process != nullptr) {
             tInfo->process->mainLock.Spinlock();
@@ -632,6 +635,15 @@ namespace Scheduler {
             return VFS::ErrorInvalidFD;
         
         return VFS::OK;
+    }
+
+    void ThreadSetFS(uint64 val) {
+        uint64 coreID = SMP::GetLogicalCoreID();
+        g_CPUData[coreID].currentThread->userFSBase = val;
+    }
+    void ThreadSetGS(uint64 val) {
+        uint64 coreID = SMP::GetLogicalCoreID();
+        g_CPUData[coreID].currentThread->userGSBase = val;
     }
 
     void ProcessExec(uint64 pml4Entry, IDT::Registers* regs)
