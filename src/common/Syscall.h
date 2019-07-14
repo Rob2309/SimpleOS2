@@ -28,6 +28,7 @@ namespace Syscall
     constexpr uint64 FunctionChangeOwner = 62;
     constexpr uint64 FunctionChangePermissions = 63;
     constexpr uint64 FunctionReplaceFD = 64;
+    constexpr uint64 FunctionReplaceFDPath = 65;
 
     constexpr uint64 FunctionAllocPages = 100;
     constexpr uint64 FunctionFreePages = 101;
@@ -260,6 +261,18 @@ namespace Syscall
             : "=a"(ret)
             : "D"(FunctionReplaceFD), "S"(oldDesc), "d"(newDesc)
             : "rcx", "r8", "r9", "r10", "r11"
+        );
+        return ret;
+    }
+
+    inline int64 ReplaceFDPath(uint64 oldDesc, const char* newPath, uint8 perm) {
+        int64 ret;
+        register uint64 r8 asm("r8") = perm;
+        __asm__ __volatile__ (
+            "syscall"
+            : "=a"(ret)
+            : "D"(FunctionReplaceFDPath), "S"(oldDesc), "d"(newPath), "r"(r8)
+            : "rcx", "r9", "r10", "r11"
         );
         return ret;
     }

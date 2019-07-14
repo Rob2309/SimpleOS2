@@ -68,7 +68,7 @@ $(bin_dir)/Kernel/Kernel.sys: FORCE
 $(bin_dir)/libc/libc.a: FORCE
 	@ printf "\e[32mBuilding libc\e[0m\n"
 	@ make -s -C src/libc
-$(bin_dir)/Programs/Init/Init.elf: FORCE
+$(bin_dir)/Programs/Init/Init.elf: $(bin_dir)/libc/libc.a FORCE
 	@ printf "\e[32mBuilding Init\e[0m\n"
 	@ make -s -C src/Programs/Init
 $(bin_dir)/Programs/Test2/Test2.elf: $(bin_dir)/libc/libc.a FORCE

@@ -220,6 +220,22 @@ namespace SyscallHandler {
                 res = desc;
             } break;
         case Syscall::FunctionReplaceFD: res = Scheduler::ProcessReplaceFileDescriptor(arg1, arg2); break;
+        case Syscall::FunctionReplaceFDPath: {
+                ThreadInfo* tInfo = Scheduler::GetCurrentThreadInfo();
+                ProcessInfo* pInfo = tInfo->process;
+
+                uint64 sysDesc;
+                int64 error = VFS::Open(pInfo->owner, (const char*)arg2, arg3, sysDesc);
+                if(error != VFS::OK) {
+                    res = error;
+                    break;
+                }
+                
+                res = Scheduler::ProcessReplaceFileDescriptorValue(arg1, sysDesc);
+                if(res != VFS::OK) {
+                    VFS::Close(sysDesc);
+                }
+            } break;
         case Syscall::FunctionClose: res = Scheduler::ProcessCloseFileDescriptor(arg1); break;
         case Syscall::FunctionRead: {
                 void* buffer = (void*)arg2;

@@ -86,6 +86,7 @@ namespace Scheduler {
 
     int64 ProcessAddFileDescriptor(uint64 sysDescriptor);
     int64 ProcessReplaceFileDescriptor(int64 oldPDesc, int64 newPDesc);
+    int64 ProcessReplaceFileDescriptorValue(int64 oldPDesc, uint64 newSysDesc);
     int64 ProcessCloseFileDescriptor(int64 desc);
     int64 ProcessGetSystemFileDescriptor(int64 pDesc, uint64& sysDesc);
 

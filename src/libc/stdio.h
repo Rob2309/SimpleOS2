@@ -12,10 +12,15 @@ extern FILE* stdout;
 extern FILE* stderr;
 extern FILE* stdin;
 
-int64 remove(const char* path);
+#define EOF -1
 
-int64 fclose(FILE* file);
+int remove(const char* path);
+
+int fclose(FILE* file);
 FILE* fopen(const char* path, const char* mode);
+FILE* freopen(const char* path, const char* mode, FILE* oldFile);
+
+int fpipe(FILE** read, FILE** write);
 
 int64 fread(void* buffer, int64 size, int64 count, FILE* file);
 int64 fwrite(const void* buffer, int64 size, int64 count, FILE* file);

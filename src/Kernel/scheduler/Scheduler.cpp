@@ -595,6 +595,30 @@ namespace Scheduler {
         VFS::AddRef(newSysDesc);
         return VFS::OK;
     }
+    int64 ProcessReplaceFileDescriptorValue(int64 oldPDesc, uint64 newSysDesc) {
+        uint64 coreID = SMP::GetLogicalCoreID();
+
+        ProcessInfo* pInfo = g_CPUData[coreID].currentThread->process;
+        pInfo->fileDescLock.Spinlock();
+        if(oldPDesc < 0 || oldPDesc >= pInfo->fileDescs.size()) {
+            pInfo->fileDescLock.Unlock();
+            return VFS::ErrorInvalidFD;
+        }
+
+        uint64 oldSysDesc = pInfo->fileDescs[oldPDesc]->desc;
+        if(newSysDesc == 0) {
+            pInfo->fileDescLock.Unlock();
+            return VFS::ErrorInvalidFD;
+        }
+        if(oldSysDesc != 0) {
+            VFS::Close(oldSysDesc);
+        }
+
+        pInfo->fileDescs[oldPDesc]->desc = newSysDesc;
+        pInfo->fileDescLock.Unlock();
+        VFS::AddRef(newSysDesc);
+        return VFS::OK;
+    }
     int64 ProcessCloseFileDescriptor(int64 descID) {
         uint64 coreID = SMP::GetLogicalCoreID();
 
