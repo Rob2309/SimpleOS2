@@ -28,3 +28,4 @@ int64 fwrite(const void* buffer, int64 size, int64 count, FILE* file);
 int64 fputs(const char* str, FILE* file);
 int64 puts(const char* str);
 
+void perror(const char* str);

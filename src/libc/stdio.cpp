@@ -118,3 +118,22 @@ int64 fputs(const char* str, FILE* file) {
 int64 puts(const char* str) {
     return fputs(str, stdout);
 }
+
+void perror(const char* str) {
+    fputs(str, stderr);
+    
+    const char* err;
+    switch(errno) {
+    case EFILENOTFOUND: err = "File not found\n"; break;
+    case EPERMISSIONDENIED: err = "Permission denied\n"; break;
+    case EINVALIDFD: err = "Invalid file descriptor\n"; break;
+    case EINVALIDBUFFER: err = "Invalid buffer\n"; break;
+    case EINVALIDPATH: err = "Ill-formed path\n"; break;
+    case EINVALIDFS: err = "Invalid filesystem ID\n"; break;
+    case EINVALIDDEV: err = "Invalid device\n"; break;
+    case EFILEEXISTS: err = "File exists\n"; break;
+    default: err = "unknown error\n"; break;
+    }
+
+    fputs(err, stderr);
+}
