@@ -168,9 +168,9 @@ namespace VFS {
         uint64 res = 0;
         while(true) {
             uint64 count = _Write(p, realBuffer + res, bufferSize - res);
-            res += count;
             if(count == ErrorInvalidBuffer)
-                return count;
+                return ErrorInvalidBuffer;
+            res += count;
             if(res == bufferSize)
                 break;
 

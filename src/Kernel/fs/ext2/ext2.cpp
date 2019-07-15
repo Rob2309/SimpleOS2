@@ -71,15 +71,16 @@ namespace Ext2 {
 
         INode* inode = (INode*)node->fsData;
 
-        if(bufferSize > inode->size)
-            bufferSize = inode->size;
-
-        uint64 res = bufferSize;
+        uint64 rem = inode->size - pos;
+        if(rem > bufferSize)
+            rem = bufferSize;
+        if(rem == 0) // eof
+            return 0;
 
         bool indirectBufferLoaded = false;
         uint8* indirectBuffer = nullptr;
 
-        while(bufferSize > 0) {
+        while(rem > 0) {
             uint64 blockIndex = pos / (1024 << m_SB.blockSizeShift);
             uint64 blockID;
 
@@ -98,20 +99,20 @@ namespace Ext2 {
             uint64 offset = pos % (1024 << m_SB.blockSizeShift);
 
             uint64 leftInBlock = (1024 << m_SB.blockSizeShift) - offset;
-            if(leftInBlock > bufferSize)
-                leftInBlock = bufferSize;
+            if(leftInBlock > rem)
+                leftInBlock = rem;
 
             m_Driver->GetData(m_Dev, blockPos + offset, realBuffer, leftInBlock);
 
             realBuffer += leftInBlock;
-            bufferSize -= leftInBlock;
+            rem -= leftInBlock;
             pos += leftInBlock;
         }
 
         if(indirectBufferLoaded)
             delete[] indirectBuffer;
 
-        return res;
+        return rem;
     }
     uint64 Ext2Driver::WriteNodeData(Node* node, uint64 pos, const void* buffer, uint64 bufferSize) {
         return 0;

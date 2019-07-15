@@ -89,6 +89,8 @@ uint64 TempFS::ReadNodeData(Node* node, uint64 pos, void* buffer, uint64 bufferS
     TestNode* refNode = (TestNode*)(node->id);
 
     uint64 rem = refNode->fileSize - pos;
+    if(rem == 0) // eof
+        return 0;
     if(rem > bufferSize)
         rem = bufferSize;
 

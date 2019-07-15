@@ -2,6 +2,8 @@
 
 #include "types.h"
 
+#include "simpleos_vfs.h"
+
 struct FILE;
 
 extern FILE* stdout;
@@ -15,6 +17,13 @@ int remove(const char* path);
 int fclose(FILE* file);
 FILE* fopen(const char* path, const char* mode);
 FILE* freopen(const char* path, const char* mode, FILE* oldFile);
+
+constexpr uint64 _IOFBUF = 2;
+constexpr uint64 _IOLBUF = 1;
+constexpr uint64 _IONBUF = 0;
+
+int setvbuf(FILE* stream, char* buffer, int mode, uint64 size);
+void setbuf(FILE* stream, char* buffer);
 
 int64 fread(void* buffer, int64 size, int64 count, FILE* file);
 int64 fwrite(const void* buffer, int64 size, int64 count, FILE* file);

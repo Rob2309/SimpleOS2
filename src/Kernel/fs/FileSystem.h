@@ -44,11 +44,13 @@ namespace VFS {
         /**
          * Reads data from the given File node.
          * node will not be locked when given to this function.
+         * Blocks until at least one byte was read, or returns 0 on eof.
          **/
         virtual uint64 ReadNodeData(Node* node, uint64 pos, void* buffer, uint64 bufferSize) = 0;
         /**
          * Writes data to the given File node.
          * node will not be locked when given to this function.
+         * Blocks until at least on byte was written, or returns an error code, never 0
          **/
         virtual uint64 WriteNodeData(Node* node, uint64 pos, const void* buffer, uint64 bufferSize) = 0;
 

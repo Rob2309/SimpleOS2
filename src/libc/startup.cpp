@@ -1,8 +1,7 @@
 #include "ELFProgramInfo.h"
-#include "Syscall.h"
 
+#include "simpleos_process.h"
 #include "stdlib.h"
-
 #include "thread.h"
 
 extern int main();
@@ -22,9 +21,9 @@ extern "C" void __start(ELFProgramInfo* info) {
         thread->selfPtr = thread;
         thread->progInfo = info;
 
-        Syscall::SetFS((uint64)thread);
+        setfsbase((uint64)thread);
     }
 
     int res = main();
-    Syscall::Exit(res);
+    thread_exit(res);
 };

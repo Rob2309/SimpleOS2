@@ -1,6 +1,7 @@
 #include "stdlib.h"
 
-#include "Syscall.h"
+#include "simpleos_alloc.h"
+#include "simpleos_process.h"
 
 class FreeList
 {
@@ -155,7 +156,7 @@ static uint64 g_HeapPos = 0xFF000000;
 static void ReserveNew(uint64 size) 
 {
     size = (size + 4095) / 4096;
-    Syscall::AllocPages((void*)g_HeapPos, size);
+    alloc_pages((void*)g_HeapPos, size);
     g_FreeList.MarkFree((void*)g_HeapPos, size * 4096);
     g_HeapPos += size * 4096;
 }
@@ -186,5 +187,5 @@ void free(void* block)
 }
 
 void abort() {
-    Syscall::Exit(1);
+    thread_exit(1);
 }

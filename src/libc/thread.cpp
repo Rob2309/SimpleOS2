@@ -1,11 +1,11 @@
 #include "thread.h"
 
-#include "Syscall.h"
 #include "stdlib.h"
+#include "simpleos_process.h"
 
 ELFProgramInfo* g_ProgInfo;
 
-static void RunThread(int (*func)()) {
+static void RunThread(void* arg) {
     if(g_ProgInfo->masterTLSSize != 0) {
         uint64 allocSize = g_ProgInfo->masterTLSSize + sizeof(ELFThread);
         char* alloc = (char*)malloc(allocSize);
@@ -18,14 +18,16 @@ static void RunThread(int (*func)()) {
         thread->selfPtr = thread;
         thread->progInfo = g_ProgInfo;
 
-        Syscall::SetFS((uint64)thread); 
+        setfsbase((uint64)thread); 
     }
 
+    int (*func)() = (int (*)())arg;
+
     int res = func();
-    Syscall::Exit(res);
+    thread_exit(res);
 }
 
 void CreateThread(int (*func)()) {
     char* stack = (char*)malloc(16 * 4096) + 16 * 4096;
-    Syscall::CreateThread((uint64)&RunThread, (uint64)stack, (uint64)func);
+    thread_create(&RunThread, stack, (void*)func);
 }

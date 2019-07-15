@@ -150,15 +150,16 @@ namespace VFS {
 
     /**
      * Reads from the given File and increases the FileDescriptor position by the number of bytes read.
-     * This function blocks until at least one byte was read, except for when it is impossible to read further (e.g. end of file).
+     * This function blocks until at least one byte was read, or returns 0 to indicate eof.
      * @param buffer The buffer to read the data into, should be a Kernel pointer
      * @param bufferSize The maximum number of bytes that fit into the given buffer
-     * @returns the number of bytes read.
+     * @returns the number of bytes read, 0 if the end of file was reached.
      **/
     int64 Read(uint64 desc, void* buffer, uint64 bufferSize);
     /**
      * Writes to the given File and increases the FileDescriptor position by the number of bytes written.
-     * This function blocks until at least one byte was written, except for when it is impossible to write further.
+     * This function blocks until at least one byte was written, or returns an error code.
+     * It should never return 0.
      * @param buffer The buffer to write the data from, should be a Kernel pointer
      * @param bufferSize The number of bytes contained in the given buffer
      * @returns the number of bytes written.
