@@ -5,13 +5,19 @@
 #include "stdlib.h"
 #include "errno.h"
 
-FILE stdinFD = 0;
-FILE stdoutFD = 1;
-FILE stderrFD = 2;
+struct FILE {
+    int64 descID;
+    bool error;
+    bool eof;
+};
 
-FILE* stdout = &stdoutFD;
-FILE* stdin = &stdinFD;
-FILE* stderr = &stderrFD;
+FILE stdinFile = { 0, false, false };
+FILE stdoutFile = { 1, false, false };
+FILE stderrFile = { 2, false, false };
+
+FILE* stdout = &stdoutFile;
+FILE* stdin = &stdinFile;
+FILE* stderr = &stderrFile;
 
 constexpr uint64 OpenMode_Read = 0x1;
 constexpr uint64 OpenMode_Write = 0x2;
@@ -29,7 +35,7 @@ int remove(const char* path) {
 }
 
 int fclose(FILE* file) {
-    int64 error = Syscall::Close(*file);
+    int64 error = Syscall::Close(file->descID);
     free(file);
 
     if(error != 0)
@@ -62,7 +68,9 @@ FILE* fopen(const char* path, const char* mode) {
     }
     
     FILE* res = (FILE*)malloc(sizeof(FILE));
-    *res = desc;
+    res->descID = desc;
+    res->eof = false;
+    res->error = false;
     return res;
 }
 FILE* freopen(const char* path, const char* mode, FILE* oldFile) {
@@ -84,36 +92,28 @@ FILE* freopen(const char* path, const char* mode, FILE* oldFile) {
         index++;
     }
 
-    int64 error = Syscall::ReplaceFDPath(*oldFile, path, req);
+    int64 error = Syscall::ReplaceFDPath(oldFile->descID, path, req);
     if(error != 0) {
         errno = error;
+        free(oldFile);
         return nullptr;
     }
+
+    oldFile->eof = false;
+    oldFile->error = false;
     return oldFile;
 }
 
-int fpipe(FILE** read, FILE** write) {
-    int64 descRead, descWrite;
-    Syscall::CreatePipe(&descRead, &descWrite);
-
-    *read = (FILE*)malloc(sizeof(FILE));
-    *write = (FILE*)malloc(sizeof(FILE));
-    **read = descRead;
-    **write = descWrite;
-
-    return 0;
-}
-
 int64 fread(void* buffer, int64 size, int64 count, FILE* file) {
-    return Syscall::Read(*file, buffer, size * count);
+    return Syscall::Read(file->descID, buffer, size * count);
 }
 int64 fwrite(const void* buffer, int64 size, int64 count, FILE* file) {
-    return Syscall::Write(*file, buffer, size * count);
+    return Syscall::Write(file->descID, buffer, size * count);
 }
 
 int64 fputs(const char* str, FILE* file) {
     int64 len = strlen(str);
-    return Syscall::Write(*file, str, len);
+    return Syscall::Write(file->descID, str, len);
 }
 int64 puts(const char* str) {
     return fputs(str, stdout);

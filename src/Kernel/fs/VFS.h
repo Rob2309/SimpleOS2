@@ -157,15 +157,6 @@ namespace VFS {
      **/
     int64 Read(uint64 desc, void* buffer, uint64 bufferSize);
     /**
-     * Reads from the given File.
-     * This function blocks until at least one byte was read, except for when it is impossible to read further (e.g. end of file).
-     * @param pos The position to start reading from
-     * @param buffer The buffer to read the data into, should be a Kernel pointer
-     * @param bufferSize The maximum number of bytes that fit into the given buffer
-     * @returns the number of bytes read.
-     **/
-    int64 Read(uint64 desc, uint64 pos, void* buffer, uint64 bufferSize);
-    /**
      * Writes to the given File and increases the FileDescriptor position by the number of bytes written.
      * This function blocks until at least one byte was written, except for when it is impossible to write further.
      * @param buffer The buffer to write the data from, should be a Kernel pointer
@@ -173,15 +164,6 @@ namespace VFS {
      * @returns the number of bytes written.
      **/
     int64 Write(uint64 desc, const void* buffer, uint64 bufferSize);
-    /**
-     * Writes to the given File.
-     * This function blocks until at least one byte was written, except for when it is impossible to write further.
-     * @param pos The position within the nodes data to start writing to
-     * @param buffer The buffer to write the data from, should be a Kernel pointer
-     * @param bufferSize The number of bytes contained in the given buffer
-     * @returns the number of bytes written.
-     **/
-    int64 Write(uint64 desc, uint64 pos, const void* buffer, uint64 bufferSize);
 
     /**
      * Retrieves information about the node associated with a FileDescriptor

@@ -887,17 +887,6 @@ namespace VFS {
         return res;
     }
 
-    int64 Read(uint64 descID, uint64 pos, void* buffer, uint64 bufferSize) {
-        FileDescriptor* desc = (FileDescriptor*)descID;
-        if(desc == nullptr)
-            return ErrorInvalidFD;
-
-        if(!(desc->permissions & Permissions::Read))
-            return ErrorPermissionDenied;
-
-        return _Read(&desc->node->node, pos, buffer, bufferSize);
-    }
-
     static uint64 _Write(Node* node, uint64 pos, const void* buffer, uint64 bufferSize) {
         uint64 res;
         if(node->type == Node::TYPE_DEVICE_CHAR) {
@@ -934,17 +923,6 @@ namespace VFS {
             desc->pos += res;
 
         return res;
-    }
-
-    int64 Write(uint64 descID, uint64 pos, const void* buffer, uint64 bufferSize) {
-        FileDescriptor* desc = (FileDescriptor*)descID;
-        if(desc == nullptr)
-            return ErrorInvalidFD;
-
-        if(!(desc->permissions & Permissions::Write))
-            return ErrorPermissionDenied;
-
-        return _Write(&desc->node->node, pos, buffer, bufferSize);
     }
 
     int64 Stat(uint64 descID, NodeStats* stats) {
