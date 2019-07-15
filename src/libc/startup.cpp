@@ -22,7 +22,7 @@ extern "C" void __start(ELFProgramInfo* info) {
         thread->selfPtr = thread;
         thread->progInfo = info;
 
-        Syscall::SetFS((uint64)alloc);
+        Syscall::SetFS((uint64)thread);
     }
 
     int res = main();

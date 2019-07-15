@@ -18,7 +18,7 @@ static void RunThread(int (*func)()) {
         thread->selfPtr = thread;
         thread->progInfo = g_ProgInfo;
 
-        Syscall::SetFS((uint64)alloc); 
+        Syscall::SetFS((uint64)thread); 
     }
 
     int res = func();
