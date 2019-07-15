@@ -31,14 +31,14 @@ int fclose(FILE* file) {
     return 0;
 }
 FILE* fopen(const char* path, const char* mode) {
-    uint8 perm = 0;
+    uint64 req = 0;
     switch(mode[0]) {
-    case 'r': perm = 1; break;
-    case 'w': perm = 2; break;
+    case 'r': req = 0x01; break;
+    case 'w': req = 0x302; break;
     default: return nullptr;
     }
 
-    int64 desc = Syscall::Open(path, perm);
+    int64 desc = Syscall::Open(path, req);
     if(desc < 0) {
         errno = desc;
         return nullptr;
@@ -49,10 +49,10 @@ FILE* fopen(const char* path, const char* mode) {
     return res;
 }
 FILE* freopen(const char* path, const char* mode, FILE* oldFile) {
-    uint8 perm = 0;
+    uint64 perm = 0;
     switch(mode[0]) {
-    case 'r': perm = 1; break;
-    case 'w': perm = 2; break;
+    case 'r': perm = 0x01; break;
+    case 'w': perm = 0x302; break;
     default: return nullptr;
     }
 

@@ -108,7 +108,7 @@ namespace SyscallHandler {
                 ProcessInfo* pInfo = tInfo->process;
 
                 uint64 file;
-                int64 error = VFS::Open(pInfo->owner, filePath, VFS::Permissions::Read, file);
+                int64 error = VFS::Open(pInfo->owner, filePath, VFS::OpenMode_Read, file);
                 if(error != VFS::OK)
                     return error;
                 

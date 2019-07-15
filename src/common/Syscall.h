@@ -243,7 +243,7 @@ namespace Syscall
         return ret;
     }
 
-    inline int64 Open(const char* path, uint8 perm) {
+    inline int64 Open(const char* path, uint64 perm) {
         int64 ret;
         __asm__ __volatile__ (
             "syscall"
@@ -265,7 +265,7 @@ namespace Syscall
         return ret;
     }
 
-    inline int64 ReplaceFDPath(uint64 oldDesc, const char* newPath, uint8 perm) {
+    inline int64 ReplaceFDPath(uint64 oldDesc, const char* newPath, uint64 perm) {
         int64 ret;
         register uint64 r8 asm("r8") = perm;
         __asm__ __volatile__ (

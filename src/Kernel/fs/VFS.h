@@ -73,6 +73,7 @@ namespace VFS {
     constexpr int64 ErrorInvalidPath = -5;
     constexpr int64 ErrorInvalidFileSystem = -6;
     constexpr int64 ErrorInvalidDevice = -7;
+    constexpr int64 ErrorFileExists = -8;
 
     const char* ErrorToString(int64 error);
 
@@ -123,11 +124,16 @@ namespace VFS {
      **/
     int64 Unmount(User* user, const char* mountPoint);
 
+    constexpr uint64 OpenMode_Read = 0x1;
+    constexpr uint64 OpenMode_Write = 0x2;
+    constexpr uint64 OpenMode_Create = 0x100;
+    constexpr uint64 OpenMode_Clear = 0x200;
+
     /**
      * Opens the given path
      * Returns the FileDescriptor of the opened path, or 0 on error.
      **/
-    int64 Open(User* user, const char* path, uint8 reqPermissions, uint64& fileDesc);
+    int64 Open(User* user, const char* path, uint64 mode, uint64& fileDesc);
     /**
      * Closes the given FileDescriptor
      **/
