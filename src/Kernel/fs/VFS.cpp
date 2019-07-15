@@ -770,7 +770,7 @@ namespace VFS {
         }
         
         ReleaseNode(mp, parent);
-
+        
         if(openMode & OpenMode_Clear) {
             mp->fs->ClearNodeData(&file->node);
         }

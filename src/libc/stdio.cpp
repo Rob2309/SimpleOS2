@@ -13,6 +13,12 @@ FILE* stdout = &stdoutFD;
 FILE* stdin = &stdinFD;
 FILE* stderr = &stderrFD;
 
+constexpr uint64 OpenMode_Read = 0x1;
+constexpr uint64 OpenMode_Write = 0x2;
+constexpr uint64 OpenMode_Create = 0x100;
+constexpr uint64 OpenMode_Clear = 0x200;
+constexpr uint64 OpenMode_FailIfExist = 0x400;
+
 int remove(const char* path) {
     int64 error = Syscall::Delete(path);
     if(error != 0) {
@@ -33,9 +39,20 @@ int fclose(FILE* file) {
 FILE* fopen(const char* path, const char* mode) {
     uint64 req = 0;
     switch(mode[0]) {
-    case 'r': req = 0x01; break;
-    case 'w': req = 0x302; break;
+    case 'r': req = OpenMode_Read; break;
+    case 'w': req = OpenMode_Create | OpenMode_Clear | OpenMode_Write; break;
     default: return nullptr;
+    }
+    int index = 1;
+    while(mode[index] != '\0') {
+        switch (mode[index])
+        {
+        case '+': req |= OpenMode_Read | OpenMode_Write; break;
+        case 'x': req |= OpenMode_FailIfExist; break;
+        case 'b': break;
+        default: return nullptr; break;
+        }
+        index++;
     }
 
     int64 desc = Syscall::Open(path, req);
@@ -49,14 +66,25 @@ FILE* fopen(const char* path, const char* mode) {
     return res;
 }
 FILE* freopen(const char* path, const char* mode, FILE* oldFile) {
-    uint64 perm = 0;
+    uint64 req = 0;
     switch(mode[0]) {
-    case 'r': perm = 0x01; break;
-    case 'w': perm = 0x302; break;
+    case 'r': req = OpenMode_Read; break;
+    case 'w': req = OpenMode_Create | OpenMode_Clear | OpenMode_Write; break;
     default: return nullptr;
     }
+    int index = 1;
+    while(mode[index] != '\0') {
+        switch (mode[index])
+        {
+        case '+': req |= OpenMode_Read | OpenMode_Write; break;
+        case 'x': req |= OpenMode_FailIfExist; break;
+        case 'b': break;
+        default: return nullptr; break;
+        }
+        index++;
+    }
 
-    int64 error = Syscall::ReplaceFDPath(*oldFile, path, perm);
+    int64 error = Syscall::ReplaceFDPath(*oldFile, path, req);
     if(error != 0) {
         errno = error;
         return nullptr;
