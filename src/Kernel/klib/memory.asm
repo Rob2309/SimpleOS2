@@ -51,13 +51,10 @@ _kmemset_usersafe:
         pop rdx
         pop rsi
         pop rdi
-        mov rax, rsi
 
         mov rcx, rdx
-    .loop:
-        mov BYTE [rdi], al
-        inc rdi
-        loop .loop
+        mov rax, rsi
+        rep stosb
 
         mov rdi, 0
         call ThreadSetPageFaultRip wrt ..plt
