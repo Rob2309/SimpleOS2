@@ -576,7 +576,7 @@ namespace Scheduler {
         pInfo->fileDescLock.Spinlock();
         if(oldPDesc < 0 || oldPDesc >= pInfo->fileDescs.size() || newPDesc < 0 || newPDesc >= pInfo->fileDescs.size()) {
             pInfo->fileDescLock.Unlock();
-            return VFS::ErrorInvalidFD;
+            return ErrorInvalidFD;
         }
 
         uint64 oldSysDesc = pInfo->fileDescs[oldPDesc]->desc;
@@ -584,7 +584,7 @@ namespace Scheduler {
 
         if(newSysDesc == 0) {
             pInfo->fileDescLock.Unlock();
-            return VFS::ErrorInvalidFD;
+            return ErrorInvalidFD;
         }
         if(oldSysDesc != 0) {
             VFS::Close(oldSysDesc);
@@ -593,7 +593,7 @@ namespace Scheduler {
         pInfo->fileDescs[oldPDesc]->desc = newSysDesc;
         pInfo->fileDescLock.Unlock();
         VFS::AddRef(newSysDesc);
-        return VFS::OK;
+        return OK;
     }
     int64 ProcessReplaceFileDescriptorValue(int64 oldPDesc, uint64 newSysDesc) {
         uint64 coreID = SMP::GetLogicalCoreID();
@@ -602,13 +602,13 @@ namespace Scheduler {
         pInfo->fileDescLock.Spinlock();
         if(oldPDesc < 0 || oldPDesc >= pInfo->fileDescs.size()) {
             pInfo->fileDescLock.Unlock();
-            return VFS::ErrorInvalidFD;
+            return ErrorInvalidFD;
         }
 
         uint64 oldSysDesc = pInfo->fileDescs[oldPDesc]->desc;
         if(newSysDesc == 0) {
             pInfo->fileDescLock.Unlock();
-            return VFS::ErrorInvalidFD;
+            return ErrorInvalidFD;
         }
         if(oldSysDesc != 0) {
             VFS::Close(oldSysDesc);
@@ -617,7 +617,7 @@ namespace Scheduler {
         pInfo->fileDescs[oldPDesc]->desc = newSysDesc;
         pInfo->fileDescLock.Unlock();
         VFS::AddRef(newSysDesc);
-        return VFS::OK;
+        return OK;
     }
     int64 ProcessCloseFileDescriptor(int64 descID) {
         uint64 coreID = SMP::GetLogicalCoreID();
@@ -627,7 +627,7 @@ namespace Scheduler {
         pInfo->fileDescLock.Spinlock();
         if(descID < 0 || descID >= pInfo->fileDescs.size()) {
             pInfo->fileDescLock.Unlock();
-            return VFS::ErrorInvalidFD;
+            return ErrorInvalidFD;
         }
 
         ProcessFileDescriptor* desc = pInfo->fileDescs[descID];
@@ -636,7 +636,7 @@ namespace Scheduler {
         pInfo->fileDescLock.Unlock();
         
         if(sysDesc == 0)
-            return VFS::ErrorInvalidFD;
+            return ErrorInvalidFD;
         return VFS::Close(sysDesc);
     }
     int64 ProcessGetSystemFileDescriptor(int64 pDesc, uint64& sysDesc) {
@@ -647,7 +647,7 @@ namespace Scheduler {
         pInfo->fileDescLock.Spinlock();
         if(pDesc < 0 || pDesc >= pInfo->fileDescs.size()) {
             pInfo->fileDescLock.Unlock();
-            return VFS::ErrorInvalidFD;
+            return ErrorInvalidFD;
         }
 
         ProcessFileDescriptor* desc = pInfo->fileDescs[pDesc];
@@ -656,9 +656,9 @@ namespace Scheduler {
 
         sysDesc = res;
         if(res == 0)
-            return VFS::ErrorInvalidFD;
+            return ErrorInvalidFD;
         
-        return VFS::OK;
+        return OK;
     }
 
     void ThreadSetFS(uint64 val) {

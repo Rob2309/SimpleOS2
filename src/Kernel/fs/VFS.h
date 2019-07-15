@@ -6,6 +6,7 @@
 #include "locks/QueueLock.h"
 #include "FileSystem.h"
 #include "user/User.h"
+#include "errno.h"
 
 namespace VFS {
 
@@ -64,16 +65,6 @@ namespace VFS {
      * Initializes the VFS and mounts rootFS to /
      **/
     void Init(FileSystem* rootFS);
-    
-    constexpr int64 OK = 0;
-    constexpr int64 ErrorFileNotFound = -1;
-    constexpr int64 ErrorPermissionDenied = -2;
-    constexpr int64 ErrorInvalidFD = -3;
-    constexpr int64 ErrorInvalidBuffer = -4;
-    constexpr int64 ErrorInvalidPath = -5;
-    constexpr int64 ErrorInvalidFileSystem = -6;
-    constexpr int64 ErrorInvalidDevice = -7;
-    constexpr int64 ErrorFileExists = -8;
 
     const char* ErrorToString(int64 error);
 

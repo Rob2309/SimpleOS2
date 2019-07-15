@@ -109,7 +109,7 @@ namespace SyscallHandler {
 
                 uint64 file;
                 int64 error = VFS::Open(pInfo->owner, filePath, VFS::OpenMode_Read, file);
-                if(error != VFS::OK)
+                if(error != OK)
                     return error;
                 
                 VFS::NodeStats stats;
@@ -212,7 +212,7 @@ namespace SyscallHandler {
 
                 uint64 sysDesc;
                 int64 error = VFS::Open(pInfo->owner, (const char*)arg1, arg2, sysDesc);
-                if(error != VFS::OK) {
+                if(error != OK) {
                     res = error;
                     break;
                 }
@@ -226,13 +226,13 @@ namespace SyscallHandler {
 
                 uint64 sysDesc;
                 int64 error = VFS::Open(pInfo->owner, (const char*)arg2, arg3, sysDesc);
-                if(error != VFS::OK) {
+                if(error != OK) {
                     res = error;
                     break;
                 }
                 
                 res = Scheduler::ProcessReplaceFileDescriptorValue(arg1, sysDesc);
-                if(res != VFS::OK) {
+                if(res != OK) {
                     VFS::Close(sysDesc);
                 }
             } break;
@@ -244,13 +244,13 @@ namespace SyscallHandler {
 
                 uint64 sysDesc;
                 int64 error = Scheduler::ProcessGetSystemFileDescriptor(arg1, sysDesc);
-                if(error != VFS::OK) {
+                if(error != OK) {
                     res = error;
                     break;
                 }
 
                 res = VFS::Read(sysDesc, buffer, arg3);
-                if(res == VFS::ErrorInvalidBuffer)
+                if(res == ErrorInvalidBuffer)
                     Scheduler::ThreadKillProcess("InvalidUserPointer");
             } break;
         case Syscall::FunctionWrite: {
@@ -260,13 +260,13 @@ namespace SyscallHandler {
 
                 uint64 sysDesc;
                 int64 error = Scheduler::ProcessGetSystemFileDescriptor(arg1, sysDesc);
-                if(error != VFS::OK) {
+                if(error != OK) {
                     res = error;
                     break;
                 }
 
                 res = VFS::Write(sysDesc, buffer, arg3);
-                if(res == VFS::ErrorInvalidBuffer)
+                if(res == ErrorInvalidBuffer)
                     Scheduler::ThreadKillProcess("InvalidUserPointer");
             } break;
         case Syscall::FunctionMount: { 

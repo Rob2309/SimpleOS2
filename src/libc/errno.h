@@ -13,5 +13,4 @@ extern __thread int errno;
 #define EINVALIDPATH -8
 #define EINVALIDFS -9
 #define EINVALIDDEV -10
-
-#define ENOTIMPLEMENTEDYET -100
+#define EFILEEXISTS -11
