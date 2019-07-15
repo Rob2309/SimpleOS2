@@ -53,6 +53,12 @@ namespace VFS {
         virtual uint64 WriteNodeData(Node* node, uint64 pos, const void* buffer, uint64 bufferSize) = 0;
 
         /**
+         * Clears the node to an empty state.
+         * Will only be called for regular file nodes.
+         **/
+        virtual void ClearNodeData(Node* node) = 0;
+
+        /**
          * Reads the Directory entries from the given node.
          * Will only be called if the directory data is not in the VFS cache.
          * Node will be locked when given to this function.

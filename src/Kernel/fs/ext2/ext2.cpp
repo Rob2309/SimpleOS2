@@ -116,6 +116,7 @@ namespace Ext2 {
     uint64 Ext2Driver::WriteNodeData(Node* node, uint64 pos, const void* buffer, uint64 bufferSize) {
         return 0;
     }
+    void Ext2Driver::ClearNodeData(VFS::Node* node) { }
 
     Directory* Ext2Driver::ReadDirEntries(Node* node) {
         INode* inode = (INode*)node->fsData;

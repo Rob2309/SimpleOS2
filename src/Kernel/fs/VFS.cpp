@@ -763,12 +763,16 @@ namespace VFS {
                 ReleaseNode(mp, parent);
                 return ErrorFileNotFound;
             }
+        } else if(openMode & OpenMode_FailIfExist) {
+            ReleaseNode(mp, parent);
+            ReleaseNode(mp, file);
+            return ErrorFileExists;
         }
         
         ReleaseNode(mp, parent);
 
         if(openMode & OpenMode_Clear) {
-            // TODO: implement
+            mp->fs->ClearNodeData(&file->node);
         }
 
         ReleaseNode(mp, file, false);

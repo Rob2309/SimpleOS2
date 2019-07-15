@@ -119,6 +119,7 @@ namespace VFS {
     constexpr uint64 OpenMode_Write = 0x2;
     constexpr uint64 OpenMode_Create = 0x100;
     constexpr uint64 OpenMode_Clear = 0x200;
+    constexpr uint64 OpenMode_FailIfExist = 0x400;
 
     /**
      * Opens the given path

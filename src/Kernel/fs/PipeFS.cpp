@@ -179,6 +179,7 @@ namespace VFS {
 
         return bufferSize;
     }
+    void PipeFS::ClearNodeData(Node* node) { }
 
     Directory* PipeFS::ReadDirEntries(Node* node) { return nullptr; }
     void PipeFS::WriteDirEntries(Node* node) { }

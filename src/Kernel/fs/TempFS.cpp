@@ -113,6 +113,14 @@ uint64 TempFS::WriteNodeData(Node* node, uint64 pos, const void* buffer, uint64 
     return bufferSize;
 }
 
+void TempFS::ClearNodeData(VFS::Node* node) {
+    TestNode* refNode = (TestNode*)(node->id);
+
+    delete[] refNode->fileData;
+    refNode->fileSize = 0;
+    refNode->fileData = nullptr;
+}
+
 Directory* TempFS::ReadDirEntries(Node* node) {
     TestNode* refNode = (TestNode*)(node->id);
     return refNode->dir;
