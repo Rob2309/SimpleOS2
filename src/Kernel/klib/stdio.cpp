@@ -6,6 +6,8 @@
 static uint32 g_TerminalColor = 0xFFFFFF;
 static StickyLock g_PrintLock;
 
+extern Terminal::TerminalInfo g_TerminalInfo;
+
 static char* IntToStringBase(int base, char* buffer, char* symbols, int64 num) {
     if(num == 0) {
         *buffer = '0';
@@ -78,9 +80,9 @@ static void PrintString(const char* str, uint32 color) {
     int i = 0;
     while(str[i] != '\0') {
         if(str[i] == '\n')
-            Terminal::NewLine();
+            Terminal::NewLine(&g_TerminalInfo);
         else
-            Terminal::PutChar(str[i], color);
+            Terminal::PutChar(&g_TerminalInfo, str[i], color);
         i++;    
     }
 }
@@ -124,10 +126,10 @@ void kprintf(const char* format, ...)
                 color = (r << 16) | (g << 8) | b;
             }
         } else if(c == '\n') {
-            Terminal::NewLine();
+            Terminal::NewLine(&g_TerminalInfo);
             i++;
         } else {
-            Terminal::PutChar(c, color);
+            Terminal::PutChar(&g_TerminalInfo, c, color);
             i++;
         }
     }

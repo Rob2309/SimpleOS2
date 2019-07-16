@@ -771,7 +771,7 @@ namespace VFS {
         
         ReleaseNode(mp, parent);
         
-        if(openMode & OpenMode_Clear) {
+        if((openMode & OpenMode_Clear) && file->node.type == Node::TYPE_FILE) {
             mp->fs->ClearNodeData(&file->node);
         }
 

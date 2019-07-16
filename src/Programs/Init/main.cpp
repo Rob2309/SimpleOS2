@@ -2,16 +2,20 @@
 #include "simpleos_process.h"
 #include "simpleos_raw.h"
 
+#include "stdlib.h"
+
 #include "stdio.h"
 
-#define CHECK_ERROR(func, msg) \
-    if(func < 0) { print(msg "\n"); thread_exit(1); }
+#define CHECK_ERROR(cond, msg) \
+    if(!(cond)) { print(msg "\n"); thread_exit(1); }
 
-extern "C" void main()
+int main()
 {
-    CHECK_ERROR(create_folder("/dev"), "Failed to create /dev folder");
-    CHECK_ERROR(create_dev("/dev/zero", 0, 0), "Failed to create /dev/zero");
-    CHECK_ERROR(create_dev("/dev/ram0", 1, 0), "Failed to create /dev/ram0");
+    FILE* res = freopen("/dev/tty0", "w", stdout);
+    if(res == nullptr)
+        exit(123);
+
+    puts("Hello World from Init process\n");
 
     int64 stdinRead, stdinWrite, stdoutRead, stdoutWrite;
     pipe(&stdinRead, &stdinWrite);
@@ -33,4 +37,6 @@ extern "C" void main()
         exec("/boot/Test2.elf");
         thread_exit(1);
     }
+
+    return 0;
 }

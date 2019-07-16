@@ -2,6 +2,7 @@
 
 #include "devices/RamDeviceDriver.h"
 #include "devices/PseudoDeviceDriver.h"
+#include "devices/VConsoleDriver.h"
 
 #include "fs/ext2/ext2.h"
 
@@ -12,6 +13,7 @@ typedef void (*InitFunc)();
 static InitFunc config_DeviceDriverInitFuncs[] = {
     &PseudoDeviceDriver::Init,
     &RamDeviceDriver::Init,
+    &VConsoleDriver::Init,
 };
 
 static InitFunc config_FSDriverInitFuncs[] = {
@@ -24,6 +26,7 @@ static InitFunc config_ExecInitFuncs[] = {
 };
 
 constexpr uint64 config_RamDeviceDriverID = 1;
+constexpr uint64 config_VConDeviceDriverID = 2;
 
 constexpr bool config_BootFS_MountToRoot = false;
 constexpr uint64 config_BootFS_DriverID = 1;

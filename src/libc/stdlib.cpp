@@ -271,9 +271,11 @@ static void invoke_quickexit() {
 #define EXIT_FAILURE 1
 #define EXIT_SUCCESS 0
 
+extern void stdio_cleanup();
+
 void exit(int status) {
     invoke_atexit();
-    // TODO: close streams
+    stdio_cleanup();
     thread_exit(status);
 }
 void quick_exit(int status) {

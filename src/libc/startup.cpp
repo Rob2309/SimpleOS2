@@ -25,5 +25,5 @@ extern "C" void __start(ELFProgramInfo* info) {
     }
 
     int res = main();
-    thread_exit(res);
+    exit(res);
 };

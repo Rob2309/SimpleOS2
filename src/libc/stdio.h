@@ -11,6 +11,7 @@ extern FILE* stderr;
 extern FILE* stdin;
 
 #define EOF -1
+#define BUFSIZ 4096
 
 int remove(const char* path);
 

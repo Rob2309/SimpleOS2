@@ -6,34 +6,21 @@
 namespace Terminal {
     constexpr int g_Margin = 25;
 
-    static uint32* g_VideoBuffer;
-
-    static volatile int g_CursorX, g_CursorY;
-
-    static int g_ScreenCharsPerRow;
-    static int g_ScreenCharsPerCol;
-
-    static int g_ScreenWidth;
-    static int g_ScreenScanline;
-    static int g_ScreenHeight;
-
-    static bool g_InvertColors;
-
-    void Init(volatile uint32* videoBuffer, int width, int height, int scanline, bool invertColors)
+    void InitTerminalInfo(TerminalInfo* tInfo, volatile uint32* videoBuffer, int width, int height, int scanline, bool invertColors)
     {
-        g_CursorX = 0;
-        g_CursorY = 0;
+        tInfo->cursorX = 0;
+        tInfo->cursorY = 0;
 
-        g_ScreenCharsPerRow = (width - g_Margin * 2) / Font::g_CharWidth;
-        g_ScreenCharsPerCol = (height - g_Margin * 2) / Font::g_CharHeight;
+        tInfo->screenCharsPerRow = (width - g_Margin * 2) / Font::g_CharWidth;
+        tInfo->screenCharsPerCol = (height - g_Margin * 2) / Font::g_CharHeight;
 
-        g_ScreenWidth = width;
-        g_ScreenHeight = height;
-        g_ScreenScanline = scanline;
+        tInfo->screenWidth = width;
+        tInfo->screenHeight = height;
+        tInfo->screenScanlineWidth = scanline;
 
-        g_VideoBuffer = (uint32*)videoBuffer;
+        tInfo->vBuffer = (uint32*)videoBuffer;
 
-        g_InvertColors = invertColors;
+        tInfo->invertColors = invertColors;
     }
 
     static void Blt(uint32* dest, uint32* src, int srcX, int srcY, int dstX, int dstY, int width, int height, int srcScan, int dstScan)
@@ -52,60 +39,60 @@ namespace Terminal {
         }
     }
 
-    static void RenderChar(char c, int xPos, int yPos, uint32 color) {
+    static void RenderChar(TerminalInfo* tInfo, char c, int xPos, int yPos, uint32 color) {
 		uint8* charData = &Font::g_FontData[(uint64)c * Font::g_CharHeight];
 
 		for(int y = 0; y < Font::g_CharHeight; y++) {
 			for(int x = 0; x < Font::g_CharWidth; x++) {
 				if(charData[y] & (1 << (Font::g_CharWidth - 1 - x)))
-					g_VideoBuffer[(xPos * Font::g_CharWidth + g_Margin + x) + (yPos * Font::g_CharHeight + g_Margin + y) * g_ScreenScanline] = color;
+					tInfo->vBuffer[(xPos * Font::g_CharWidth + g_Margin + x) + (yPos * Font::g_CharHeight + g_Margin + y) * tInfo->screenScanlineWidth] = color;
 				else
-					g_VideoBuffer[(xPos * Font::g_CharWidth + g_Margin + x) + (yPos * Font::g_CharHeight + g_Margin + y) * g_ScreenScanline] = 0;
+					tInfo->vBuffer[(xPos * Font::g_CharWidth + g_Margin + x) + (yPos * Font::g_CharHeight + g_Margin + y) * tInfo->screenScanlineWidth] = 0;
 			}
 		}
 	}
 
-    static void AdvanceCursor()
+    static void AdvanceCursor(TerminalInfo* tInfo)
     {
-        g_CursorX++;
-        if(g_CursorX == g_ScreenCharsPerRow) {
-            g_CursorX = 0;
-            g_CursorY++;
+        tInfo->cursorX++;
+        if(tInfo->cursorX == tInfo->screenCharsPerRow) {
+            tInfo->cursorX = 0;
+            tInfo->cursorY++;
 
-            if(g_CursorY == g_ScreenCharsPerCol) {
-                g_CursorY = g_ScreenCharsPerCol - 1;
+            if(tInfo->cursorY == tInfo->screenCharsPerCol) {
+                tInfo->cursorY = tInfo->screenCharsPerCol - 1;
 
-                Blt(g_VideoBuffer, g_VideoBuffer, g_Margin, g_Margin + Font::g_CharHeight, g_Margin, g_Margin, g_ScreenCharsPerRow * Font::g_CharWidth, (g_ScreenCharsPerCol - 1) * Font::g_CharHeight, g_ScreenScanline, g_ScreenScanline);
-                Fill(g_VideoBuffer, 0, g_Margin, g_Margin + (g_ScreenCharsPerCol - 1) * Font::g_CharHeight, g_ScreenCharsPerRow * Font::g_CharWidth, Font::g_CharHeight, g_ScreenScanline);
+                Blt(tInfo->vBuffer, tInfo->vBuffer, g_Margin, g_Margin + Font::g_CharHeight, g_Margin, g_Margin, tInfo->screenCharsPerRow * Font::g_CharWidth, (tInfo->screenCharsPerCol - 1) * Font::g_CharHeight, tInfo->screenScanlineWidth, tInfo->screenScanlineWidth);
+                Fill(tInfo->vBuffer, 0, g_Margin, g_Margin + (tInfo->screenCharsPerCol - 1) * Font::g_CharHeight, tInfo->screenCharsPerRow * Font::g_CharWidth, Font::g_CharHeight, tInfo->screenScanlineWidth);
             }
         }
     }
 
-    void SetCursor(int x, int y)
+    void SetCursor(TerminalInfo* tInfo, int x, int y)
     {
-        g_CursorX = x;
-        g_CursorY = y;
+        tInfo->cursorX = x;
+        tInfo->cursorY = y;
     }
-    void PutChar(char c, uint32 color)
+    void PutChar(TerminalInfo* tInfo, char c, uint32 color)
     {
-        if(g_InvertColors) {
+        if(tInfo->invertColors) {
             uint8 r = (color >> 16) & 0xFF;
             uint8 g = (color >> 8) & 0xFF;
             uint8 b = (color) & 0xFF;
             color = (b << 16) | (g << 8) | r;
         }
 
-        RenderChar(c, g_CursorX, g_CursorY, color);
-        AdvanceCursor();
+        RenderChar(tInfo, c, tInfo->cursorX, tInfo->cursorY, color);
+        AdvanceCursor(tInfo);
     }
-    void NewLine()
+    void NewLine(TerminalInfo* tInfo)
     {
-        g_CursorX = g_ScreenCharsPerRow - 1;
-        AdvanceCursor();
+        tInfo->cursorX = tInfo->screenCharsPerRow - 1;
+        AdvanceCursor(tInfo);
     }
 
-    void Clear()
+    void Clear(TerminalInfo* tInfo)
     {
-        Fill(g_VideoBuffer, 0, g_Margin, g_Margin, g_ScreenCharsPerRow * Font::g_CharWidth, g_ScreenCharsPerCol * Font::g_CharHeight, g_ScreenScanline);
+        Fill(tInfo->vBuffer, 0, g_Margin, g_Margin, tInfo->screenCharsPerRow * Font::g_CharWidth, tInfo->screenCharsPerCol * Font::g_CharHeight, tInfo->screenScanlineWidth);
     }
 }
