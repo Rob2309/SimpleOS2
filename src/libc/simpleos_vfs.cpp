@@ -40,6 +40,9 @@ int64 reopenfd(int64 fd, const char* path, uint64 mode) {
 int64 copyfd(int64 destFD, int64 srcFD) {
     return syscall_invoke(syscall_copyfd, destFD, srcFD);
 }
+int64 seekfd(int64 fd, uint64 pos) {
+    return syscall_invoke(syscall_seek, fd, pos);
+}
 
 int64 read(int64 fd, void* buffer, uint64 bufferSize) {
     return syscall_invoke(syscall_read, fd, (uint64)buffer, bufferSize);

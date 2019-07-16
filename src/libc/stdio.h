@@ -28,6 +28,20 @@ void setbuf(FILE* stream, char* buffer);
 int64 fread(void* buffer, int64 size, int64 count, FILE* file);
 int64 fwrite(const void* buffer, int64 size, int64 count, FILE* file);
 
+int64 fflush(FILE* file);
+
+#define SEEK_SET 0
+#define SEEK_CUR 1
+#define SEEK_END 2
+
+int64 ftell(FILE* file);
+int64 fseek(FILE* file, int64 offs, int origin);
+
+void clearerr(FILE* stream);
+
+int feof(FILE* stream);
+int ferror(FILE* stream);
+
 int64 fputs(const char* str, FILE* file);
 int64 puts(const char* str);
 

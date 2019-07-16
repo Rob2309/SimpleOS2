@@ -2,6 +2,7 @@
 
 #include "simpleos_alloc.h"
 #include "simpleos_process.h"
+#include "signal.h"
 
 class FreeList
 {
@@ -185,7 +186,122 @@ void free(void* block)
 
     g_FreeList.MarkFree(b, size);
 }
+void* calloc(uint64 num, uint64 size) {
+    if(num == 0 || size == 0)
+        return nullptr;
+
+    char* block = (char*)malloc(num * size);
+    if(block == nullptr)
+        return nullptr;
+    for(uint64 i = 0; i < num * size; i++)
+        block[i] = 0;
+    return block;
+}
+void* realloc(void* ptr, uint64 size) {
+    if(ptr == nullptr)
+        return malloc(size);
+
+    uint64 oldSize = *((uint64*)ptr - 2);
+    if(oldSize == size)
+        return ptr;
+
+    char* newBlock = (char*)malloc(size);
+
+    if(size > oldSize) {
+        for(uint64 i = 0; i < oldSize; i++)
+            newBlock[i] = ((char*)ptr)[i];
+    } else {
+        for(uint64 i = 0; i < size; i++)
+            newBlock[i] = ((char*)ptr)[i];
+    }
+
+    free(ptr);
+    return newBlock;
+}
 
 void abort() {
+    raise(SIGABRT);
     thread_exit(1);
+}
+
+
+
+typedef void (*AtexitFunc)();
+static AtexitFunc g_ExitFuncs[32];
+static int g_ExitFuncsIndex = 0;
+
+static AtexitFunc g_QuickExitFuncs[32];
+static int g_QuickExitFuncsIndex = 0;
+
+int atexit(void (*func)()) {
+    if(g_ExitFuncsIndex >= 32)
+        return -1;
+
+    g_ExitFuncs[g_ExitFuncsIndex] = func;
+    g_ExitFuncsIndex++;
+    return 0;
+}
+int at_quick_exit(void (*func)()) {
+    if(g_QuickExitFuncsIndex >= 32)
+        return -1;
+
+    g_QuickExitFuncs[g_QuickExitFuncsIndex] = func;
+    g_QuickExitFuncsIndex++;
+    return 0;
+}
+
+static void invoke_atexit() {
+    if(g_ExitFuncsIndex == 0)
+        return;
+
+    for(int i = g_ExitFuncsIndex - 1; i >= 0; i--) {
+        g_ExitFuncs[i]();
+    }
+}
+
+static void invoke_quickexit() {
+    if(g_QuickExitFuncsIndex == 0)
+        return;
+
+    for(int i = g_QuickExitFuncsIndex - 1; i >= 0; i--) {
+        g_QuickExitFuncs[i]();
+    }
+}
+
+#define EXIT_FAILURE 1
+#define EXIT_SUCCESS 0
+
+void exit(int status) {
+    invoke_atexit();
+    // TODO: close streams
+    thread_exit(status);
+}
+void quick_exit(int status) {
+    invoke_quickexit();
+    thread_exit(status);
+}
+void _Exit(int status) {
+    thread_exit(status);
+}
+
+char* getenv(const char* name) {
+    return nullptr;
+}
+
+int system(const char* command) {
+    if(command == nullptr)
+        return 0;
+    
+    // TODO: implement
+    return 0;
+}
+
+
+
+
+int abs(int n) {
+    if(n < 0)
+        return -n;
+    else
+        return n;
 }

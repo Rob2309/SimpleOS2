@@ -24,6 +24,7 @@ int64 close(int64 fd);
 
 int64 reopenfd(int64 fd, const char* path, uint64 mode);
 int64 copyfd(int64 destFD, int64 srcFD);
+int64 seekfd(int64 fd, uint64 pos);
 
 int64 read(int64 fd, void* buffer, uint64 bufferSize);
 int64 write(int64 fd, const void* buffer, uint64 bufferSize);

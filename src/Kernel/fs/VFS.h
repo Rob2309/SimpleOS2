@@ -166,6 +166,8 @@ namespace VFS {
      **/
     int64 Write(uint64 desc, const void* buffer, uint64 bufferSize);
 
+    int64 Seek(uint64 desc, uint64 offs);
+
     /**
      * Retrieves information about the node associated with a FileDescriptor
      * @param desc The FileDescriptor to retrieve information from

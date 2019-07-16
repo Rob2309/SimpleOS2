@@ -4,6 +4,7 @@
 #include "string.h"
 #include "stdlib.h"
 #include "errno.h"
+#include "string.h"
 
 enum BufferMode {
     BUFFERMODE_NONE,
@@ -21,6 +22,8 @@ struct FILE {
     int64 bufferFillSize;
     int64 bufferPos;
     char* buffer;
+
+    int64 ftellpos;
 };
 
 constexpr uint64 DefaultBufferSize = 4096;
@@ -43,6 +46,7 @@ static FILE* CreateFullyBuffered(uint64 bufferSize) {
     res->bufferPos = 0;
     res->buffer = (char*)malloc(bufferSize);
     res->bufferMode = BUFFERMODE_FULL;
+    res->ftellpos = 0;
     return res;
 }
 
@@ -56,6 +60,7 @@ static FILE* CreateUnbuffered() {
     res->bufferPos = 0;
     res->buffer = nullptr;
     res->bufferMode = BUFFERMODE_NONE;
+    res->ftellpos = 0;
     return res;
 }
 
@@ -142,6 +147,7 @@ FILE* freopen(const char* path, const char* mode, FILE* oldFile) {
     oldFile->bufferFillSize = 0;
     oldFile->eof = false;
     oldFile->error = false;
+    oldFile->ftellpos = 0;
     return oldFile;
 }
 
@@ -153,6 +159,7 @@ int setvbuf(FILE* stream, char* buffer, int mode, uint64 size) {
         stream->bufferFillSize = 0;
         stream->bufferPos = 0;
         stream->bufferMode = BUFFERMODE_NONE;
+        stream->ftellpos = 0;
         return 0;
     } else {
         free(stream->buffer);
@@ -165,6 +172,7 @@ int setvbuf(FILE* stream, char* buffer, int mode, uint64 size) {
         stream->bufferPos = 0;
         stream->bufferFillSize = 0;
         stream->bufferMode = (BufferMode)mode;
+        stream->ftellpos = 0;
 
         return 0;
     }
@@ -195,6 +203,7 @@ static bool fread_fullbuffer_ensurebuffer(FILE* file) {
             file->bufferFillSize = 0;
             return false;
         } else if(count < 0) {
+            errno = count;
             file->error = true;
             file->bufferFillSize = 0;
             return false;
@@ -212,12 +221,12 @@ static int64 fread_fullbuffer(void* buffer, int64 size, FILE* file) {
         if(!fread_fullbuffer_ensurebuffer(file))
             return numRead;
 
-        int64 rem = file->bufferFillSize;
+        int64 rem = file->bufferFillSize - file->bufferPos;
         if(rem > size - numRead)
             rem = size - numRead;
 
         for(int64 i = 0; i < rem; i++)
-            ((char*)buffer)[numRead + i] = file->buffer[i];
+            ((char*)buffer)[numRead + i] = file->buffer[file->bufferPos + i];
 
         file->bufferPos += rem;
         numRead += rem;
@@ -227,34 +236,40 @@ static int64 fread_fullbuffer(void* buffer, int64 size, FILE* file) {
 }
 
 static int64 fread_nobuffer(void* buffer, int64 size, FILE* file) {
-    int64 count = read(file->descID, buffer, size);
-    if(count < 0) {
-        errno = count;
-        file->error = true;
-        return 0;
-    } else if(count < size) {
-        file->eof = true;
-        return count;
-    } else {
-        return count;
+    int64 numRead = 0;
+    while(numRead < size) {
+        int64 count = read(file->descID, (char*)buffer + numRead, size - numRead);
+        if(count < 0) {
+            errno = count;
+            file->error = true;
+            return numRead;
+        } else if(count == 0) {
+            file->eof = true;
+            return numRead;
+        }
+
+        numRead += count;
     }
+    return numRead;
 }
 
 int64 fread(void* buffer, int64 size, int64 count, FILE* file) {
     if(size == 0 || count == 0)
         return 0;
 
+    int64 res = 0;
     if(file->bufferMode == BUFFERMODE_FULL) {
-        return fread_fullbuffer(buffer, size * count, file);
+        res = fread_fullbuffer(buffer, size * count, file);
     } else {
-        return fread_nobuffer(buffer, size * count, file);
+        res = fread_nobuffer(buffer, size * count, file);
     }
+
+    if(res > 0)
+        file->ftellpos += res;
+    return res;
 }
 
 static bool flush_buffer(FILE* file) {
-    if(file->bufferMode == BUFFERMODE_NONE)
-        return true;
-
     while(file->bufferPos < file->bufferFillSize) {
         int64 count = write(file->descID, file->buffer + file->bufferPos, file->bufferFillSize - file->bufferPos);
         if(count <= 0) {
@@ -282,37 +297,110 @@ static bool fwrite_fullbuffer_ensurebuffer(FILE* file) {
 static int64 fwrite_fullbuffer(const void* buffer, int64 size, FILE* file) {
     int64 numWritten = 0;
     while(numWritten < size) {
-        fwrite_fullbuffer_ensurebuffer(file);
+        if(!fwrite_fullbuffer_ensurebuffer(file))
+            return numWritten;
 
-        int64 rem = file->bufferCapacity - file->bufferPos;
+        uint64 cap = file->bufferCapacity - file->bufferFillSize;
+        if(cap > size - numWritten)
+            cap = size - numWritten;
+
+        memcpy((char*)file->buffer + file->bufferFillSize, (const char*)buffer + numWritten, cap);
+        numWritten += cap;
     }
+    return numWritten;
 }
 
 static int64 fwrite_nobuffer(const void* buffer, int64 size, FILE* file) {
-    int64 count = write(file->descID, buffer, size);
-    if(count < 0) {
-        errno = count;
-        file->error = true;
-        return 0;
-    } else if(count < size) {
-        file->eof = true;
-        return count;
-    } else {
-        return count;
+    int64 numWritten = 0;
+    while(numWritten < size) {
+        int64 count = write(file->descID, (const char*)buffer + numWritten, size - numWritten);
+        if(count < 0) {
+            errno = count;
+            file->error = true;
+            return numWritten;
+        }
+
+        numWritten += count;
     }
+    return numWritten;
 }
 
 int64 fwrite(const void* buffer, int64 size, int64 count, FILE* file) {
+    int64 res = 0;
+
     if(file->bufferMode == BUFFERMODE_FULL) {
-        return fwrite_fullbuffer(buffer, size * count, file);
+        res = fwrite_fullbuffer(buffer, size * count, file);
     } else {
-        return fwrite_nobuffer(buffer, size * count, file);
+        res = fwrite_nobuffer(buffer, size * count, file);
     }
+
+    if(res > 0)
+        file->ftellpos += res;
+
+    return res;
+}
+
+static int64 fflush_all() {
+    errno = 100;
+    return EOF;
+}
+
+int64 fflush(FILE* file) {
+    if(file == nullptr)
+        return fflush_all();
+
+    if(file->bufferMode != BUFFERMODE_FULL)
+        return 0;
+
+    if(!flush_buffer(file))
+        return EOF;
+    return 0;
+}
+
+int64 ftell(FILE* file) {
+    return file->ftellpos;
+}
+int64 fseek(FILE* file, int64 offs, int origin) {
+    if(fflush(file) == EOF)
+        return EOF;
+
+    file->bufferFillSize = 0;
+    file->bufferPos = 0;
+    
+    uint64 newPos = 0;
+    if(origin == SEEK_SET)
+        newPos = offs;
+    else if(origin == SEEK_CUR)
+        newPos = file->ftellpos + offs;
+    else 
+        return EOF;
+    
+    int64 error = seekfd(file->descID, newPos);
+    if(error < 0) {
+        errno = error;
+        return EOF;
+    }
+
+    file->ftellpos = newPos;
+    file->eof = false;
+    return 0;
+}
+
+void clearerr(FILE* stream) {
+    stream->eof = false;
+    stream->error = false;
+}
+
+int feof(FILE* stream) {
+    return stream->eof;
+}
+int ferror(FILE* stream) {
+    return stream->error;
 }
 
 int64 fputs(const char* str, FILE* file) {
     int64 len = strlen(str);
-    return write(file->descID, str, len);
+    return fwrite(str, 1, len, file);
 }
 int64 puts(const char* str) {
     return fputs(str, stdout);
@@ -331,6 +419,7 @@ void perror(const char* str) {
     case EINVALIDFS: err = "Invalid filesystem ID\n"; break;
     case EINVALIDDEV: err = "Invalid device\n"; break;
     case EFILEEXISTS: err = "File exists\n"; break;
+    case ESEEKOOB: err = "Seek offset out of bounds\n"; break;
     default: err = "unknown error\n"; break;
     }
 

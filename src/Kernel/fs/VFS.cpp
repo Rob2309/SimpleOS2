@@ -925,6 +925,18 @@ namespace VFS {
         return res;
     }
 
+    int64 Seek(uint64 descID, uint64 offs) {
+        FileDescriptor* desc = (FileDescriptor*)descID;
+        if(desc == nullptr)
+            return ErrorInvalidFD;
+
+        if(offs >= desc->node->node.fileSize)
+            return ErrorSeekOffsetOOB;
+
+        desc->pos = offs;
+        return OK;
+    }
+
     int64 Stat(uint64 descID, NodeStats* stats) {
         FileDescriptor* desc = (FileDescriptor*)descID;
         if(desc == nullptr)

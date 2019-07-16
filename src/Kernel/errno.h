@@ -11,3 +11,4 @@ constexpr int64 ErrorInvalidPath = -8;
 constexpr int64 ErrorInvalidFileSystem = -9;
 constexpr int64 ErrorInvalidDevice = -10;
 constexpr int64 ErrorFileExists = -11;
+constexpr int64 ErrorSeekOffsetOOB = -12;

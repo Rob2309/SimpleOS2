@@ -291,6 +291,16 @@ namespace SyscallHandler {
 
                 res = VFS::Mount(pInfo->owner, mountPoint, fsID, devFile);
             } break;
+        case syscall_seek: {
+                uint64 sysDesc;
+                int64 error = Scheduler::ProcessGetSystemFileDescriptor(arg1, sysDesc);
+                if(error != OK) {
+                    res = error;
+                    break;
+                }
+
+                res = VFS::Seek(sysDesc, arg2);
+            } break;
 
         case syscall_alloc: {
                 char* pageBase = (char*)arg1;
