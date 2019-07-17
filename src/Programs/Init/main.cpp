@@ -1,17 +1,42 @@
-#include "Syscall.h"
+#include "simpleos_vfs.h"
+#include "simpleos_process.h"
+#include "simpleos_raw.h"
 
-#define CHECK_ERROR(func, msg) \
-    if(func < 0) { Syscall::Print(msg "\n"); Syscall::Exit(1); }
+#include "stdlib.h"
 
-extern "C" void main()
+#include "stdio.h"
+
+#define CHECK_ERROR(cond, msg) \
+    if(!(cond)) { print(msg "\n"); thread_exit(1); }
+
+int main()
 {
-    CHECK_ERROR(Syscall::CreateFolder("/dev"), "Failed to create /dev folder");
-    CHECK_ERROR(Syscall::CreateDeviceFile("/dev/zero", 0, 0), "Failed to create /dev/zero");
-    CHECK_ERROR(Syscall::CreateDeviceFile("/dev/ram0", 1, 0), "Failed to create /dev/ram0");
+    FILE* res = freopen("/dev/tty0", "w", stdout);
+    if(res == nullptr)
+        exit(123);
 
-    Syscall::Print("Executing test program\n");
-    Syscall::Exec("/boot/Test2.elf");
+    puts("Hello World from Init process\n");
 
-    Syscall::Print("Exec failed!");
-    Syscall::Exit(1);
+    int64 stdinRead, stdinWrite, stdoutRead, stdoutWrite;
+    pipe(&stdinRead, &stdinWrite);
+    pipe(&stdoutRead, &stdoutWrite);
+
+    if(fork()) {
+        close(stdinRead);
+        close(stdoutWrite);
+
+        while(true) {
+            char buffer[128];
+            int64 len = read(stdoutRead, buffer, sizeof(buffer)-1);
+            buffer[len] = 0;
+            print(buffer);
+        }
+    } else {
+        copyfd(1, stdoutWrite);
+
+        exec("/boot/Test2.elf");
+        thread_exit(1);
+    }
+
+    return 0;
 }

@@ -5,6 +5,10 @@
 #include "klib/memory.h"
 #include "arch/GDT.h"
 
+#include "klib/stdio.h"
+
+#include "ELFProgramInfo.h"
+
 void ELFExecHandler::Init() {
     ExecHandlerRegistry::RegisterHandler(new ELFExecHandler());
 }
@@ -18,10 +22,12 @@ bool ELFExecHandler::CheckAndPrepare(uint8* buffer, uint64 bufferSize, uint64 pm
     if(header->magic[0] != 0x7F || header->magic[1] != 'E' || header->magic[2] != 'L' || header->magic[3] != 'F')
         return false;
 
+    ELFProgramInfo progInfo = { 0 };
+
     ElfSegmentHeader* segList = (ElfSegmentHeader*)(buffer + header->phOffset);
     for(int s = 0; s < header->phEntryCount; s++) {
         ElfSegmentHeader* segment = &segList[s];
-        if(segment->type == PT_LOAD) {
+        if(segment->type == PT_LOAD || segment->type == PT_TLS) {
             const uint8* src = buffer + segment->dataOffset;
             uint8* dest = (uint8*)segment->virtualAddress;
 
@@ -49,6 +55,11 @@ bool ELFExecHandler::CheckAndPrepare(uint8* buffer, uint64 bufferSize, uint64 pm
 
                 lastPageBuffer[offs] = 0;
             }
+
+            if(segment->type == PT_TLS) {
+                progInfo.masterTLSAddress = (char*)segment->virtualAddress;
+                progInfo.masterTLSSize = segment->virtualSize;
+            }
         }
     }
 
@@ -58,13 +69,17 @@ bool ELFExecHandler::CheckAndPrepare(uint8* buffer, uint64 bufferSize, uint64 pm
     for(int i = 0; i < 16; i++)
         MemoryManager::MapProcessPage(pml4Entry, (void*)((uint64)physStack + i * 4096), (void*)(stackBase + i * 4096), false);
 
+    char* virtStack = (char*)MemoryManager::PhysToKernelPtr(physStack) + 16 * 4096;
+    kmemcpy(virtStack - sizeof(ELFProgramInfo), &progInfo, sizeof(ELFProgramInfo));
+
     kmemset(regs, 0, sizeof(IDT::Registers));
     regs->cs = GDT::UserCode;
     regs->ds = GDT::UserData;
     regs->ss = GDT::UserData;
     regs->rflags = 0b000000000001000000000;
     regs->rip = entryPoint;
-    regs->userrsp = stackBase + 16 * 4096;
+    regs->userrsp = stackBase + 16 * 4096 - sizeof(ELFProgramInfo);
+    regs->rdi = stackBase + 16 * 4096 - sizeof(ELFProgramInfo);
 
     return true;
 }

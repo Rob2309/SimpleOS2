@@ -89,6 +89,8 @@ uint64 TempFS::ReadNodeData(Node* node, uint64 pos, void* buffer, uint64 bufferS
     TestNode* refNode = (TestNode*)(node->id);
 
     uint64 rem = refNode->fileSize - pos;
+    if(rem == 0) // eof
+        return 0;
     if(rem > bufferSize)
         rem = bufferSize;
 
@@ -111,6 +113,14 @@ uint64 TempFS::WriteNodeData(Node* node, uint64 pos, const void* buffer, uint64 
     if(!kmemcpy_usersafe(refNode->fileData + pos, buffer, bufferSize))
         return ErrorInvalidBuffer;
     return bufferSize;
+}
+
+void TempFS::ClearNodeData(VFS::Node* node) {
+    TestNode* refNode = (TestNode*)(node->id);
+
+    delete[] refNode->fileData;
+    refNode->fileSize = 0;
+    refNode->fileData = nullptr;
 }
 
 Directory* TempFS::ReadDirEntries(Node* node) {

@@ -6,6 +6,7 @@
 #include "locks/QueueLock.h"
 #include "FileSystem.h"
 #include "user/User.h"
+#include "errno.h"
 
 namespace VFS {
 
@@ -64,15 +65,6 @@ namespace VFS {
      * Initializes the VFS and mounts rootFS to /
      **/
     void Init(FileSystem* rootFS);
-    
-    constexpr int64 OK = 0;
-    constexpr int64 ErrorFileNotFound = -1;
-    constexpr int64 ErrorPermissionDenied = -2;
-    constexpr int64 ErrorInvalidFD = -3;
-    constexpr int64 ErrorInvalidBuffer = -4;
-    constexpr int64 ErrorInvalidPath = -5;
-    constexpr int64 ErrorInvalidFileSystem = -6;
-    constexpr int64 ErrorInvalidDevice = -7;
 
     const char* ErrorToString(int64 error);
 
@@ -123,11 +115,17 @@ namespace VFS {
      **/
     int64 Unmount(User* user, const char* mountPoint);
 
+    constexpr uint64 OpenMode_Read = 0x1;
+    constexpr uint64 OpenMode_Write = 0x2;
+    constexpr uint64 OpenMode_Create = 0x100;
+    constexpr uint64 OpenMode_Clear = 0x200;
+    constexpr uint64 OpenMode_FailIfExist = 0x400;
+
     /**
      * Opens the given path
      * Returns the FileDescriptor of the opened path, or 0 on error.
      **/
-    int64 Open(User* user, const char* path, uint8 reqPermissions, uint64& fileDesc);
+    int64 Open(User* user, const char* path, uint64 mode, uint64& fileDesc);
     /**
      * Closes the given FileDescriptor
      **/
@@ -152,38 +150,23 @@ namespace VFS {
 
     /**
      * Reads from the given File and increases the FileDescriptor position by the number of bytes read.
-     * This function blocks until at least one byte was read, except for when it is impossible to read further (e.g. end of file).
+     * This function blocks until at least one byte was read, or returns 0 to indicate eof.
      * @param buffer The buffer to read the data into, should be a Kernel pointer
      * @param bufferSize The maximum number of bytes that fit into the given buffer
-     * @returns the number of bytes read.
+     * @returns the number of bytes read, 0 if the end of file was reached.
      **/
     int64 Read(uint64 desc, void* buffer, uint64 bufferSize);
     /**
-     * Reads from the given File.
-     * This function blocks until at least one byte was read, except for when it is impossible to read further (e.g. end of file).
-     * @param pos The position to start reading from
-     * @param buffer The buffer to read the data into, should be a Kernel pointer
-     * @param bufferSize The maximum number of bytes that fit into the given buffer
-     * @returns the number of bytes read.
-     **/
-    int64 Read(uint64 desc, uint64 pos, void* buffer, uint64 bufferSize);
-    /**
      * Writes to the given File and increases the FileDescriptor position by the number of bytes written.
-     * This function blocks until at least one byte was written, except for when it is impossible to write further.
+     * This function blocks until at least one byte was written, or returns an error code.
+     * It should never return 0.
      * @param buffer The buffer to write the data from, should be a Kernel pointer
      * @param bufferSize The number of bytes contained in the given buffer
      * @returns the number of bytes written.
      **/
     int64 Write(uint64 desc, const void* buffer, uint64 bufferSize);
-    /**
-     * Writes to the given File.
-     * This function blocks until at least one byte was written, except for when it is impossible to write further.
-     * @param pos The position within the nodes data to start writing to
-     * @param buffer The buffer to write the data from, should be a Kernel pointer
-     * @param bufferSize The number of bytes contained in the given buffer
-     * @returns the number of bytes written.
-     **/
-    int64 Write(uint64 desc, uint64 pos, const void* buffer, uint64 bufferSize);
+
+    int64 Seek(uint64 desc, uint64 offs);
 
     /**
      * Retrieves information about the node associated with a FileDescriptor

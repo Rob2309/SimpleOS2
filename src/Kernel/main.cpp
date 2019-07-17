@@ -26,8 +26,8 @@ static User g_RootUser;
 
 static uint64 SetupInitProcess() {
     uint64 file;
-    int64 error = VFS::Open(&g_RootUser, config_Init_Command, VFS::Permissions::Read, file);
-    if(error != VFS::OK) {
+    int64 error = VFS::Open(&g_RootUser, config_Init_Command, VFS::OpenMode_Read, file);
+    if(error != OK) {
         klog_fatal("Init", "Failed to open %s (%s), aborting boot", config_Init_Command, VFS::ErrorToString(error));
         return 0;
     }
@@ -56,6 +56,7 @@ static uint64 SetupInitProcess() {
 }
 
 static KernelHeader* g_KernelHeader;
+Terminal::TerminalInfo g_TerminalInfo;
 
 static void InitThread() {
     klog_info("Init", "Init Thread starting");
@@ -73,6 +74,9 @@ static void InitThread() {
     for(uint64 i = 0; i < sizeof(config_ExecInitFuncs) / sizeof(InitFunc); i++) {
         config_ExecInitFuncs[i]();
     }
+
+    VConsoleDriver* vcond = (VConsoleDriver*)DeviceDriverRegistry::GetDriver(config_VConDeviceDriverID);
+    uint64 vconid = vcond->AddConsole(&g_TerminalInfo);
 
     if(g_KernelHeader->ramdiskImage.numPages != 0) {
         RamDeviceDriver* driver = (RamDeviceDriver*)DeviceDriverRegistry::GetDriver(config_RamDeviceDriverID);
@@ -96,6 +100,9 @@ static void InitThread() {
         VFS::Init(new TempFS());
         VFS::CreateFolder(&g_RootUser, "/boot", { 3, 1, 1 });
         VFS::Mount(&g_RootUser, "/boot", bootFS);
+
+        VFS::CreateFolder(&g_RootUser, "/dev", { 3, 1, 1 });
+        VFS::CreateDeviceFile(&g_RootUser, "/dev/tty0", { 3, 1, 1 }, config_VConDeviceDriverID, vconid);
     }
 
     uint64 tid = SetupInitProcess();
@@ -106,8 +113,8 @@ static void InitThread() {
 extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     g_KernelHeader = info;
 
-    Terminal::Init(info->screenBuffer, info->screenWidth, info->screenHeight, info->screenScanlineWidth, info->screenColorsInverted);
-    Terminal::Clear();
+    Terminal::InitTerminalInfo(&g_TerminalInfo, info->screenBuffer, info->screenWidth, info->screenHeight, info->screenScanlineWidth, info->screenColorsInverted);
+    Terminal::Clear(&g_TerminalInfo);
 
     klog_info("Kernel", "Kernel at 0x%x", info->kernelImage.buffer);
 

@@ -90,7 +90,7 @@ uint64 BlockDeviceDriver::GetData(uint64 subID, uint64 pos, void* buffer, uint64
             m_CacheLock.Spinlock();
             ReleaseCachedBlock(cb, m_Cache);
             m_CacheLock.Unlock();
-            return VFS::ErrorInvalidBuffer;
+            return ErrorInvalidBuffer;
         }
         cb->dataLock.Unlock();
         m_CacheLock.Spinlock();
@@ -142,7 +142,7 @@ uint64 BlockDeviceDriver::SetData(uint64 subID, uint64 pos, const void* buffer, 
             m_CacheLock.Spinlock();
             ReleaseCachedBlock(cb, m_Cache);
             m_CacheLock.Unlock();
-            return VFS::ErrorInvalidBuffer;
+            return ErrorInvalidBuffer;
         }
         cb->dataLock.Unlock();
         m_CacheLock.Spinlock();

@@ -39,6 +39,7 @@ struct ThreadInfo {
     
     uint64 kernelStack;
     uint64 userGSBase;
+    uint64 userFSBase;
 
     uint64 stickyCount;
     uint64 cliCount;

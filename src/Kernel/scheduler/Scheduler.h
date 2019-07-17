@@ -70,7 +70,7 @@ namespace Scheduler {
      * Can *not* be called from a KernelThread, use CreateKernelThread instead
      * @returns the TID of the newly created Thread
      **/
-    uint64 ThreadCreateThread(uint64 entry, uint64 stack);
+    uint64 ThreadCreateThread(uint64 entry, uint64 stack, uint64 arg);
     /**
      * Get the ThreadID of the currently active Thread
      **/
@@ -86,8 +86,12 @@ namespace Scheduler {
 
     int64 ProcessAddFileDescriptor(uint64 sysDescriptor);
     int64 ProcessReplaceFileDescriptor(int64 oldPDesc, int64 newPDesc);
+    int64 ProcessReplaceFileDescriptorValue(int64 oldPDesc, uint64 newSysDesc);
     int64 ProcessCloseFileDescriptor(int64 desc);
     int64 ProcessGetSystemFileDescriptor(int64 pDesc, uint64& sysDesc);
+
+    void ThreadSetFS(uint64 val);
+    void ThreadSetGS(uint64 val);
 
     /**
      * Replaces the Memory space of the current Process with the given pml4Entry

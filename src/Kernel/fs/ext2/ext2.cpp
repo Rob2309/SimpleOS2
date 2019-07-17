@@ -71,33 +71,53 @@ namespace Ext2 {
 
         INode* inode = (INode*)node->fsData;
 
-        if(bufferSize > inode->size)
-            bufferSize = inode->size;
+        uint64 rem = inode->size - pos;
+        if(rem > bufferSize)
+            rem = bufferSize;
+        if(rem == 0) // eof
+            return 0;
 
-        uint64 res = bufferSize;
+        bool indirectBufferLoaded = false;
+        uint8* indirectBuffer = nullptr;
 
-        while(bufferSize > 0) {
+        while(rem > 0) {
             uint64 blockIndex = pos / (1024 << m_SB.blockSizeShift);
-            uint64 blockID = inode->directPointers[blockIndex];
+            uint64 blockID;
+
+            if(blockIndex < 12) {
+                blockID = inode->directPointers[blockIndex];
+            } else {
+                if(!indirectBufferLoaded) {
+                    indirectBuffer = new uint8[1024 << m_SB.blockSizeShift];
+                    m_Driver->GetData(m_Dev, inode->indirectPointer * (1024 << m_SB.blockSizeShift), indirectBuffer, 1024 << m_SB.blockSizeShift);
+                    indirectBufferLoaded = true;
+                }
+                blockID = ((uint32*)indirectBuffer)[blockIndex - 12];
+            }
+
             uint64 blockPos = blockID * (1024 << m_SB.blockSizeShift);
             uint64 offset = pos % (1024 << m_SB.blockSizeShift);
 
             uint64 leftInBlock = (1024 << m_SB.blockSizeShift) - offset;
-            if(leftInBlock > bufferSize)
-                leftInBlock = bufferSize;
+            if(leftInBlock > rem)
+                leftInBlock = rem;
 
             m_Driver->GetData(m_Dev, blockPos + offset, realBuffer, leftInBlock);
 
             realBuffer += leftInBlock;
-            bufferSize -= leftInBlock;
+            rem -= leftInBlock;
             pos += leftInBlock;
         }
 
-        return res;
+        if(indirectBufferLoaded)
+            delete[] indirectBuffer;
+
+        return rem;
     }
     uint64 Ext2Driver::WriteNodeData(Node* node, uint64 pos, const void* buffer, uint64 bufferSize) {
         return 0;
     }
+    void Ext2Driver::ClearNodeData(VFS::Node* node) { }
 
     Directory* Ext2Driver::ReadDirEntries(Node* node) {
         INode* inode = (INode*)node->fsData;

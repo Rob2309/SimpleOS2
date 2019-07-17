@@ -64,6 +64,8 @@ namespace Scheduler {
         bool inKernelMode = ((g_CPUData[coreID].currentThread->registers.cs & 0b11) == 0);
         MSR::Write(MSR::RegKernelGSBase, inKernelMode ? g_CPUData[coreID].currentThread->userGSBase : (uint64)&g_CPUData[coreID]);
         MSR::Write(MSR::RegGSBase, inKernelMode ? (uint64)&g_CPUData[coreID] : g_CPUData[coreID].currentThread->userGSBase);
+        if(!inKernelMode)
+            MSR::Write(MSR::RegFSBase, g_CPUData[coreID].currentThread->userFSBase);
     }
 
     static void FreeProcess(ProcessInfo* pInfo)
@@ -516,7 +518,7 @@ namespace Scheduler {
             return "-KernelThread-"; 
     }
 
-    uint64 ThreadCreateThread(uint64 entry, uint64 stack)
+    uint64 ThreadCreateThread(uint64 entry, uint64 stack, uint64 arg)
     {
         uint64 coreID = SMP::GetLogicalCoreID();
 
@@ -530,6 +532,7 @@ namespace Scheduler {
         tInfo->registers.rflags = CPU::FLAGS_IF;
         tInfo->registers.rip = entry;
         tInfo->registers.userrsp = stack;
+        tInfo->registers.rdi = arg;
 
         if(tInfo->process != nullptr) {
             tInfo->process->mainLock.Spinlock();
@@ -573,7 +576,7 @@ namespace Scheduler {
         pInfo->fileDescLock.Spinlock();
         if(oldPDesc < 0 || oldPDesc >= pInfo->fileDescs.size() || newPDesc < 0 || newPDesc >= pInfo->fileDescs.size()) {
             pInfo->fileDescLock.Unlock();
-            return VFS::ErrorInvalidFD;
+            return ErrorInvalidFD;
         }
 
         uint64 oldSysDesc = pInfo->fileDescs[oldPDesc]->desc;
@@ -581,7 +584,7 @@ namespace Scheduler {
 
         if(newSysDesc == 0) {
             pInfo->fileDescLock.Unlock();
-            return VFS::ErrorInvalidFD;
+            return ErrorInvalidFD;
         }
         if(oldSysDesc != 0) {
             VFS::Close(oldSysDesc);
@@ -590,7 +593,31 @@ namespace Scheduler {
         pInfo->fileDescs[oldPDesc]->desc = newSysDesc;
         pInfo->fileDescLock.Unlock();
         VFS::AddRef(newSysDesc);
-        return VFS::OK;
+        return OK;
+    }
+    int64 ProcessReplaceFileDescriptorValue(int64 oldPDesc, uint64 newSysDesc) {
+        uint64 coreID = SMP::GetLogicalCoreID();
+
+        ProcessInfo* pInfo = g_CPUData[coreID].currentThread->process;
+        pInfo->fileDescLock.Spinlock();
+        if(oldPDesc < 0 || oldPDesc >= pInfo->fileDescs.size()) {
+            pInfo->fileDescLock.Unlock();
+            return ErrorInvalidFD;
+        }
+
+        uint64 oldSysDesc = pInfo->fileDescs[oldPDesc]->desc;
+        if(newSysDesc == 0) {
+            pInfo->fileDescLock.Unlock();
+            return ErrorInvalidFD;
+        }
+        if(oldSysDesc != 0) {
+            VFS::Close(oldSysDesc);
+        }
+
+        pInfo->fileDescs[oldPDesc]->desc = newSysDesc;
+        pInfo->fileDescLock.Unlock();
+        VFS::AddRef(newSysDesc);
+        return OK;
     }
     int64 ProcessCloseFileDescriptor(int64 descID) {
         uint64 coreID = SMP::GetLogicalCoreID();
@@ -600,7 +627,7 @@ namespace Scheduler {
         pInfo->fileDescLock.Spinlock();
         if(descID < 0 || descID >= pInfo->fileDescs.size()) {
             pInfo->fileDescLock.Unlock();
-            return VFS::ErrorInvalidFD;
+            return ErrorInvalidFD;
         }
 
         ProcessFileDescriptor* desc = pInfo->fileDescs[descID];
@@ -609,7 +636,7 @@ namespace Scheduler {
         pInfo->fileDescLock.Unlock();
         
         if(sysDesc == 0)
-            return VFS::ErrorInvalidFD;
+            return ErrorInvalidFD;
         return VFS::Close(sysDesc);
     }
     int64 ProcessGetSystemFileDescriptor(int64 pDesc, uint64& sysDesc) {
@@ -620,7 +647,7 @@ namespace Scheduler {
         pInfo->fileDescLock.Spinlock();
         if(pDesc < 0 || pDesc >= pInfo->fileDescs.size()) {
             pInfo->fileDescLock.Unlock();
-            return VFS::ErrorInvalidFD;
+            return ErrorInvalidFD;
         }
 
         ProcessFileDescriptor* desc = pInfo->fileDescs[pDesc];
@@ -629,9 +656,18 @@ namespace Scheduler {
 
         sysDesc = res;
         if(res == 0)
-            return VFS::ErrorInvalidFD;
+            return ErrorInvalidFD;
         
-        return VFS::OK;
+        return OK;
+    }
+
+    void ThreadSetFS(uint64 val) {
+        uint64 coreID = SMP::GetLogicalCoreID();
+        g_CPUData[coreID].currentThread->userFSBase = val;
+    }
+    void ThreadSetGS(uint64 val) {
+        uint64 coreID = SMP::GetLogicalCoreID();
+        g_CPUData[coreID].currentThread->userGSBase = val;
     }
 
     void ProcessExec(uint64 pml4Entry, IDT::Registers* regs)
