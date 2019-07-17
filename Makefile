@@ -1,5 +1,3 @@
-#!/bin/bash
-
 export PE_GCC := x86_64-w64-mingw32-gcc
 export ELF_GCC := gcc
 export NASM := nasm
