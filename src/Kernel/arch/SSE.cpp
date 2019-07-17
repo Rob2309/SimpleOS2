@@ -53,6 +53,13 @@ namespace SSE {
         if(!CheckFeatures())
             return false;
 
+        klog_info("SSE", "SSE initialized");
+        klog_info("SSE", "FPU Block size: %i bytes", g_FPUBlockSize);
+
+        return true;
+    }
+
+    void InitCore() {
         uint64 rax __attribute__((aligned(16)));
 
         // Enable FXSAVE/FXRSTOR and Exceptions
@@ -81,10 +88,14 @@ namespace SSE {
             g_FPUBlockSize = 512;
         }
 
-        klog_info("SSE", "SSE initialized");
-        klog_info("SSE", "FPU Block size: %i bytes", g_FPUBlockSize);
-
-        return true;
+        uint64 mxcsr __attribute__((aligned(64))) = 0;
+        mxcsr |= (1 << 12);
+        mxcsr |= (1 << 11);
+        mxcsr |= (1 << 10);
+        mxcsr |= (1 << 9);
+        mxcsr |= (1 << 8);
+        mxcsr |= (1 << 7);
+        __asm__ __volatile__ ("ldmxcsr (%0)" : : "r"(&mxcsr) );
     }
 
     uint64 GetFPUBlockSize() {
@@ -104,6 +115,8 @@ namespace SSE {
         }
     }
     void RestoreFPUBlock(char* buffer) {
+        if((uint64)buffer % 64 != 0)
+            kprintf("misaligned: %i\n", (uint64)buffer % 64);
         if(g_ExtendedSSE) {
             __asm__ __volatile__ (
                 "xrstorq (%0)"
@@ -115,6 +128,18 @@ namespace SSE {
                 : : "r"(buffer)
             );
         }
+    }
+
+    void InitFPUBlock(char* buffer) {
+        // mask all exceptions
+        uint64 mxcsr = 0;
+        mxcsr |= (1 << 12);
+        mxcsr |= (1 << 11);
+        mxcsr |= (1 << 10);
+        mxcsr |= (1 << 9);
+        mxcsr |= (1 << 8);
+        mxcsr |= (1 << 7);
+        ((uint32*)buffer)[6] = mxcsr;
     }
 
 }

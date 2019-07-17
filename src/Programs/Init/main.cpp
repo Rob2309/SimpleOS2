@@ -11,10 +11,6 @@
 
 int main()
 {
-    FILE* res = freopen("/dev/tty0", "w", stdout);
-    if(res == nullptr)
-        exit(123);
-
     puts("Hello World from Init process\n");
 
     int64 stdinRead, stdinWrite, stdoutRead, stdoutWrite;

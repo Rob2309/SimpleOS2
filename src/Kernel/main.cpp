@@ -130,8 +130,11 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     IDT::InitCore(SMP::GetLogicalCoreID());
     APIC::InitBootCore();
     SyscallHandler::InitCore();
-    if(!SSE::Init())
-        goto boot_failed;
+    if(!SSE::Init()) {
+        klog_fatal("Boot", "Boot failed...");
+        while(true) ;
+    }
+    SSE::InitCore();
     Scheduler::Init(SMP::GetCoreCount());
 
     SMP::StartCores();
@@ -141,9 +144,4 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
 
     SMP::StartSchedulers();
     Scheduler::Start();
-
-
-boot_failed:
-    klog_fatal("Boot", "Boot failed...");
-    while(true) ;
 }

@@ -9,6 +9,7 @@
 #include "klib/memory.h"
 #include "syscalls/SyscallHandler.h"
 #include "scheduler/Scheduler.h"
+#include "arch/SSE.h"
 
 namespace SMP {
 
@@ -36,6 +37,7 @@ namespace SMP {
         APIC::InitCore();
         MemoryManager::InitCore(logicalID);
         SyscallHandler::InitCore();
+        SSE::InitCore();
         
         started = true;
         

@@ -127,6 +127,7 @@ namespace Scheduler {
             uint64 kernelStack = res->kernelStack;
             kmemset(res, 0, g_ThreadStructSize);
             res->kernelStack = kernelStack;
+            SSE::InitFPUBlock(res->fpuState);
 
             return res;
         }
@@ -134,6 +135,7 @@ namespace Scheduler {
         
         ThreadInfo* n = (ThreadInfo*)new char[g_ThreadStructSize];
         kmemset(n, 0, g_ThreadStructSize);
+        SSE::InitFPUBlock(n->fpuState);
         n->kernelStack = (uint64)MemoryManager::PhysToKernelPtr(MemoryManager::AllocatePages(KernelStackPages)) + KernelStackSize;
         return n;
     }

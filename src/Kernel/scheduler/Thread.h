@@ -52,5 +52,5 @@ struct ThreadInfo {
 
     IDT::Registers registers;
 
-    char fpuState[] __attribute__((aligned(16)));
+    char fpuState[] __attribute__((aligned(64)));
 };
