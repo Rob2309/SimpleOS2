@@ -3,9 +3,7 @@
 #include "types.h"
 #include "KernelHeader.h"
 
-constexpr uint64 NUM_PAGES(uint64 size) {
-    return (size + 4095) / 4096;
-}
+#define NUM_PAGES(size) (((size) + 4095) / 4096)
 
 namespace MemoryManager {
 

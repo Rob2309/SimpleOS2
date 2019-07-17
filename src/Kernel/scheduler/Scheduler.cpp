@@ -10,6 +10,8 @@
 #include "arch/APIC.h"
 #include "fs/VFS.h"
 #include "klib/stdio.h"
+#include "arch/SSE.h"
+#include "ktl/new.h"
 
 namespace Scheduler {
 
@@ -50,6 +52,8 @@ namespace Scheduler {
     static uint64 g_KillCount;
     static ProcessInfo* g_KillProcess;
 
+    static uint64 g_ThreadStructSize;
+
     static void SetContext(ThreadInfo* thread, IDT::Registers* regs)
     {
         uint64 coreID = SMP::GetLogicalCoreID();
@@ -66,6 +70,7 @@ namespace Scheduler {
         MSR::Write(MSR::RegGSBase, inKernelMode ? (uint64)&g_CPUData[coreID] : g_CPUData[coreID].currentThread->userGSBase);
         if(!inKernelMode)
             MSR::Write(MSR::RegFSBase, g_CPUData[coreID].currentThread->userFSBase);
+        SSE::RestoreFPUBlock(thread->fpuState);
     }
 
     static void FreeProcess(ProcessInfo* pInfo)
@@ -120,14 +125,15 @@ namespace Scheduler {
             g_CPUData[coreID].threadListLock.Unlock_Cli();
 
             uint64 kernelStack = res->kernelStack;
-            kmemset(res, 0, sizeof(ThreadInfo));
+            kmemset(res, 0, g_ThreadStructSize);
             res->kernelStack = kernelStack;
 
             return res;
         }
         g_CPUData[coreID].threadListLock.Unlock_Cli();
         
-        ThreadInfo* n = new ThreadInfo();
+        ThreadInfo* n = (ThreadInfo*)new char[g_ThreadStructSize];
+        kmemset(n, 0, g_ThreadStructSize);
         n->kernelStack = (uint64)MemoryManager::PhysToKernelPtr(MemoryManager::AllocatePages(KernelStackPages)) + KernelStackSize;
         return n;
     }
@@ -135,8 +141,8 @@ namespace Scheduler {
     uint64 CreateInitThread(void (*func)()) {
         uint64 coreID = SMP::GetLogicalCoreID();
 
-        ThreadInfo* tInfo = (ThreadInfo*)MemoryManager::PhysToKernelPtr(MemoryManager::EarlyAllocatePages(NUM_PAGES(sizeof(ThreadInfo))));
-        kmemset(tInfo, 0, sizeof(ThreadInfo));
+        ThreadInfo* tInfo = (ThreadInfo*)MemoryManager::PhysToKernelPtr(MemoryManager::EarlyAllocatePages(NUM_PAGES(g_ThreadStructSize)));
+        kmemset(tInfo, 0, g_ThreadStructSize);
         tInfo->kernelStack = (uint64)MemoryManager::PhysToKernelPtr((uint8*)MemoryManager::EarlyAllocatePages(KernelStackPages) + KernelStackSize);
 
         IDT::Registers regs;
@@ -249,6 +255,7 @@ namespace Scheduler {
         tInfo->blockEvent.type = ThreadBlockEvent::TYPE_NONE;
         tInfo->userGSBase = 0;
         tInfo->registers = *regs;
+        kmemcpy(tInfo->fpuState, g_CPUData[coreID].currentThread->fpuState, SSE::GetFPUBlockSize());
 
         pInfo->numThreads = 1;
         
@@ -342,6 +349,7 @@ namespace Scheduler {
     {
         uint64 coreID = SMP::GetLogicalCoreID();
         g_CPUData[coreID].currentThread->registers = *regs;     // save all registers in process info
+        SSE::SaveFPUBlock(g_CPUData[coreID].currentThread->fpuState);
     }
 
     void Tick(IDT::Registers* regs)
@@ -365,6 +373,8 @@ namespace Scheduler {
             new(&g_CPUData[i]) CPUData();
 
         IDT::SetISR(ISRNumbers::IPIKillProcess, KillEvent);
+
+        g_ThreadStructSize = sizeof(ThreadInfo) + SSE::GetFPUBlockSize();
     }
 
     void Start()
@@ -376,8 +386,8 @@ namespace Scheduler {
         APIC::StartTimer(10);
 
         // Init idle process
-        ThreadInfo* p = (ThreadInfo*)MemoryManager::PhysToKernelPtr(MemoryManager::EarlyAllocatePages(NUM_PAGES(sizeof(ThreadInfo))));
-        kmemset(p, 0, sizeof(ThreadInfo));
+        ThreadInfo* p = (ThreadInfo*)MemoryManager::PhysToKernelPtr(MemoryManager::EarlyAllocatePages(NUM_PAGES(g_ThreadStructSize)));
+        kmemset(p, 0, g_ThreadStructSize);
         p->tid = 0;
         p->blockEvent.type = ThreadBlockEvent::TYPE_NONE;
         p->process = nullptr;
@@ -421,6 +431,7 @@ namespace Scheduler {
             return;
         } else {
             IDT::Registers nextRegs;
+            SSE::SaveFPUBlock(g_CPUData[coreID].currentThread->fpuState);
             SetContext(nextThread, &nextRegs);
             ContextSwitchAndReturn(myRegs, &nextRegs);
             ThreadEnableInterrupts();

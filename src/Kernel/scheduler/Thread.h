@@ -51,4 +51,6 @@ struct ThreadInfo {
     uint64 pageFaultRip;
 
     IDT::Registers registers;
+
+    char fpuState[] __attribute__((aligned(16)));
 };

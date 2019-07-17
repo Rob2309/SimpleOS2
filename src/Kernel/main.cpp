@@ -22,6 +22,8 @@
 
 #include "Config.h"
 
+#include "arch/SSE.h"
+
 static User g_RootUser;
 
 static uint64 SetupInitProcess() {
@@ -128,16 +130,20 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     IDT::InitCore(SMP::GetLogicalCoreID());
     APIC::InitBootCore();
     SyscallHandler::InitCore();
-
+    if(!SSE::Init())
+        goto boot_failed;
     Scheduler::Init(SMP::GetCoreCount());
 
     SMP::StartCores();
     MemoryManager::EarlyFreePages(MemoryManager::KernelToPhysPtr(info->smpTrampolineBuffer), info->smpTrampolineBufferPages);
 
     Scheduler::CreateInitThread(InitThread);
-    
+
     SMP::StartSchedulers();
     Scheduler::Start();
 
+
+boot_failed:
+    klog_fatal("Boot", "Boot failed...");
     while(true) ;
 }
