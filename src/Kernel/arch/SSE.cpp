@@ -49,9 +49,46 @@ namespace SSE {
         return true;
     }
 
-    bool Init() {
+    bool InitBootCore() {
         if(!CheckFeatures())
             return false;
+
+        uint64 rax __attribute__((aligned(16)));
+
+        // Enable FXSAVE/FXRSTOR and Exceptions
+        __asm__ __volatile__( "movq %%cr4, %0" : "=r"(rax) );
+        rax |= (1 << 9); 
+        rax |= (1 << 10);
+        if(g_ExtendedSSE) {
+            rax |= (1 << 18);
+        }
+        __asm__ __volatile__( "movq %0, %%cr4" : : "r"(rax) );
+
+        // Clear EM, set MP, clear TS
+        __asm__ __volatile__( "movq %%cr0, %0" : "=r"(rax) );
+        rax &= ~(1 << 2);
+        rax |= (1 << 1);
+        rax &= ~(1 << 3);
+        __asm__ __volatile__( "movq %0, %%cr0" : : "r"(rax) );
+
+        if(g_ExtendedSSE) {
+            __asm__ __volatile__ ( "xsetbv" : : "d"(0), "a"(0b111), "c"(0) );
+
+            uint64 rax, rbx, rcx, rdx;
+            CPUID(0xD, 0, rax, rbx, rcx, rdx);
+            g_FPUBlockSize = rbx;
+        } else {
+            g_FPUBlockSize = 512;
+        }
+
+        uint64 mxcsr __attribute__((aligned(64))) = 0;
+        mxcsr |= (1 << 12);
+        mxcsr |= (1 << 11);
+        mxcsr |= (1 << 10);
+        mxcsr |= (1 << 9);
+        mxcsr |= (1 << 8);
+        mxcsr |= (1 << 7);
+        __asm__ __volatile__ ("ldmxcsr (%0)" : : "r"(&mxcsr) );
 
         klog_info("SSE", "SSE initialized");
         klog_info("SSE", "FPU Block size: %i bytes", g_FPUBlockSize);

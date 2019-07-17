@@ -96,7 +96,7 @@ static void InitThread() {
         Scheduler::ThreadExit(1);
     }
 
-    if constexpr (config_BootFS_MountToRoot) {
+    if (config_BootFS_MountToRoot) {
         VFS::Init(bootFS);
     } else {
         VFS::Init(new TempFS());
@@ -130,11 +130,10 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     IDT::InitCore(SMP::GetLogicalCoreID());
     APIC::InitBootCore();
     SyscallHandler::InitCore();
-    if(!SSE::Init()) {
+    if(!SSE::InitBootCore()) {
         klog_fatal("Boot", "Boot failed...");
         while(true) ;
     }
-    SSE::InitCore();
     Scheduler::Init(SMP::GetCoreCount());
 
     SMP::StartCores();
@@ -144,4 +143,8 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
 
     SMP::StartSchedulers();
     Scheduler::Start();
+
+    klog_fatal("Boot", "Something went really wrong (Scheduler did not start), halting...");
+    while(true)
+        __asm__ __volatile__ ("hlt");
 }

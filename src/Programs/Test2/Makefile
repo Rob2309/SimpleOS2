@@ -11,6 +11,11 @@ libs := $(bin_dir)/../../libc/libc.a
 compile_flags := -g -ffreestanding -fno-stack-protector -fno-exceptions
 link_flags := -g -nostdlib -e __start -static -lgcc
 
+ifeq ($(config),Release)
+	compile_flags += -DRELEASE -O2
+	link_flags += -O2
+endif
+
 out_file := Test2.elf
 
 include ../../makeinclude/cpp.mk

@@ -3,7 +3,7 @@
 #include "types.h"
 
 namespace SSE {
-    bool Init();
+    bool InitBootCore();
     void InitCore();
 
     uint64 GetFPUBlockSize();
