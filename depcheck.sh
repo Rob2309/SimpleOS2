@@ -21,12 +21,12 @@ check_cmd ${PE_GCC} "SimpleOS2 requires any 64-Bit mingw gcc to be installed. Se
 check_cmd ${ELF_GCC} "SimpleOS2 requires any 64-Bit gcc to be installed. Set the ELF_GCC variable accordingly in the Makefile"
 check_cmd ${NASM} "SimpleOS2 requires nasm to be installed"
 
-check_cmd mmd "SimpleOS2 requires mtools to be installed"
-check_cmd mcopy "SimpleOS2 requires mtools to be installed"
+check_cmd ${MTOOLS_MMD} "SimpleOS2 requires mtools to be installed"
+check_cmd ${MTOOLS_MCOPY} "SimpleOS2 requires mtools to be installed"
 
-check_cmd debugfs "SimpleOS2 requires debugfs in order to create its ramdisk"
+check_cmd ${DEBUGFS} "SimpleOS2 requires debugfs in order to create its ramdisk"
 
-check_cmd parted "SimpleOS2 requires parted to create its disk image"
+check_cmd ${PARTED} "SimpleOS2 requires parted to create its disk image"
 
 if [ $code = 1 ]; then
     printf "${red}Not all dependencies are fullfilled${reset}\n"
