@@ -9,6 +9,9 @@ namespace KernelHeap {
      * The advantage over MemoryManager::AllocatePages is that the physical memory does not have to be contiguous.
      **/
     void* Allocate(uint64 size);
+
+    void* AllocateAligned(uint64 size, uint64 alignment);
+
     /**
      * Frees memory allocated with Allocate
      **/

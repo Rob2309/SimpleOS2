@@ -2,11 +2,22 @@
 
 #include "stdio.h"
 #include "assert.h"
+#include "thread.h"
 
-extern "C" void main()
+int main()
 {
-    puts("Hello World from Test program\n");
-    puts("This is another message\n");
+    puts("Starting calculation\n");
 
-    thread_exit(0);
+    for(uint64 i = 0; i < 500000000; i++) {
+        double d = 2.0;
+        double e = 3.5;
+        int f = (int)(d * e);
+
+        if(f != 7)
+            puts("Error\n");
+    }
+
+    puts("Finished calculation\n");
+
+    return 0;
 }
