@@ -4,7 +4,7 @@ asm_compiler :=
 int_dir := $(int_dir)/Bootloader
 bin_dir := $(bin_dir)/Bootloader
 
-includes := ../common ../../dep/gnu-efi/inc ../../dep/gnu-efi/inc/x86_64
+includes := ../../dep/gnu-efi/inc ../../dep/gnu-efi/inc/x86_64
 
 compile_flags := -ffreestanding
 link_flags := -nostdlib -Wl,-dll -shared -Wl,--subsystem,10 -e efi_main

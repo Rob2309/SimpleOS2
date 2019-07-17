@@ -4,7 +4,7 @@ asm_compiler :=
 int_dir := $(int_dir)/Programs/Init
 bin_dir := $(bin_dir)/Programs/Init
 
-includes := ../../common ../../libc
+includes := ../../libc
 
 libs := $(bin_dir)/../../libc/libc.a
 

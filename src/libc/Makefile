@@ -4,7 +4,7 @@ asm_compiler :=
 int_dir := $(int_dir)/libc
 bin_dir := $(bin_dir)/libc
 
-includes := ../common
+includes := 
 
 compile_flags := -g -ffreestanding -fno-stack-protector -fno-exceptions
 
