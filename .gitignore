@@ -1,6 +1,7 @@
 
 .vscode/ipch/**
 
+build
 bin
 int
 tools
