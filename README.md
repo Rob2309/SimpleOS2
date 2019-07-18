@@ -10,9 +10,11 @@ This is a very simple x86_64 OS I am creating for learning purposes.
 - APIC Timer support
 - User mode processes
 - Multitasking & Multithreading
-- Basic System calls via syscall instruction (e.g. fork & exec)
+- System calls via syscall instruction (e.g. fork & exec)
 - Linux-like virtual file system (with basic mounting support)
 - Character- and BlockDevice driver API
+- Multi-Core support
+- Usermode SSE & FPU support
 
 ## Planned features:
 - HDD support (SATA)
@@ -33,18 +35,23 @@ This OS should basically run on any x86_64 machine that supports UEFI. If you fi
 ### Build commands
 - ``make depcheck``:            check if all dependencies are installed
 - ``make partition``:           build a raw partition image that contains the OS
-- ``make vboxpartition``:       build a VirtualBox disk image that contains the OS (Requires VirtualBox installation)
+- ``make disk``:                build a raw disk image that contains the OS
+- ``make diskvbox``:            build a virtualbox disk image (.vdi) that contains the OS
 - ``make clean``:               remove everything but the sources
 
 ## Emulating SimpleOS2
 - ``make run``:                 run the OS in qemu (requires qemu-system-i86_64)
 - ``make runvbox``:             run the OS in VirtualBox (Requires a VirtualBox machine with name 'SimpleOS2' and partition.vdi as hard disk)
+- ``make debug``:               run the OS in qemu and debug it in GDB
 
 ## Configurations
-- every command above can be followed by ``config=Release`` to build a Release configuration of the OS
+- every command above can be followed by ``config=Release`` to use/build a Release configuration of the OS
 
 ## Running on real Hardware
-I have run SimpleOS2 several times on my own hardware and never encountered any damage. Nevertheless, I do not take any responsibility for any kind of damage to your system!
+I have run SimpleOS2 on my own hardware several times and never encountered any damage. Nevertheless, I do not take any responsibility for any kind of damage to your system!
+
+## Modifying SimpleOS2
+[DEVELOPMENT.md](DEVELOPMENT.md) contains information for developers who want to have fun with SimpleOS2
 
 ## Lessons learned
 - When your Code works on Qemu but triple faults on VirtualBox, you have missed some very important minor detail in the AMD64 spec
