@@ -52,5 +52,5 @@ struct ThreadInfo {
 
     IDT::Registers registers;
 
-    char fpuState[] __attribute__((aligned(64)));
+    char fpuState[] __attribute__((aligned(64)));   // buffer used to save and restore the SSE and FPU state of the thread
 };

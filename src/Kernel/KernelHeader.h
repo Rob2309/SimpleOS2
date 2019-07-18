@@ -36,8 +36,8 @@ struct KernelHeader {
     uint64 pageBufferPages;
     uint64 highMemoryBase;          // The Virtual Memory Address associated with the lowest addressable physical address
 
-    void* rsdp;
+    void* rsdp;                     // The ACPI rdsp pointer, used to identify the number of processor cores available
 
-    uint64 smpTrampolineBufferPages;
-    uint8* smpTrampolineBuffer;
+    uint64 smpTrampolineBufferPages;    
+    uint8* smpTrampolineBuffer;     // A memory buffer allocated below 1MB needed to start the other processor cores    
 };

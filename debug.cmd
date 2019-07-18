@@ -5,7 +5,7 @@ watch {unsigned long long}0x1000
 c
 
 set $ktext = {unsigned long long}0x1000
-add-symbol-file bin/Debug/Kernel/Kernel.sys $ktext
+add-symbol-file build/Debug/bin/Kernel/Kernel.sys $ktext
 
 layout split
 

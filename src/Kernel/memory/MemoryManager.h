@@ -12,7 +12,13 @@ namespace MemoryManager {
 
     void DisableChacheOnLargePage(void* virt);
 
+    /**
+     * Does the same as AllocatePages, but can be called before the scheduler is initialized
+     **/
     void* EarlyAllocatePages(uint64 numPages);
+    /**
+     * Does the same as FreePages, but can be called before the scheduler is initialized
+     **/
     void EarlyFreePages(void* pages, uint64 numPages);
 
     /**
@@ -26,6 +32,10 @@ namespace MemoryManager {
      */
     void FreePages(void* pages, uint64 numPages = 1);
 
+    /**
+     * Ejects the given memory page from the CPU translation chaches.
+     * Should be called after changing any page table entries.
+     **/
     void InvalidatePage(void* page);
 
     /**
@@ -79,6 +89,10 @@ namespace MemoryManager {
      **/
     void* UserToKernelPtr(const void* ptr);
 
+    /**
+     * Check if the given pointer is a userspace address.
+     * Does *not* check whether the given pointer is valid.
+     **/
     bool IsUserPtr(const void* ptr);
 
 }

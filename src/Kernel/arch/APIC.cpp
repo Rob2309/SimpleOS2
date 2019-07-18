@@ -30,24 +30,29 @@ namespace APIC
 
     void SignalEOI()
     {
+        // By writing a zero to this register, the APIC gets the EOF signal
         *(volatile uint32*)(g_APICBase + RegEOI) = 0;
     }
 
+    // This function will be called when the APIC timer fires an interrupt
     static void ISR_Timer(IDT::Registers* regs)
     {
+        SignalEOI();
         if(g_TimerEvent != nullptr)
             g_TimerEvent(regs);
-        SignalEOI();
     }
+    // This function will be called when the APIC detects any error
     static void ISR_Error(IDT::Registers* regs)
     {
         SignalEOI();
     }
+    // This function will be called when the APIC fires a Spurious interrupt, should just be ignored
     static void ISR_Spurious(IDT::Registers* regs)
     {
         // Spurious APIC interrupts don't wait for and EOI
     }
 
+    // This function calculates how fast the local APIC timer ticks by comparing it to the PIT timer, which runs at a fixed and known frequency
     static void CalibrateTimer()
     {
         Port::OutByte(0x43, 0x30);
@@ -93,6 +98,9 @@ namespace APIC
 
         CalibrateTimer();
 
+        // This disables the CPUs caching mechanism for the APIC registers, so that any read/write directly accesses RAM
+        // If the cache was enabled, APIC commands might never reach RAM, so the APIC would not receive them
+        // I don't know if this is really necessary, as it always worked for me without disabling cache
         MemoryManager::DisableChacheOnLargePage((void*)(g_APICBase & 0xFFFFFFFFFFE00000));
     }
     void InitCore() {

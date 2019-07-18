@@ -24,13 +24,15 @@
 
 #include "arch/SSE.h"
 
+#include "errno.h"
+
 static User g_RootUser;
 
 static uint64 SetupInitProcess() {
     uint64 file;
     int64 error = VFS::Open(&g_RootUser, config_Init_Command, VFS::OpenMode_Read, file);
     if(error != OK) {
-        klog_fatal("Init", "Failed to open %s (%s), aborting boot", config_Init_Command, VFS::ErrorToString(error));
+        klog_fatal("Init", "Failed to open %s (%s), aborting boot", config_Init_Command, ErrorToString(error));
         return 0;
     }
     

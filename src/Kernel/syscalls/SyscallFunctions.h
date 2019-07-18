@@ -2,6 +2,8 @@
 
 #include "types.h"
 
+// This file contains all system calls defined by the kernel
+
 constexpr uint64 syscall_getpid = 0;
 constexpr uint64 syscall_gettid = 1;
 constexpr uint64 syscall_wait = 2;

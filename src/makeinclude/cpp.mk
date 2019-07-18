@@ -1,3 +1,5 @@
+# This makefile is used to build any C/C++/asm executable
+
 include_flags := $(addprefix -I,. $(includes))
 
 c_headers := $(shell find . -type f -name "*.h" -printf "%p ") $(foreach addh,$(includes),$(shell find $(addh) -type f -name "*.h" -printf "%p "))

@@ -32,6 +32,7 @@ smp_Trampoline:
 
         o32 a32 retf
 
+; Temporary GDT before the real one is available
 GDT:
     .null:
         DD 0
@@ -81,6 +82,7 @@ Variable smp_PML4Address
 Variable smp_StackAddress
 Variable smp_DestinationAddress
 
+; a very very small temporary stack
 TIMES 20 DB 0
 stack_top:
 
@@ -91,7 +93,7 @@ pm_Entry:
         mov es, eax
         mov ss, eax
 
-        ; Setup stack
+        ; Setup real stack
         mov eax, edi
         add eax, stack_top - smp_Start
         mov esp, eax

@@ -8,6 +8,7 @@ namespace VFS {
         char name[50];
         uint64 nodeID;
     };
+    
     class Directory {
     public:
         uint64 numEntries;

@@ -8,15 +8,17 @@
  * %X: Hexadecimal 64-Bit Integer
  * %x: Hexadecimal 64-Bit Integer, zero extended
  * %s: String
+ * %c: change color, given as one 32 bit integer
+ * %C: change color, given as three 8 bit integers
  **/ 
 void kprintf(const char* format, ...);
 
 /**
- * Set the color in which text is printed by printf
+ * Set the color in which text is printed by printf by default
  **/
 void kprintf_setcolor(uint32 color);
 /**
- * Set the color in which text is printed by printf
+ * Set the color in which text is printed by printf by default
  **/
 void kprintf_setcolor(uint8 r, uint8 g, uint8 b);
 

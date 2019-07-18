@@ -66,8 +66,6 @@ namespace VFS {
      **/
     void Init(FileSystem* rootFS);
 
-    const char* ErrorToString(int64 error);
-
     /**
      * Creates a regular file at the given path. 
      * All directories up to the given path have to exist.
@@ -98,7 +96,13 @@ namespace VFS {
      **/
     int64 Delete(User* user, const char* path);
 
+    /**
+     * Changes the owner of the given file, only the current owner and root can do that
+     **/
     int64 ChangeOwner(User* user, const char* path, uint64 newUID, uint64 newGID);
+    /**
+     * Changes the permissions of the given file, only the current owner and root can do that
+     **/
     int64 ChangePermissions(User* user, const char* path, const Permissions& permissions);
 
     /**
@@ -115,11 +119,11 @@ namespace VFS {
      **/
     int64 Unmount(User* user, const char* mountPoint);
 
-    constexpr uint64 OpenMode_Read = 0x1;
-    constexpr uint64 OpenMode_Write = 0x2;
-    constexpr uint64 OpenMode_Create = 0x100;
-    constexpr uint64 OpenMode_Clear = 0x200;
-    constexpr uint64 OpenMode_FailIfExist = 0x400;
+    constexpr uint64 OpenMode_Read = 0x1;           // Open for reading
+    constexpr uint64 OpenMode_Write = 0x2;          // Open for writing
+    constexpr uint64 OpenMode_Create = 0x100;       // Create file if it doesn't exist
+    constexpr uint64 OpenMode_Clear = 0x200;        // Clear file contents if file exists
+    constexpr uint64 OpenMode_FailIfExist = 0x400;  // Fail if the file already exists
 
     /**
      * Opens the given path
@@ -166,6 +170,10 @@ namespace VFS {
      **/
     int64 Write(uint64 desc, const void* buffer, uint64 bufferSize);
 
+    /**
+     * Sets the cursor offset of the given file descriptor to offs, if possible.
+     * Returns 0 on success, error otherwise
+     **/
     int64 Seek(uint64 desc, uint64 offs);
 
     /**

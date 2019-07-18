@@ -55,7 +55,7 @@ namespace SSE {
 
         uint64 rax __attribute__((aligned(16)));
 
-        // Enable FXSAVE/FXRSTOR and Exceptions
+        // Enable FXSAVE/FXRSTOR instructions and SSE Exceptions
         __asm__ __volatile__( "movq %%cr4, %0" : "=r"(rax) );
         rax |= (1 << 9); 
         rax |= (1 << 10);
@@ -64,7 +64,7 @@ namespace SSE {
         }
         __asm__ __volatile__( "movq %0, %%cr4" : : "r"(rax) );
 
-        // Clear EM, set MP, clear TS
+        // Clear EM, set MP, clear TS, needed according to AMD manual
         __asm__ __volatile__( "movq %%cr0, %0" : "=r"(rax) );
         rax &= ~(1 << 2);
         rax |= (1 << 1);
@@ -72,15 +72,19 @@ namespace SSE {
         __asm__ __volatile__( "movq %0, %%cr0" : : "r"(rax) );
 
         if(g_ExtendedSSE) {
+            // If extended SSE instructions are available, enable all supported features
             __asm__ __volatile__ ( "xsetbv" : : "d"(0), "a"(0b111), "c"(0) );
 
+            // Find out how large the memory area required to save the FPU state has to be
             uint64 rax, rbx, rcx, rdx;
             CPUID(0xD, 0, rax, rbx, rcx, rdx);
             g_FPUBlockSize = rbx;
         } else {
+            // If no extended SSE is supported, the memory area is defined to be 512 bytes long (see FXSAVE instruction specification)
             g_FPUBlockSize = 512;
         }
 
+        // Mask all floating point exceptions, so that they don't generate interrupts
         uint64 mxcsr __attribute__((aligned(64))) = 0;
         mxcsr |= (1 << 12);
         mxcsr |= (1 << 11);
@@ -99,7 +103,7 @@ namespace SSE {
     void InitCore() {
         uint64 rax __attribute__((aligned(16)));
 
-        // Enable FXSAVE/FXRSTOR and Exceptions
+        // Enable FXSAVE/FXRSTOR instructions and Exceptions
         __asm__ __volatile__( "movq %%cr4, %0" : "=r"(rax) );
         rax |= (1 << 9); 
         rax |= (1 << 10);
