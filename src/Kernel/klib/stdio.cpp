@@ -3,6 +3,8 @@
 #include "terminal/terminal.h"
 #include "locks/StickyLock.h"
 
+#include "klib/string.h"
+
 static uint32 g_TerminalColor = 0xFFFFFF;
 static StickyLock g_PrintLock;
 
@@ -87,6 +89,24 @@ static void PrintString(const char* str, uint32 color) {
     }
 }
 
+static void PrintStringCentered(const char* str, uint32 color, uint64 padding) {
+    int len = kstrlen(str);
+    if(len > padding) {
+        PrintString(str, color);
+        return;
+    }
+
+    int leftPadding = (padding - len) / 2;
+    int rightPadding = padding - len - leftPadding;
+
+    for(int i = 0; i < leftPadding; i++)
+        Terminal::PutChar(&g_TerminalInfo, ' ', color);
+    for(int i = 0; i < len; i++)
+        Terminal::PutChar(&g_TerminalInfo, str[i], color);
+    for(int i = 0; i < rightPadding; i++)
+        Terminal::PutChar(&g_TerminalInfo, ' ', color);
+}
+
 void kprintf(const char* format, ...)
 {
     __builtin_va_list arg;
@@ -116,6 +136,10 @@ void kprintf(const char* format, ...)
             } else if(f == 's') {
                 char* str = __builtin_va_arg(arg, char*);
                 PrintString(str, color);
+            } else if(f == 'S') {
+                char* str = __builtin_va_arg(arg, char*);
+                uint64 padding = __builtin_va_arg(arg, uint64);
+                PrintStringCentered(str, color, padding);
             } else if(f == 'c') {
                 uint32 col = __builtin_va_arg(arg, uint64);
                 color = col;

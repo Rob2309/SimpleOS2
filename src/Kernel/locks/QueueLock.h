@@ -22,6 +22,9 @@ public:
     void Lock();
     void Unlock();
 
+    /**
+     * Forces the QueueLock to the locked state, without checking if it is available
+     **/
     void SetLocked();
 
 private:

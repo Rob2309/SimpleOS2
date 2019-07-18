@@ -29,6 +29,7 @@ namespace SMP {
         wait = false;
     }
 
+    // This function will be called by every secondary CPU core that gets started by StartCores()
     static void CoreEntry() {
         uint64 logicalID = SMP::GetLogicalCoreID();
 
@@ -103,6 +104,7 @@ namespace SMP {
     void StartCores() {
         APIC::SetTimerEvent(ISR_Timer);
         
+        // Set up the variables needed by the bootstrap code (startup.asm)
         uint8* buffer = g_TrampolineBuffer;
         kmemcpy(buffer, (void*)&smp_Start, (uint64)&smp_End - (uint64)&smp_Start);
 

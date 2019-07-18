@@ -4,7 +4,7 @@ asm_compiler := $(NASM) -g -f elf64
 int_dir := $(int_dir)/Kernel
 bin_dir := $(bin_dir)/Kernel
 
-includes := ../common
+includes := 
 
 compile_flags := -g -fPIC -ffreestanding -fno-stack-protector -fno-exceptions -mno-sse
 link_flags := -g -fPIC -nostdlib -shared -e main -static -lgcc

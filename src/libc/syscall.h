@@ -2,6 +2,8 @@
 
 #include "types.h"
 
+// The system call numbers below should be kept in sync with the Kernel's SyscallFunctions.h file
+
 constexpr uint64 syscall_getpid = 0;
 constexpr uint64 syscall_gettid = 1;
 constexpr uint64 syscall_wait = 2;

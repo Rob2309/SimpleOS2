@@ -8,6 +8,9 @@ struct ThreadInfo;
 
 namespace Scheduler {
 
+    /**
+     * Used to create the very first thread of the system.
+     **/
     uint64 CreateInitThread(void (*func)());
 
     /**
@@ -80,8 +83,17 @@ namespace Scheduler {
      * Returns 0 if the current Thread does not belong to a process (KernelThread)
      **/
     uint64 ThreadGetPID();
+    /**
+     * Get the UID of the process owner
+     **/
     uint64 ThreadGetUID();
+    /**
+     * Get the GID of the process owner
+     **/
     uint64 ThreadGetGID();
+    /**
+     * Get the username of the process owner
+     **/
     const char* ThreadGetUserName();
 
     int64 ProcessAddFileDescriptor(uint64 sysDescriptor);
@@ -109,9 +121,20 @@ namespace Scheduler {
 
     void ThreadSetUnkillable(bool unkillable);
 
+    /**
+     * If this function is called with a non zero value, the thread will not be killed when a page fault occurs.
+     * Instead the thread will just jump to the address given by the rip parameter.
+     * Used in kmemcpy_usersafe and kmemset_usersafe.
+     **/
     extern "C" void ThreadSetPageFaultRip(uint64 rip);
+    /**
+     * Called by the page fault interrupt handler to let a thread know it caused a page fault.
+     **/
     void ThreadSetupPageFaultHandler(IDT::Registers* regs);
 
+    /**
+     * Moves the calling thread to the given logical CPU
+     **/
     void ThreadMoveToCPU(uint64 logicalCoreID);
 
     ThreadInfo* GetCurrentThreadInfo();

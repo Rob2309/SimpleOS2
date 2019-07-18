@@ -2,6 +2,8 @@
 
 extern __thread int errno;
 
+// The codes below should be kept in sync with the Kernel's errno.h file
+
 #define EDOM -1
 #define ERANGE -2
 #define EILSEQ -3

@@ -1,3 +1,5 @@
+# This makefile is used to create any C/C++/asm static library
+
 include_flags := $(addprefix -I,. $(includes))
 
 c_headers := $(shell find . -type f -name "*.h" -printf "%p ") $(foreach addh,$(includes),$(shell find $(addh) -type f -name "*.h" -printf "%p "))
@@ -14,7 +16,7 @@ asm_objects := $(addprefix $(int_dir)/, $(subst .asm,.asm.o, $(asm_sources)))
 $(bin_dir)/$(out_file): $(c_objects) $(cpp_objects) $(asm_objects)
 	@ printf "\e[33mCreating static lib\e[0m\n"
 	@ mkdir -p $(dir $@)
-	@ ar r $@ $^
+	@ ar r $@ $^ 2>/dev/null
 
 $(int_dir)/%.c.o: ./%.c $(c_headers) $(cross_headers)
 	@ printf "\e[33mCompiling $<\e[0m\n"
