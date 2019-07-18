@@ -63,19 +63,22 @@ static KernelHeader* g_KernelHeader;
 Terminal::TerminalInfo g_TerminalInfo;
 
 static void InitThread() {
-    klog_info("Init", "Init Thread starting");
+    klog_info("Boot", "Init KernelThread starting");
 
     g_RootUser.gid = 0;
     g_RootUser.uid = 0;
     kstrcpy(g_RootUser.name, "root");
 
     for(uint64 i = 0; i < sizeof(config_DeviceDriverInitFuncs) / sizeof(InitFunc); i++) {
+        klog_info("Boot", "Starting DeviceDriver %i of %i", i+1, sizeof(config_DeviceDriverInitFuncs) / sizeof(InitFunc));
         config_DeviceDriverInitFuncs[i]();
     }
     for(uint64 i = 0; i < sizeof(config_FSDriverInitFuncs) / sizeof(InitFunc); i++) {
+        klog_info("Boot", "Starting FilesystemDriver %i of %i", i+1, sizeof(config_FSDriverInitFuncs) / sizeof(InitFunc));
         config_FSDriverInitFuncs[i]();
     }
     for(uint64 i = 0; i < sizeof(config_ExecInitFuncs) / sizeof(InitFunc); i++) {
+        klog_info("Boot", "Starting ExecHandler %i of %i", i+1, sizeof(config_ExecInitFuncs) / sizeof(InitFunc));
         config_ExecInitFuncs[i]();
     }
 
@@ -86,6 +89,10 @@ static void InitThread() {
         RamDeviceDriver* driver = (RamDeviceDriver*)DeviceDriverRegistry::GetDriver(config_RamDeviceDriverID);
         driver->AddDevice((char*)g_KernelHeader->ramdiskImage.buffer, 512, g_KernelHeader->ramdiskImage.numPages * 8);
     }
+
+    kprintf("%C%s\n", 40, 200, 40, config_HelloMessage);
+
+    klog_info("Init", "Mounting boot filesystem");
 
     DeviceDriver* driver = DeviceDriverRegistry::GetDriver(config_BootFS_DriverID);
     if(driver == nullptr || driver->GetType() != DeviceDriver::TYPE_BLOCK) {
@@ -120,8 +127,8 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     Terminal::InitTerminalInfo(&g_TerminalInfo, info->screenBuffer, info->screenWidth, info->screenHeight, info->screenScanlineWidth, info->screenColorsInverted);
     Terminal::Clear(&g_TerminalInfo);
 
-    kprintf("%C%s\n", 40, 200, 40, config_HelloMessage);
-    klog_info("Kernel", "Kernel at 0x%x", info->kernelImage.buffer);
+    kprintf("%CStarting SimpleOS2 Kernel\n", 40, 200, 40);
+    klog_info("Boot", "Kernel at 0x%x", info->kernelImage.buffer);
 
     MemoryManager::Init(info);
     APIC::Init();
