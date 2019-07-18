@@ -10,6 +10,8 @@
 
 typedef void (*InitFunc)();
 
+constexpr const char* config_HelloMessage = "Starting SimpleOS2";
+
 /**
  * These functions will be called when the kernel is ready to initialize the device drivers.
  * The IDs of the drivers will be the same as their index in this array 

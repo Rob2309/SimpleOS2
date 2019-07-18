@@ -8,6 +8,7 @@
  * %X: Hexadecimal 64-Bit Integer
  * %x: Hexadecimal 64-Bit Integer, zero extended
  * %s: String
+ * %S: String, centered, padding size given in uint64 after the string
  * %c: change color, given as one 32 bit integer
  * %C: change color, given as three 8 bit integers
  **/ 
@@ -22,14 +23,7 @@ void kprintf_setcolor(uint32 color);
  **/
 void kprintf_setcolor(uint8 r, uint8 g, uint8 b);
 
-template<typename... Args>
-inline void kprintf_colored(uint8 r, uint8 g, uint8 b, const char* format, const Args&... args) {
-    kprintf_setcolor(r, g, b);
-    kprintf(format, args...);
-    kprintf_setcolor(255, 255, 255);
-}
-
-#define klog_info(context, format, ...)     kprintf_colored(170, 170, 170, "[INFO][%s] " format "\n", context, ##__VA_ARGS__)
-#define klog_warning(context, format, ...)  kprintf_colored(40, 255, 255, "[WARNING][%s] " format "\n", context, ##__VA_ARGS__)
-#define klog_error(context, format, ...)    kprintf_colored(255, 40, 40, "[ERROR][%s] " format "\n", context, ##__VA_ARGS__)
-#define klog_fatal(context, format, ...)    kprintf_colored(255, 40, 40, "[FATAL][%s] " format "\n", context, ##__VA_ARGS__)
+#define klog_info(context, format, ...)     kprintf("%C[INFO ][%S] " format "\n", 170, 170, 170, context, 10, ##__VA_ARGS__)
+#define klog_warning(context, format, ...)  kprintf("%C[WARN ][%S] " format "\n", 255, 255, 40, context, 10, ##__VA_ARGS__)
+#define klog_error(context, format, ...)    kprintf("%C[ERROR][%S] " format "\n", 255, 40, 40, context, 10, ##__VA_ARGS__)
+#define klog_fatal(context, format, ...)    kprintf("%C[FATAL][%S] " format "\n", 255, 40, 40, context, 10, ##__VA_ARGS__)

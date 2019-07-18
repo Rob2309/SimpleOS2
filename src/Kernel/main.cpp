@@ -120,6 +120,7 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     Terminal::InitTerminalInfo(&g_TerminalInfo, info->screenBuffer, info->screenWidth, info->screenHeight, info->screenScanlineWidth, info->screenColorsInverted);
     Terminal::Clear(&g_TerminalInfo);
 
+    kprintf("%C%s\n", 40, 200, 40, config_HelloMessage);
     klog_info("Kernel", "Kernel at 0x%x", info->kernelImage.buffer);
 
     MemoryManager::Init(info);

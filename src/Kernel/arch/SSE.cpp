@@ -44,6 +44,8 @@ namespace SSE {
         if(xsave && (eax & (1 << 2))) {
             klog_info("SSE", "Extended SSE supported");
             g_ExtendedSSE = true;
+        } else {
+            klog_warning("SSE", "Extended SSE not supported");
         }
 
         return true;
