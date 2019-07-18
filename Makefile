@@ -7,6 +7,11 @@ export MTOOLS_MMD := mmd
 export MTOOLS_MCOPY := mcopy
 export DEBUGFS := debugfs
 export PARTED := parted
+export MKFS_FAT := mkfs.fat
+
+export QEMU_X64 := qemu-system-x86_64
+
+export VBOX_MANAGE := VBoxManage
 
 # currently, only Debug and Release have special meaning
 # the configuration is best changed by invoking make with "config=Release"
@@ -27,17 +32,17 @@ depcheck: FORCE
 run: FORCE
 	@ $(MAKE) -s disk
 	@ printf "\e[32mStarting SimpleOS2 in Qemu\e[0m\n"
-	@ qemu-system-x86_64 -m 1024 -cpu qemu64 -smp 4 -net none -drive if=pflash,unit=0,format=raw,file=dep/ovmf/x64/OVMF_CODE.fd,readonly=on -drive if=pflash,unit=1,format=raw,file=dep/ovmf/x64/OVMF_VARS.fd,readonly=on -drive file=$(bin_dir)/SimpleOS2.img,if=ide
+	@ $(QEMU_X64) -m 1024 -cpu qemu64 -smp 4 -net none -drive if=pflash,unit=0,format=raw,file=dep/ovmf/x64/OVMF_CODE.fd,readonly=on -drive if=pflash,unit=1,format=raw,file=dep/ovmf/x64/OVMF_VARS.fd,readonly=on -drive file=$(bin_dir)/SimpleOS2.img,if=ide
 runvbox: FORCE
 	@ $(MAKE) -s diskvbox
 	@ printf "\e[32mStarting SimpleOS2 in VirtualBox\e[0m\n"
 	@ rm -f $(build_dir)/SimpleOS2.vdi
 	@ cp $(bin_dir)/SimpleOS2.vdi $(build_dir)/SimpleOS2.vdi
-	@ VBoxManage startvm SimpleOS2
+	@ $(VBOX_MANAGE) startvm SimpleOS2
 debug: FORCE
 	@ $(MAKE) -s disk
 	@ printf "\e[32mDebugging SimpleOS2 in Qemu/GDB\e[0m\n"
-	@ qemu-system-x86_64 -gdb tcp::26000 -m 1024 -cpu qemu64 -net none -drive if=pflash,unit=0,format=raw,file=dep/ovmf/x64/OVMF_CODE.fd,readonly=on -drive if=pflash,unit=1,format=raw,file=dep/ovmf/x64/OVMF_VARS.fd,readonly=on -drive file=$(bin_dir)/SimpleOS2.img,if=ide -S & \
+	@ $(QEMU_X64) -gdb tcp::26000 -m 1024 -cpu qemu64 -net none -drive if=pflash,unit=0,format=raw,file=dep/ovmf/x64/OVMF_CODE.fd,readonly=on -drive if=pflash,unit=1,format=raw,file=dep/ovmf/x64/OVMF_VARS.fd,readonly=on -drive file=$(bin_dir)/SimpleOS2.img,if=ide -S & \
 	  gdb --command=debug.cmd
 
 bootloader: FORCE
