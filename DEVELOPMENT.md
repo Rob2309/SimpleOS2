@@ -42,4 +42,21 @@ Device Type | Description
 Character Device | A character device is basically any device that does not allow random access. For example, a keyboard driver would be a character device, as the inputs are sent one after the other and cannot be indexed.
 Block Device | A Block device is any device that can be accessed in a random order. Often these devices are access on a block by block basis instead of byte basis. An example would be a hard drive. It can access any block at any time, in no specific order.
 
-These two types of devices have slightly different APIs exposed to them. To get a feel for the API, take a look at [RamDeviceDriver.cpp](src/Kernel/devices/RamDeviceDriver.cpp) and [VConsoleDriver.cpp][src/Kernel/devices/VConsoleDriver.cpp]
+These two types of devices have slightly different APIs exposed to them. To get a feel for the API, take a look at [RamDeviceDriver.cpp](src/Kernel/devices/RamDeviceDriver.cpp) and [VConsoleDriver.cpp](src/Kernel/devices/VConsoleDriver.cpp)
+
+### Filesystem Drivers
+Filesystem drivers are used to mount different types of filesystems into one unified Virtual File System. There are two types of Filesystems
+
+FS Type | Description
+--|--
+Block Device FS | A Filesystem that is backed by an actual block device (e.g. a harddriver or ramdisk).
+Virtual FS | A Filesystem that does not use any device and resides entirely in RAM
+
+To get a feel for the API, take a look at the [TempFS driver](src/Kernel/fs/TempFS.cpp) (Virtual FS) and the [readonly ext2 driver](src/Kernel/fs/ext/ext2.cpp) (Block Device FS).
+
+### File Execution Handlers
+File Execution Handlers give the kernel a way to support execution of different filetypes. Currently only ELF executables are supported, but by adding other ExecHandlers, theoretically any file could be run by the OS.
+To get a feel for the API, take a look at the [ELF ExecHandler](src/Kernel/exec/elf/ELF.cpp)
+
+### Configuring the Kernel
+The File [Config.h](src/Kernel/Config.h) contains the main configuration options that the Kernel uses on startup. The most important configuration option is the Boot filesystem type, driver and device ID. Those are used to mount the initial root filesystem on which the Init program should be located.
