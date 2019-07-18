@@ -60,3 +60,5 @@ To get a feel for the API, take a look at the [ELF ExecHandler](src/Kernel/exec/
 
 ### Configuring the Kernel
 The File [Config.h](src/Kernel/Config.h) contains the main configuration options that the Kernel uses on startup. The most important configuration option is the Boot filesystem type, driver and device ID. Those are used to mount the initial root filesystem on which the Init program should be located.
+On top of that, any driver or module that is included in the Kernel should be listed as an init function in the respective init arrays.
+Further information is located directly in the Configuration file.
