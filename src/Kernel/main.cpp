@@ -26,7 +26,7 @@
 
 #include "errno.h"
 
-#include "devices/pci/PCI.h"
+#include "devices/pci/PCIInit.h"
 
 static User g_RootUser;
 
@@ -65,7 +65,7 @@ static KernelHeader* g_KernelHeader;
 Terminal::TerminalInfo g_TerminalInfo;
 
 static void InitThread() {
-    PCI::Init();
+    PCI::Init(g_KernelHeader);
 
     klog_info("Boot", "Init KernelThread starting");
 

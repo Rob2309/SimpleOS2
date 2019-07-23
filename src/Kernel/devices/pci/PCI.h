@@ -2,9 +2,12 @@
 
 #include "types.h"
 
+#include "interrupts/IDT.h"
+
 namespace PCI {
 
     struct Device {
+        uint16 group;
         uint8 bus;
         uint8 device;
         uint8 function;
@@ -18,9 +21,13 @@ namespace PCI {
 
         int numBARs;
         uint64 BARs[6];
+
+        uint64 memBase;
+
+        void* msi;
     };
 
-    void Init();
+    void SetMSI(Device* dev, uint8 apicID, IDT::ISR handler);
 
     Device* FindDevice(uint8 classCode, uint8 subclassCode);
 

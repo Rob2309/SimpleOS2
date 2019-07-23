@@ -67,4 +67,22 @@ namespace ACPI {
         uint32 processorEnabled;
     };
 
+    struct __attribute__((packed)) MCFGEntry {
+        uint64 base;
+        uint16 groupID;
+        uint8 busStart;
+        uint8 busEnd;
+        uint32 reserved;
+    };
+
+    struct __attribute__((packed)) MCFG {
+        SDTHeader header;
+        uint64 reserved;
+        MCFGEntry entries[];
+
+        inline uint64 GetEntryCount() {
+            return (header.length - sizeof(MCFG)) / sizeof(MCFGEntry);
+        }
+    };
+
 }
