@@ -124,6 +124,8 @@ namespace PCI {
                     } else {
                         auto msi32 = (CapMSI32*)msi;
                     }
+
+                    dev.msi = msi;
                 }
 
                 capPtr = cap->nextPtr;
@@ -173,6 +175,13 @@ namespace PCI {
             group.id = mcfg->entries[g].groupID;
 
             CheckGroup(group);
+        }
+    }
+
+    const Device* FindDevice(uint8 classCode, uint8 subclassCode) {
+        for(const Device& dev : g_Devices) {
+            if(dev.classCode == classCode && dev.subclassCode == subclassCode)
+                return &dev;
         }
     }
 
