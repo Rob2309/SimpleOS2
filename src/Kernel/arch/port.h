@@ -12,4 +12,7 @@ namespace Port
      * Reads a byte from the given port
      **/
     uint8 InByte(uint16 port);
+
+    void OutDWord(uint16 port, uint32 val);
+    uint32 InDWord(uint16 port);
 }

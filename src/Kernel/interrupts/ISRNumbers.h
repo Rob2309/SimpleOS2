@@ -26,6 +26,8 @@ namespace ISRNumbers
     constexpr uint8 ExceptionVirtualization = 20;
     constexpr uint8 ExceptionSecurity = 30;
 
+    constexpr uint8 PCIBase = 40;
+
     constexpr uint8 APICTimer = 100; // Interrupt of Local APIC Timer
     constexpr uint8 APICError = 101; // Interrupt if Local APIC throws an error
 
