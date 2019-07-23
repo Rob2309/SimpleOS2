@@ -183,6 +183,7 @@ namespace PCI {
             if(dev.classCode == classCode && dev.subclassCode == subclassCode)
                 return &dev;
         }
+        return nullptr;
     }
 
     void SetMSI(Device* dev, uint8 apicID, IDT::ISR handler) {
