@@ -11,6 +11,6 @@ includes := ../../libc
 compile_flags := -g -ffreestanding -fno-stack-protector -fno-exceptions
 link_flags := -g -nostdlib -e __start -static -lgcc
 
-out_file := Init.elf
+out_file := init.elf
 
 include ../../makeinclude/cpp.mk

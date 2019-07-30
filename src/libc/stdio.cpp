@@ -1,6 +1,6 @@
 #include "stdio.h"
 
-#include "Syscall.h"
+#include "syscall.h"
 #include "string.h"
 #include "stdlib.h"
 #include "errno.h"

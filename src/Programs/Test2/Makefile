@@ -16,6 +16,6 @@ ifeq ($(config),Release)
 	link_flags += -O2
 endif
 
-out_file := Test2.elf
+out_file := test2.elf
 
 include ../../makeinclude/cpp.mk
