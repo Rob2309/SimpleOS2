@@ -92,4 +92,60 @@ namespace Time {
         return ((edx << 32) & 0xFFFFFFFF00000000) | (eax & 0xFFFFFFFF);
     }
 
+    static uint8 ReadRTCReg(uint8 reg) {
+        Port::OutByte(0x70, reg);
+        return Port::InByte(0x71);
+    }
+
+    #define CONVERT_BCD(var) var = (var & 0x0F) + (var >> 4) * 10
+
+    void GetRTC(DateTime* dt) {
+        uint8 lastSecond = ReadRTCReg(0x00);
+        uint8 lastMinute = ReadRTCReg(0x02);
+        uint8 lastHour = ReadRTCReg(0x04);
+        uint8 lastDOM = ReadRTCReg(0x07);
+        uint8 lastMonth = ReadRTCReg(0x08);
+        uint8 lastYear = ReadRTCReg(0x09);
+
+        while(true) {
+            uint8 second = ReadRTCReg(0x00);
+            uint8 minute = ReadRTCReg(0x02);
+            uint8 hour = ReadRTCReg(0x04);
+            uint8 dayOfMonth = ReadRTCReg(0x07);
+            uint8 month = ReadRTCReg(0x08);
+            uint8 year = ReadRTCReg(0x09);
+
+            if(lastSecond == second && lastMinute == minute && lastHour == hour && lastDOM == dayOfMonth && lastMonth == month && lastYear == year) {
+                break;
+            }
+
+            lastSecond = second;
+            lastMinute = minute;
+            lastHour = hour;
+            lastDOM = dayOfMonth;
+            lastMonth = month;
+            lastYear = year;
+        }
+
+        uint8 format = ReadRTCReg(0x0B);
+        if((format & 0x04) == 0) {  // BCD mode
+            CONVERT_BCD(lastSecond);
+            CONVERT_BCD(lastMinute);
+            CONVERT_BCD(lastHour);
+            CONVERT_BCD(lastDOM);
+            CONVERT_BCD(lastMonth);
+            CONVERT_BCD(lastYear);
+        }
+        if((format & 0x02) == 0 && (lastHour & 0x80)) {
+            lastHour = (lastHour & 0x7F) + 12;
+        }
+
+        dt->seconds = lastSecond;
+        dt->minutes = lastMinute;
+        dt->hours = lastHour;
+        dt->dayOfMonth = lastDOM;
+        dt->month = lastMonth;
+        dt->year = lastYear;
+    }
+
 }

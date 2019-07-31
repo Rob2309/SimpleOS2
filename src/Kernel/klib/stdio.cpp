@@ -127,6 +127,15 @@ void kprintf(const char* format, ...)
             if(f == 'i') {
                 char* num = Int64ToString(__builtin_va_arg(arg, int64));
                 PrintString(num, color);
+            } else if(f == 'I') {
+                char* num = Int64ToString(__builtin_va_arg(arg, int64));
+                uint64 padding = __builtin_va_arg(arg, uint64);
+
+                int l = kstrlen(num);
+                for(int i = l; i < padding; i++) {
+                    Terminal::PutChar(&g_TerminalInfo, '0', color);
+                }
+                PrintString(num, color);
             } else if(f == 'X') {
                 char* num = UInt64ToHexString(__builtin_va_arg(arg, uint64));
                 PrintString(num, color);

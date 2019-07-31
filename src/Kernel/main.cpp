@@ -124,6 +124,10 @@ static void InitThread() {
 
     uint64 tid = SetupInitProcess();
 
+    Time::DateTime dt;
+    Time::GetRTC(&dt);
+    klog_info("Time", "UTC Time is %I.%I.20%I %I:%I:%I", dt.dayOfMonth, 2, dt.month, 2, dt.year, 2, dt.hours, 2, dt.minutes, 2, dt.seconds, 2);
+
     Scheduler::ThreadExit(0);
 }
 
