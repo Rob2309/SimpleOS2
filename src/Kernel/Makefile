@@ -7,7 +7,7 @@ bin_dir := $(bin_dir)/Kernel
 includes := 
 
 compile_flags := -g -fPIC -ffreestanding -fno-stack-protector -fno-exceptions -mno-sse
-link_flags := -g -fPIC -nostdlib -shared -e main -static -lgcc
+link_flags := -g -fPIC -nostdlib -shared -e main -static -lgcc -T linker.ld
 
 ifeq ($(config),Debug)
 	compile_flags += -DDEBUG -O0

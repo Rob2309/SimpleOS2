@@ -28,6 +28,8 @@
 
 #include "devices/pci/PCIInit.h"
 
+#include "syscalls/SyscallDefine.h"
+
 static User g_RootUser;
 
 static uint64 SetupInitProcess() {
@@ -143,6 +145,7 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     IDT::Init();
     IDT::InitCore(SMP::GetLogicalCoreID());
     APIC::InitBootCore();
+    SyscallHandler::Init();
     SyscallHandler::InitCore();
     if(!SSE::InitBootCore()) {
         klog_fatal("Boot", "Boot failed...");

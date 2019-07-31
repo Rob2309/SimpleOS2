@@ -12,6 +12,7 @@
 #include "klib/stdio.h"
 #include "arch/SSE.h"
 #include "ktl/new.h"
+#include "syscalls/SyscallDefine.h"
 
 namespace Scheduler {
 
@@ -458,6 +459,10 @@ namespace Scheduler {
 
         ThreadUnsetSticky();
     }
+    SYSCALL_DEFINE(syscall_wait) {
+        ThreadWait(arg1);
+        return 0;
+    }
 
     void ThreadExit(uint64 code)
     {
@@ -491,11 +496,17 @@ namespace Scheduler {
         SetContext(next, &regs);
         ReturnToThread(&regs);
     }
+    SYSCALL_DEFINE(syscall_exit) {
+        ThreadExit(arg1);
+    }
 
     uint64 ThreadGetTID()
     {
         uint64 coreID = SMP::GetLogicalCoreID();
         return g_CPUData[coreID].currentThread->tid;
+    }
+    SYSCALL_DEFINE(syscall_gettid) {
+        return ThreadGetTID();
     }
     uint64 ThreadGetPID()
     {  
@@ -505,6 +516,9 @@ namespace Scheduler {
             return g_CPUData[coreID].currentThread->process->pid;
         else
             return 0;    
+    }
+    SYSCALL_DEFINE(syscall_getpid) {
+        return ThreadGetPID();
     }
     uint64 ThreadGetUID() {
         uint64 coreID = SMP::GetLogicalCoreID();
@@ -560,6 +574,14 @@ namespace Scheduler {
 
         return res;
     }
+    SYSCALL_DEFINE(syscall_thread_create) {
+        uint64 entry = arg1;
+        uint64 stack = arg2;
+        uint64 arg = arg3;
+        if(!MemoryManager::IsUserPtr((void*)entry) || !MemoryManager::IsUserPtr((void*)stack))
+            ThreadKillProcess("InvalidUserPointer");
+        return ThreadCreateThread(entry, stack, arg); 
+    }
 
     int64 ProcessAddFileDescriptor(uint64 sysDescriptor) {
         uint64 coreID = SMP::GetLogicalCoreID();
@@ -608,6 +630,9 @@ namespace Scheduler {
         VFS::AddRef(newSysDesc);
         return OK;
     }
+    SYSCALL_DEFINE(syscall_copyfd) {
+        return ProcessReplaceFileDescriptor(arg1, arg2);
+    }
     int64 ProcessReplaceFileDescriptorValue(int64 oldPDesc, uint64 newSysDesc) {
         uint64 coreID = SMP::GetLogicalCoreID();
 
@@ -631,6 +656,22 @@ namespace Scheduler {
         pInfo->fileDescLock.Unlock();
         VFS::AddRef(newSysDesc);
         return OK;
+    }
+    SYSCALL_DEFINE(syscall_reopenfd) {
+        ThreadInfo* tInfo = Scheduler::GetCurrentThreadInfo();
+        ProcessInfo* pInfo = tInfo->process;
+
+        uint64 sysDesc;
+        int64 error = VFS::Open(pInfo->owner, (const char*)arg2, arg3, sysDesc);
+        if(error != OK) {
+            return error;
+        }
+        
+        int64 res = Scheduler::ProcessReplaceFileDescriptorValue(arg1, sysDesc);
+        if(res != OK) {
+            VFS::Close(sysDesc);
+        }
+        return res;
     }
     int64 ProcessCloseFileDescriptor(int64 descID) {
         uint64 coreID = SMP::GetLogicalCoreID();
@@ -678,6 +719,12 @@ namespace Scheduler {
         uint64 coreID = SMP::GetLogicalCoreID();
         g_CPUData[coreID].currentThread->userFSBase = val;
     }
+    SYSCALL_DEFINE(syscall_setfs) {
+        ThreadSetFS(arg1);
+        MSR::Write(MSR::RegFSBase, arg1);
+        return 0;
+    }
+
     void ThreadSetGS(uint64 val) {
         uint64 coreID = SMP::GetLogicalCoreID();
         g_CPUData[coreID].currentThread->userGSBase = val;
@@ -830,6 +877,9 @@ namespace Scheduler {
 
         ThreadYield();
         ThreadUnsetSticky();
+    }
+    SYSCALL_DEFINE(syscall_move_core) {
+        ThreadMoveToCPU(arg1);
     }
 
     ThreadInfo* GetCurrentThreadInfo() {

@@ -1,6 +1,7 @@
 #include "simpleos_vfs.h"
 #include "simpleos_process.h"
 #include "simpleos_raw.h"
+#include "syscall.h"
 
 #include "stdlib.h"
 

@@ -7,6 +7,9 @@
 #include "arch/APIC.h"
 #include "multicore/SMP.h"
 
+#include "syscalls/SyscallDefine.h"
+#include "scheduler/Scheduler.h"
+
 #define PML_GET_NX(entry)           ((entry) & 0x8000000000000000)
 #define PML_GET_ADDR(entry)         ((entry) & 0x000FFFFFFFFFF000)
 
@@ -402,6 +405,15 @@ namespace MemoryManager {
         volatile uint64* myPML4 = g_CorePageTables[SMP::GetLogicalCoreID()];
         MapProcessPage(myPML4[0], virt, true);
     }
+    SYSCALL_DEFINE(syscall_alloc) {
+        char* pageBase = (char*)arg1;
+        if(!MemoryManager::IsUserPtr(pageBase))
+            Scheduler::ThreadKillProcess("InvalidUserPointer");
+        for(uint64 i = 0; i < arg2; i++) {
+            MemoryManager::MapProcessPage(pageBase + i * 4096);
+        }
+        return 0;
+    }
     void UnmapProcessPage(uint64 pml4Entry, void* virt)
     {
         uint64 pml3Index = GET_PML3_INDEX((uint64)virt);
@@ -433,6 +445,15 @@ namespace MemoryManager {
     void UnmapProcessPage(void* virt) {
         volatile uint64* myPML4 = g_CorePageTables[SMP::GetLogicalCoreID()];
         UnmapProcessPage(myPML4[0], virt);
+    }
+    SYSCALL_DEFINE(syscall_free) {
+        char* pageBase = (char*)arg1;
+        if(!MemoryManager::IsUserPtr(pageBase))
+            Scheduler::ThreadKillProcess("InvalidUserPointer");
+        for(uint64 i = 0; i < arg2; i++) {
+            MemoryManager::UnmapProcessPage(pageBase + i * 4096);
+        }
+        return 0;
     }
 
     void* UserToKernelPtr(const void* virt)
