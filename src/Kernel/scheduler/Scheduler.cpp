@@ -459,8 +459,8 @@ namespace Scheduler {
 
         ThreadUnsetSticky();
     }
-    SYSCALL_DEFINE(syscall_wait) {
-        ThreadWait(arg1);
+    SYSCALL_DEFINE1(syscall_wait, uint64 ms) {
+        ThreadWait(ms);
         return 0;
     }
 
@@ -496,8 +496,8 @@ namespace Scheduler {
         SetContext(next, &regs);
         ReturnToThread(&regs);
     }
-    SYSCALL_DEFINE(syscall_exit) {
-        ThreadExit(arg1);
+    SYSCALL_DEFINE1(syscall_exit, uint64 code) {
+        ThreadExit(code);
     }
 
     uint64 ThreadGetTID()
@@ -505,7 +505,7 @@ namespace Scheduler {
         uint64 coreID = SMP::GetLogicalCoreID();
         return g_CPUData[coreID].currentThread->tid;
     }
-    SYSCALL_DEFINE(syscall_gettid) {
+    SYSCALL_DEFINE0(syscall_gettid) {
         return ThreadGetTID();
     }
     uint64 ThreadGetPID()
@@ -517,7 +517,7 @@ namespace Scheduler {
         else
             return 0;    
     }
-    SYSCALL_DEFINE(syscall_getpid) {
+    SYSCALL_DEFINE0(syscall_getpid) {
         return ThreadGetPID();
     }
     uint64 ThreadGetUID() {
@@ -574,10 +574,7 @@ namespace Scheduler {
 
         return res;
     }
-    SYSCALL_DEFINE(syscall_thread_create) {
-        uint64 entry = arg1;
-        uint64 stack = arg2;
-        uint64 arg = arg3;
+    SYSCALL_DEFINE3(syscall_thread_create, uint64 entry, uint64 stack, uint64 arg) {
         if(!MemoryManager::IsUserPtr((void*)entry) || !MemoryManager::IsUserPtr((void*)stack))
             ThreadKillProcess("InvalidUserPointer");
         return ThreadCreateThread(entry, stack, arg); 
@@ -630,8 +627,8 @@ namespace Scheduler {
         VFS::AddRef(newSysDesc);
         return OK;
     }
-    SYSCALL_DEFINE(syscall_copyfd) {
-        return ProcessReplaceFileDescriptor(arg1, arg2);
+    SYSCALL_DEFINE2(syscall_copyfd, int64 dest, int64 src) {
+        return ProcessReplaceFileDescriptor(dest, src);
     }
     int64 ProcessReplaceFileDescriptorValue(int64 oldPDesc, uint64 newSysDesc) {
         uint64 coreID = SMP::GetLogicalCoreID();
@@ -657,17 +654,17 @@ namespace Scheduler {
         VFS::AddRef(newSysDesc);
         return OK;
     }
-    SYSCALL_DEFINE(syscall_reopenfd) {
+    SYSCALL_DEFINE3(syscall_reopenfd, int64 desc, const char* filePath, uint64 openMode) {
         ThreadInfo* tInfo = Scheduler::GetCurrentThreadInfo();
         ProcessInfo* pInfo = tInfo->process;
 
         uint64 sysDesc;
-        int64 error = VFS::Open(pInfo->owner, (const char*)arg2, arg3, sysDesc);
+        int64 error = VFS::Open(pInfo->owner, filePath, openMode, sysDesc);
         if(error != OK) {
             return error;
         }
         
-        int64 res = Scheduler::ProcessReplaceFileDescriptorValue(arg1, sysDesc);
+        int64 res = Scheduler::ProcessReplaceFileDescriptorValue(desc, sysDesc);
         if(res != OK) {
             VFS::Close(sysDesc);
         }
@@ -719,9 +716,9 @@ namespace Scheduler {
         uint64 coreID = SMP::GetLogicalCoreID();
         g_CPUData[coreID].currentThread->userFSBase = val;
     }
-    SYSCALL_DEFINE(syscall_setfs) {
-        ThreadSetFS(arg1);
-        MSR::Write(MSR::RegFSBase, arg1);
+    SYSCALL_DEFINE1(syscall_setfs, uint64 fs) {
+        ThreadSetFS(fs);
+        MSR::Write(MSR::RegFSBase, fs);
         return 0;
     }
 
@@ -878,8 +875,8 @@ namespace Scheduler {
         ThreadYield();
         ThreadUnsetSticky();
     }
-    SYSCALL_DEFINE(syscall_move_core) {
-        ThreadMoveToCPU(arg1);
+    SYSCALL_DEFINE1(syscall_move_core, uint64 core) {
+        ThreadMoveToCPU(core);
     }
 
     ThreadInfo* GetCurrentThreadInfo() {

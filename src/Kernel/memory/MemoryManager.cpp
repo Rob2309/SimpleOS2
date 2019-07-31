@@ -405,12 +405,11 @@ namespace MemoryManager {
         volatile uint64* myPML4 = g_CorePageTables[SMP::GetLogicalCoreID()];
         MapProcessPage(myPML4[0], virt, true);
     }
-    SYSCALL_DEFINE(syscall_alloc) {
-        char* pageBase = (char*)arg1;
-        if(!MemoryManager::IsUserPtr(pageBase))
+    SYSCALL_DEFINE2(syscall_alloc, char* base, uint64 numPages) {
+        if(!MemoryManager::IsUserPtr(base))
             Scheduler::ThreadKillProcess("InvalidUserPointer");
-        for(uint64 i = 0; i < arg2; i++) {
-            MemoryManager::MapProcessPage(pageBase + i * 4096);
+        for(uint64 i = 0; i < numPages; i++) {
+            MemoryManager::MapProcessPage(base + i * 4096);
         }
         return 0;
     }
@@ -446,12 +445,11 @@ namespace MemoryManager {
         volatile uint64* myPML4 = g_CorePageTables[SMP::GetLogicalCoreID()];
         UnmapProcessPage(myPML4[0], virt);
     }
-    SYSCALL_DEFINE(syscall_free) {
-        char* pageBase = (char*)arg1;
-        if(!MemoryManager::IsUserPtr(pageBase))
+    SYSCALL_DEFINE2(syscall_free, char* base, uint64 numPages) {
+        if(!MemoryManager::IsUserPtr(base))
             Scheduler::ThreadKillProcess("InvalidUserPointer");
-        for(uint64 i = 0; i < arg2; i++) {
-            MemoryManager::UnmapProcessPage(pageBase + i * 4096);
+        for(uint64 i = 0; i < numPages; i++) {
+            MemoryManager::UnmapProcessPage(base + i * 4096);
         }
         return 0;
     }

@@ -77,7 +77,7 @@ namespace SyscallHandler {
 
         return Scheduler::CloneProcess(&childRegs);
     }
-    SYSCALL_DEFINE(syscall_fork) {
+    SYSCALL_DEFINE0(syscall_fork) {
         return DoFork(state);
     }
 
@@ -111,8 +111,8 @@ namespace SyscallHandler {
         delete[] buffer;
         Scheduler::ProcessExec(pml4Entry, &regs);
     }
-    SYSCALL_DEFINE(syscall_exec) {
-        return DoExec((const char*)arg1);
+    SYSCALL_DEFINE1(syscall_exec, const char* path) {
+        return DoExec(path);
     }
 
     extern "C" uint64 SyscallDispatcher(uint64 func, uint64 arg1, uint64 arg2, uint64 arg3, uint64 arg4, SyscallState* state)
