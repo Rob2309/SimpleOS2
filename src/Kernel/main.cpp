@@ -28,6 +28,8 @@
 
 #include "devices/pci/PCIInit.h"
 
+#include "time/Time.h"
+
 static User g_RootUser;
 
 static uint64 SetupInitProcess() {
@@ -134,6 +136,10 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     kprintf("%CStarting SimpleOS2 Kernel\n", 40, 200, 40);
     klog_info("Boot", "Kernel at 0x%x", info->kernelImage.buffer);
 
+    if(!Time::Init()) {
+        klog_fatal("Boot", "Boot failed...");
+        while(true);
+    }
     MemoryManager::Init(info);
     APIC::Init();
     SMP::GatherInfo(info);

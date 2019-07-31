@@ -3,22 +3,16 @@
 #include "types.h"
 #include "klib/stdio.h"
 
+#include "arch/CPU.h"
+
 namespace SSE {
 
     static bool g_ExtendedSSE;
     static uint64 g_FPUBlockSize;
 
-    static void CPUID(uint64 func, uint64 subFunc, uint64& eax, uint64& ebx, uint64& ecx, uint64& edx) {
-        __asm__ __volatile__ (
-            "cpuid"
-            : "=a"(eax), "=b"(ebx), "=c"(ecx), "=d"(edx)
-            : "a"(func), "c"(subFunc)
-        );
-    }
-
     static bool CheckFeatures() {
         uint64 eax, ebx, ecx, edx;
-        CPUID(0x1, 0x0, eax, ebx, ecx, edx);
+        CPU::CPUID(0x1, 0x0, eax, ebx, ecx, edx);
 
         if(!(edx & (1 << 25))) {    // no SSE1
             klog_fatal("SSE", "SSE1 not supported");
@@ -40,7 +34,7 @@ namespace SSE {
             xsave = true;
         }
 
-        CPUID(0xD, 0x0, eax, ebx, ecx, edx);
+        CPU::CPUID(0xD, 0x0, eax, ebx, ecx, edx);
         if(xsave && (eax & (1 << 2))) {
             klog_info("SSE", "Extended SSE supported");
             g_ExtendedSSE = true;
@@ -79,7 +73,7 @@ namespace SSE {
 
             // Find out how large the memory area required to save the FPU state has to be
             uint64 rax, rbx, rcx, rdx;
-            CPUID(0xD, 0, rax, rbx, rcx, rdx);
+            CPU::CPUID(0xD, 0, rax, rbx, rcx, rdx);
             g_FPUBlockSize = rbx;
         } else {
             // If no extended SSE is supported, the memory area is defined to be 512 bytes long (see FXSAVE instruction specification)
@@ -125,7 +119,7 @@ namespace SSE {
             __asm__ __volatile__ ( "xsetbv" : : "d"(0), "a"(0b111), "c"(0) );
 
             uint64 rax, rbx, rcx, rdx;
-            CPUID(0xD, 0, rax, rbx, rcx, rdx);
+            CPU::CPUID(0xD, 0, rax, rbx, rcx, rdx);
             g_FPUBlockSize = rbx;
         } else {
             g_FPUBlockSize = 512;
