@@ -46,3 +46,8 @@ extern "C" bool _kmemset_usersafe(void* dest, int value, uint64 count);
 bool kmemset_usersafe(void* dest, int value, uint64 size) {
     return _kmemset_usersafe(dest, value, size);
 }
+
+extern "C" bool _kpathcpy_usersafe(char* dest, const char* src);
+bool kpathcpy_usersafe(char* dest, const char* src) {
+    return _kpathcpy_usersafe(dest, src);
+}

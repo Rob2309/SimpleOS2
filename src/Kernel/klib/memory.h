@@ -19,3 +19,5 @@ bool kmemcpy_usersafe(void* dest, const void* src, uint64 count);
  * Returns true if writing was successful, false if the buffer was invalid
  **/
 bool kmemset_usersafe(void* dest, int value, uint64 size);
+
+bool kpathcpy_usersafe(char* dest, const char* src);

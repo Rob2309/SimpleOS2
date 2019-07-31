@@ -60,29 +60,26 @@ namespace VFS {
     static StickyLock g_FileDescLock;
     static ktl::nlist<FileDescriptor> g_FileDescs;
 
-    static bool CleanPath(const char* path, char* cleanBuffer) {
-        int length = kstrlen(path);
-        if(length >= 255)
-            return false;
+    static bool CleanPath(char* cleanBuffer) {
+        int length = kstrlen(cleanBuffer);
         
-        if(path[0] != '/')
+        if(cleanBuffer[0] != '/')
             return false;
-        cleanBuffer[0] = '/';
 
-        int bufferPos = 1;
+        int writePos = 1;
         for(int i = 1; i < length; i++) {
-            char c = path[i];
-            if(c == '/' && cleanBuffer[bufferPos - 1] == '/') {
+            char c = cleanBuffer[i];
+            if(c == '/' && cleanBuffer[writePos - 1] == '/') {
             } else {
-                cleanBuffer[bufferPos] = c;
-                bufferPos++;
+                cleanBuffer[writePos] = c;
+                writePos++;
             }
         }
 
-        if(cleanBuffer[bufferPos-1] == '/')
-            cleanBuffer[bufferPos - 1] = '\0';
+        if(cleanBuffer[writePos-1] == '/')
+            cleanBuffer[writePos - 1] = '\0';
         else
-            cleanBuffer[bufferPos] = '\0';
+            cleanBuffer[writePos] = '\0';
 
         return true;
     }
@@ -341,7 +338,9 @@ namespace VFS {
 
     int64 CreateFile(User* user, const char* path, const Permissions& perms) {
         char cleanBuffer[255];
-        if(!CleanPath(path, cleanBuffer))
+        if(!kpathcpy_usersafe(cleanBuffer, path))
+            return ErrorInvalidBuffer;
+        if(!CleanPath(cleanBuffer))
             return ErrorInvalidPath;
 
         const char* folderPath;
@@ -397,7 +396,9 @@ namespace VFS {
 
     int64 CreateFolder(User* user, const char* path, const Permissions& perms) {
         char cleanBuffer[255];
-        if(!CleanPath(path, cleanBuffer))
+        if(!kpathcpy_usersafe(cleanBuffer, path))
+            return ErrorInvalidBuffer;
+        if(!CleanPath(cleanBuffer))
             return ErrorInvalidPath;
 
         const char* folderPath;
@@ -454,7 +455,9 @@ namespace VFS {
 
     int64 CreateDeviceFile(User* user, const char* path, const Permissions& perms, uint64 driverID, uint64 subID) {
         char cleanBuffer[255];
-        if(!CleanPath(path, cleanBuffer))
+        if(!kpathcpy_usersafe(cleanBuffer, path))
+            return ErrorInvalidBuffer;
+        if(!CleanPath(cleanBuffer))
             return ErrorInvalidPath;
 
         const char* folderPath;
@@ -550,7 +553,9 @@ namespace VFS {
 
     int64 Delete(User* user, const char* path) {
         char cleanBuffer[255];
-        if(!CleanPath(path, cleanBuffer))
+        if(!kpathcpy_usersafe(cleanBuffer, path))
+            return ErrorInvalidBuffer;
+        if(!CleanPath(cleanBuffer))
             return ErrorInvalidPath;
 
         MountPoint* mp = AcquireMountPoint(cleanBuffer);
@@ -614,7 +619,9 @@ namespace VFS {
 
     int64 ChangeOwner(User* user, const char* path, uint64 newUID, uint64 newGID) {
         char cleanBuffer[255];
-        if(!CleanPath(path, cleanBuffer))
+        if(!kpathcpy_usersafe(cleanBuffer, path))
+            return ErrorInvalidBuffer;
+        if(!CleanPath(cleanBuffer))
             return ErrorInvalidPath;
 
         MountPoint* mp = AcquireMountPoint(cleanBuffer);
@@ -647,7 +654,9 @@ namespace VFS {
 
     int64 ChangePermissions(User* user, const char* path, const Permissions& permissions) {
         char cleanBuffer[255];
-        if(!CleanPath(path, cleanBuffer))
+        if(!kpathcpy_usersafe(cleanBuffer, path))
+            return ErrorInvalidBuffer;
+        if(!CleanPath(cleanBuffer))
             return ErrorInvalidPath;
 
         MountPoint* mp = AcquireMountPoint(cleanBuffer);
@@ -679,7 +688,9 @@ namespace VFS {
 
     int64 Mount(User* user, const char* mountPoint, FileSystem* fs) {
         char cleanBuffer[255];
-        if(!CleanPath(mountPoint, cleanBuffer))
+        if(!kpathcpy_usersafe(cleanBuffer, mountPoint))
+            return ErrorInvalidBuffer;
+        if(!CleanPath(cleanBuffer))
             return ErrorInvalidPath;
 
         MountPoint* mp = AcquireMountPoint(cleanBuffer);
@@ -741,7 +752,9 @@ namespace VFS {
     }
     int64 Mount(User* user, const char* mountPoint, const char* fsID, const char* devFile) {
         char cleanBuffer[255];
-        if(!CleanPath(devFile, cleanBuffer))
+        if(!kpathcpy_usersafe(cleanBuffer, devFile))
+            return ErrorInvalidBuffer;
+        if(!CleanPath(cleanBuffer))
             return ErrorInvalidPath;
 
         MountPoint* mp = AcquireMountPoint(cleanBuffer);
@@ -799,7 +812,9 @@ namespace VFS {
 
     int64 Open(User* user, const char* path, uint64 openMode, uint64& fileDesc) {
         char cleanBuffer[255];
-        if(!CleanPath(path, cleanBuffer))
+        if(!kpathcpy_usersafe(cleanBuffer, path))
+            return ErrorInvalidBuffer;
+        if(!CleanPath(cleanBuffer))
             return ErrorInvalidPath;
 
         const char* folderPath;
@@ -907,7 +922,9 @@ namespace VFS {
 
     int64 List(User* user, const char* path, FileList* list, bool getTypes) {
         char cleanBuffer[255];
-        if(!CleanPath(path, cleanBuffer))
+        if(!kpathcpy_usersafe(cleanBuffer, path))
+            return ErrorInvalidBuffer;
+        if(!CleanPath(cleanBuffer))
             return ErrorInvalidPath;
 
         MountPoint* mp = AcquireMountPoint(cleanBuffer);
