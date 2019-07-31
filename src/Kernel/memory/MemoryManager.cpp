@@ -10,6 +10,8 @@
 #include "syscalls/SyscallDefine.h"
 #include "scheduler/Scheduler.h"
 
+#include "errno.h"
+
 #define PML_GET_NX(entry)           ((entry) & 0x8000000000000000)
 #define PML_GET_ADDR(entry)         ((entry) & 0x000FFFFFFFFFF000)
 
@@ -406,9 +408,12 @@ namespace MemoryManager {
         MapProcessPage(myPML4[0], virt, true);
     }
     SYSCALL_DEFINE2(syscall_alloc, char* base, uint64 numPages) {
-        if(!MemoryManager::IsUserPtr(base))
-            Scheduler::ThreadKillProcess("InvalidUserPointer");
+        if((uint64)base & 0xFFF != 0)
+            return ErrorInvalidBuffer;
         for(uint64 i = 0; i < numPages; i++) {
+            if(!MemoryManager::IsUserPtr(base + i * 4096))
+                Scheduler::ThreadKillProcess("InvalidUserPointer");
+
             MemoryManager::MapProcessPage(base + i * 4096);
         }
         return 0;
@@ -446,9 +451,12 @@ namespace MemoryManager {
         UnmapProcessPage(myPML4[0], virt);
     }
     SYSCALL_DEFINE2(syscall_free, char* base, uint64 numPages) {
-        if(!MemoryManager::IsUserPtr(base))
-            Scheduler::ThreadKillProcess("InvalidUserPointer");
+        if((uint64)base & 0xFFF != 0)
+            return ErrorInvalidBuffer;
         for(uint64 i = 0; i < numPages; i++) {
+            if(!MemoryManager::IsUserPtr(base + i * 4096))
+                Scheduler::ThreadKillProcess("InvalidUserPointer");
+
             MemoryManager::UnmapProcessPage(base + i * 4096);
         }
         return 0;

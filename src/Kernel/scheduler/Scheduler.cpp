@@ -575,9 +575,7 @@ namespace Scheduler {
         return res;
     }
     SYSCALL_DEFINE3(syscall_thread_create, uint64 entry, uint64 stack, uint64 arg) {
-        if(!MemoryManager::IsUserPtr((void*)entry) || !MemoryManager::IsUserPtr((void*)stack))
-            ThreadKillProcess("InvalidUserPointer");
-        return ThreadCreateThread(entry, stack, arg); 
+        return ThreadCreateThread(entry, stack, arg);
     }
 
     int64 ProcessAddFileDescriptor(uint64 sysDescriptor) {
