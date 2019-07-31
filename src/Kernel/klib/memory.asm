@@ -68,3 +68,42 @@ _kmemset_usersafe:
 
         mov rax, 0
         ret
+
+GLOBAL _kpathcpy_usersafe
+_kpathcpy_usersafe:
+        ; rdi = userDest
+        ; rsi = src
+        sub rsp, 8
+        push rdi
+        push rsi
+        ; stack 16 byte aligned
+
+        mov rdi, .error
+        call ThreadSetPageFaultRip wrt ..plt
+
+        pop rsi
+        pop rdi
+        add rsp, 8
+
+        mov rcx, 255
+
+    .loop:
+        lodsb
+        stosb
+        cmp al, 0
+        je .success
+        loop .loop
+
+    .error:
+        mov rdi, 0
+        call ThreadSetPageFaultRip wrt ..plt
+
+        mov rax, 0
+        ret
+
+    .success:
+        mov rdi, 0
+        call ThreadSetPageFaultRip wrt ..plt
+
+        mov rax, 1
+        ret

@@ -4,6 +4,7 @@
 
 namespace SyscallHandler {
 
+    void Init();
     void InitCore();
 
 }

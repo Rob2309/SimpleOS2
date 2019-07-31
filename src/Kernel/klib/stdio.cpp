@@ -5,6 +5,10 @@
 
 #include "klib/string.h"
 
+#include "syscalls/SyscallDefine.h"
+#include "memory/MemoryManager.h"
+#include "scheduler/Scheduler.h"
+
 static uint32 g_TerminalColor = 0xFFFFFF;
 static StickyLock g_PrintLock;
 
@@ -171,4 +175,11 @@ void kprintf_setcolor(uint32 color)
 void kprintf_setcolor(uint8 r, uint8 g, uint8 b)
 {
     kprintf_setcolor((r << 16) | (g << 8) | b);
+}
+
+SYSCALL_DEFINE1(syscall_print, const char* msg) {
+    if(!MemoryManager::IsUserPtr(msg))
+        Scheduler::ThreadKillProcess("InvalidUserPointer");
+    kprintf(msg);
+    return 0;
 }

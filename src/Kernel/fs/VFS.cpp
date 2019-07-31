@@ -7,6 +7,11 @@
 #include "devices/DeviceDriver.h"
 #include "PipeFS.h"
 
+#include "syscalls/SyscallDefine.h"
+#include "memory/MemoryManager.h"
+#include "scheduler/Scheduler.h"
+#include "scheduler/Process.h"
+
 namespace VFS {
     
     struct CachedNode {
@@ -55,29 +60,26 @@ namespace VFS {
     static StickyLock g_FileDescLock;
     static ktl::nlist<FileDescriptor> g_FileDescs;
 
-    static bool CleanPath(const char* path, char* cleanBuffer) {
-        int length = kstrlen(path);
-        if(length >= 255)
-            return false;
+    static bool CleanPath(char* cleanBuffer) {
+        int length = kstrlen(cleanBuffer);
         
-        if(path[0] != '/')
+        if(cleanBuffer[0] != '/')
             return false;
-        cleanBuffer[0] = '/';
 
-        int bufferPos = 1;
+        int writePos = 1;
         for(int i = 1; i < length; i++) {
-            char c = path[i];
-            if(c == '/' && cleanBuffer[bufferPos - 1] == '/') {
+            char c = cleanBuffer[i];
+            if(c == '/' && cleanBuffer[writePos - 1] == '/') {
             } else {
-                cleanBuffer[bufferPos] = c;
-                bufferPos++;
+                cleanBuffer[writePos] = c;
+                writePos++;
             }
         }
 
-        if(cleanBuffer[bufferPos-1] == '/')
-            cleanBuffer[bufferPos - 1] = '\0';
+        if(cleanBuffer[writePos-1] == '/')
+            cleanBuffer[writePos - 1] = '\0';
         else
-            cleanBuffer[bufferPos] = '\0';
+            cleanBuffer[writePos] = '\0';
 
         return true;
     }
@@ -336,7 +338,9 @@ namespace VFS {
 
     int64 CreateFile(User* user, const char* path, const Permissions& perms) {
         char cleanBuffer[255];
-        if(!CleanPath(path, cleanBuffer))
+        if(!kpathcpy_usersafe(cleanBuffer, path))
+            return ErrorInvalidBuffer;
+        if(!CleanPath(cleanBuffer))
             return ErrorInvalidPath;
 
         const char* folderPath;
@@ -380,10 +384,21 @@ namespace VFS {
 
         return OK;
     }
+    SYSCALL_DEFINE1(syscall_create_file, const char* filePath) {
+        if(!MemoryManager::IsUserPtr(filePath))
+            Scheduler::ThreadKillProcess("InvalidUserPointer");
+
+        ThreadInfo* tInfo = Scheduler::GetCurrentThreadInfo();
+        ProcessInfo* pInfo = tInfo->process;
+
+        return CreateFile(pInfo->owner, filePath, {3, 3, 3});
+    }
 
     int64 CreateFolder(User* user, const char* path, const Permissions& perms) {
         char cleanBuffer[255];
-        if(!CleanPath(path, cleanBuffer))
+        if(!kpathcpy_usersafe(cleanBuffer, path))
+            return ErrorInvalidBuffer;
+        if(!CleanPath(cleanBuffer))
             return ErrorInvalidPath;
 
         const char* folderPath;
@@ -428,10 +443,21 @@ namespace VFS {
 
         return OK;
     }
+    SYSCALL_DEFINE1(syscall_create_folder, const char* filePath) {
+        if(!MemoryManager::IsUserPtr(filePath))
+            Scheduler::ThreadKillProcess("InvalidUserPointer");
+
+        ThreadInfo* tInfo = Scheduler::GetCurrentThreadInfo();
+        ProcessInfo* pInfo = tInfo->process;
+
+        return CreateFolder(pInfo->owner, filePath, {3, 3, 3});
+    }
 
     int64 CreateDeviceFile(User* user, const char* path, const Permissions& perms, uint64 driverID, uint64 subID) {
         char cleanBuffer[255];
-        if(!CleanPath(path, cleanBuffer))
+        if(!kpathcpy_usersafe(cleanBuffer, path))
+            return ErrorInvalidBuffer;
+        if(!CleanPath(cleanBuffer))
             return ErrorInvalidPath;
 
         const char* folderPath;
@@ -479,6 +505,16 @@ namespace VFS {
 
         return OK;
     }
+    SYSCALL_DEFINE3(syscall_create_dev, const char* filePath, uint64 driverID, uint64 devID) {
+        if(!MemoryManager::IsUserPtr(filePath))
+            Scheduler::ThreadKillProcess("InvalidUserPointer");
+
+        ThreadInfo* tInfo = Scheduler::GetCurrentThreadInfo();
+        ProcessInfo* pInfo = tInfo->process;
+
+        return CreateDeviceFile(pInfo->owner, filePath, {3, 3, 3}, driverID, devID);
+    }
+
     int64 CreatePipe(User* user, uint64* readDesc, uint64* writeDesc) {
         CachedNode* pipeNode = CreateNode(g_PipeMount, 2);
         pipeNode->node.type = Node::TYPE_PIPE;
@@ -503,10 +539,23 @@ namespace VFS {
 
         return OK;
     }
+    SYSCALL_DEFINE2(syscall_pipe, int64* readDesc, int64* writeDesc) {
+        uint64 sysRead, sysWrite;
+
+        ThreadInfo* tInfo = Scheduler::GetCurrentThreadInfo();
+        ProcessInfo* pInfo = tInfo->process;
+
+        VFS::CreatePipe(pInfo->owner, &sysRead, &sysWrite);
+        *readDesc = Scheduler::ProcessAddFileDescriptor(sysRead);
+        *writeDesc = Scheduler::ProcessAddFileDescriptor(sysWrite);
+        return 0;
+    }
 
     int64 Delete(User* user, const char* path) {
         char cleanBuffer[255];
-        if(!CleanPath(path, cleanBuffer))
+        if(!kpathcpy_usersafe(cleanBuffer, path))
+            return ErrorInvalidBuffer;
+        if(!CleanPath(cleanBuffer))
             return ErrorInvalidPath;
 
         MountPoint* mp = AcquireMountPoint(cleanBuffer);
@@ -558,10 +607,21 @@ namespace VFS {
         ReleaseNode(mp, folderNode);
         return ErrorFileNotFound;
     }
+    SYSCALL_DEFINE1(syscall_delete, const char* filePath) {
+        if(!MemoryManager::IsUserPtr(filePath))
+            Scheduler::ThreadKillProcess("InvalidUserPointer");
+
+        ThreadInfo* tInfo = Scheduler::GetCurrentThreadInfo();
+        ProcessInfo* pInfo = tInfo->process;
+
+        return Delete(pInfo->owner, filePath); 
+    }
 
     int64 ChangeOwner(User* user, const char* path, uint64 newUID, uint64 newGID) {
         char cleanBuffer[255];
-        if(!CleanPath(path, cleanBuffer))
+        if(!kpathcpy_usersafe(cleanBuffer, path))
+            return ErrorInvalidBuffer;
+        if(!CleanPath(cleanBuffer))
             return ErrorInvalidPath;
 
         MountPoint* mp = AcquireMountPoint(cleanBuffer);
@@ -582,10 +642,21 @@ namespace VFS {
 
         return OK;
     }
+    SYSCALL_DEFINE3(syscall_change_owner, const char* filePath, uint64 uid, uint64 gid) {
+        if(!MemoryManager::IsUserPtr(filePath))
+            Scheduler::ThreadKillProcess("InvalidUserPointer");
+
+        ThreadInfo* tInfo = Scheduler::GetCurrentThreadInfo();
+        ProcessInfo* pInfo = tInfo->process;
+
+        return ChangeOwner(pInfo->owner, filePath, uid, gid);
+    }
 
     int64 ChangePermissions(User* user, const char* path, const Permissions& permissions) {
         char cleanBuffer[255];
-        if(!CleanPath(path, cleanBuffer))
+        if(!kpathcpy_usersafe(cleanBuffer, path))
+            return ErrorInvalidBuffer;
+        if(!CleanPath(cleanBuffer))
             return ErrorInvalidPath;
 
         MountPoint* mp = AcquireMountPoint(cleanBuffer);
@@ -605,10 +676,21 @@ namespace VFS {
 
         return OK;
     }
+    SYSCALL_DEFINE4(syscall_change_perm, const char* filePath, uint8 ownerPerm, uint8 groupPerm, uint8 otherPerm) {
+        if(!MemoryManager::IsUserPtr(filePath))
+            Scheduler::ThreadKillProcess("InvalidUserPointer");
+
+        ThreadInfo* tInfo = Scheduler::GetCurrentThreadInfo();
+        ProcessInfo* pInfo = tInfo->process;
+
+        return ChangePermissions(pInfo->owner, filePath, { ownerPerm, groupPerm, otherPerm });
+    }
 
     int64 Mount(User* user, const char* mountPoint, FileSystem* fs) {
         char cleanBuffer[255];
-        if(!CleanPath(mountPoint, cleanBuffer))
+        if(!kpathcpy_usersafe(cleanBuffer, mountPoint))
+            return ErrorInvalidBuffer;
+        if(!CleanPath(cleanBuffer))
             return ErrorInvalidPath;
 
         MountPoint* mp = AcquireMountPoint(cleanBuffer);
@@ -659,9 +741,20 @@ namespace VFS {
 
         return OK;
     }
+    SYSCALL_DEFINE2(syscall_mount, const char* mountPoint, const char* fsID) {
+        if(!MemoryManager::IsUserPtr(mountPoint) || !MemoryManager::IsUserPtr(fsID))
+            Scheduler::ThreadKillProcess("InvalidUserPointer");
+
+        ThreadInfo* tInfo = Scheduler::GetCurrentThreadInfo();
+        ProcessInfo* pInfo = tInfo->process;
+
+        return Mount(pInfo->owner, mountPoint, fsID); 
+    }
     int64 Mount(User* user, const char* mountPoint, const char* fsID, const char* devFile) {
         char cleanBuffer[255];
-        if(!CleanPath(devFile, cleanBuffer))
+        if(!kpathcpy_usersafe(cleanBuffer, devFile))
+            return ErrorInvalidBuffer;
+        if(!CleanPath(cleanBuffer))
             return ErrorInvalidPath;
 
         MountPoint* mp = AcquireMountPoint(cleanBuffer);
@@ -687,6 +780,15 @@ namespace VFS {
 
         return Mount(user, mountPoint, fsID, driverID, subID);
     }
+    SYSCALL_DEFINE3(syscall_mount_dev, const char* mountPoint, const char* fsID, const char* devFile) {
+        if(!MemoryManager::IsUserPtr(mountPoint) || !MemoryManager::IsUserPtr(fsID) || !MemoryManager::IsUserPtr(devFile))
+            Scheduler::ThreadKillProcess("InvalidUserPointer");
+
+        ThreadInfo* tInfo = Scheduler::GetCurrentThreadInfo();
+        ProcessInfo* pInfo = tInfo->process;
+
+        return Mount(pInfo->owner, mountPoint, fsID, devFile);
+    }
     int64 Mount(User* user, const char* mountPoint, const char* fsID, uint64 driverID, uint64 devID) {
         DeviceDriver* driver = DeviceDriverRegistry::GetDriver(driverID);
         if(driver->GetType() != DeviceDriver::TYPE_BLOCK)
@@ -710,7 +812,9 @@ namespace VFS {
 
     int64 Open(User* user, const char* path, uint64 openMode, uint64& fileDesc) {
         char cleanBuffer[255];
-        if(!CleanPath(path, cleanBuffer))
+        if(!kpathcpy_usersafe(cleanBuffer, path))
+            return ErrorInvalidBuffer;
+        if(!CleanPath(cleanBuffer))
             return ErrorInvalidPath;
 
         const char* folderPath;
@@ -773,6 +877,18 @@ namespace VFS {
         fileDesc = (uint64)desc;
         return OK;
     }
+    SYSCALL_DEFINE2(syscall_open, const char* filePath, uint64 openMode) {
+        ThreadInfo* tInfo = Scheduler::GetCurrentThreadInfo();
+        ProcessInfo* pInfo = tInfo->process;
+
+        uint64 sysDesc;
+        int64 error = Open(pInfo->owner, filePath, openMode, sysDesc);
+        if(error != OK) {
+            return error;
+        }
+        int64 desc = Scheduler::ProcessAddFileDescriptor(sysDesc);
+        return desc;
+    }
 
     int64 Close(uint64 descID) {
         FileDescriptor* desc = (FileDescriptor*)descID;
@@ -790,6 +906,9 @@ namespace VFS {
 
         return OK;
     }
+    SYSCALL_DEFINE1(syscall_close, int64 desc) {
+        return Scheduler::ProcessCloseFileDescriptor(desc);
+    }
 
     int64 AddRef(uint64 descID) {
         FileDescriptor* desc = (FileDescriptor*)descID;
@@ -803,7 +922,9 @@ namespace VFS {
 
     int64 List(User* user, const char* path, FileList* list, bool getTypes) {
         char cleanBuffer[255];
-        if(!CleanPath(path, cleanBuffer))
+        if(!kpathcpy_usersafe(cleanBuffer, path))
+            return ErrorInvalidBuffer;
+        if(!CleanPath(cleanBuffer))
             return ErrorInvalidPath;
 
         MountPoint* mp = AcquireMountPoint(cleanBuffer);
@@ -872,6 +993,21 @@ namespace VFS {
 
         return res;
     }
+    SYSCALL_DEFINE3(syscall_read, int64 desc, void* buffer, uint64 bufferSize) {
+        if(!MemoryManager::IsUserPtr(buffer))
+            Scheduler::ThreadKillProcess("InvalidUserPointer");
+
+        uint64 sysDesc;
+        int64 error = Scheduler::ProcessGetSystemFileDescriptor(desc, sysDesc);
+        if(error != OK) {
+            return error;
+        }
+
+        int64 res = VFS::Read(sysDesc, buffer, bufferSize);
+        if(res == ErrorInvalidBuffer)
+            Scheduler::ThreadKillProcess("InvalidUserPointer");
+        return res;
+    }
 
     static uint64 _Write(Node* node, uint64 pos, const void* buffer, uint64 bufferSize) {
         uint64 res;
@@ -910,6 +1046,21 @@ namespace VFS {
 
         return res;
     }
+    SYSCALL_DEFINE3(syscall_write, int64 desc, void* buffer, uint64 bufferSize) {
+        if(!MemoryManager::IsUserPtr(buffer))
+            Scheduler::ThreadKillProcess("InvalidUserPointer");
+
+        uint64 sysDesc;
+        int64 error = Scheduler::ProcessGetSystemFileDescriptor(desc, sysDesc);
+        if(error != OK) {
+            return error;
+        }
+
+        int64 res = VFS::Write(sysDesc, buffer, bufferSize);
+        if(res == ErrorInvalidBuffer)
+            Scheduler::ThreadKillProcess("InvalidUserPointer");
+        return res;
+    }
 
     int64 Seek(uint64 descID, uint64 offs) {
         FileDescriptor* desc = (FileDescriptor*)descID;
@@ -921,6 +1072,15 @@ namespace VFS {
 
         desc->pos = offs;
         return OK;
+    }
+    SYSCALL_DEFINE2(syscall_seek, int64 desc, uint64 offs) {
+        uint64 sysDesc;
+        int64 error = Scheduler::ProcessGetSystemFileDescriptor(desc, sysDesc);
+        if(error != OK) {
+            return error;
+        }
+
+        return Seek(sysDesc, offs);
     }
 
     int64 Stat(uint64 descID, NodeStats* stats) {
