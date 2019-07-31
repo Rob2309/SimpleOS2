@@ -1,14 +1,5 @@
 #include "MSR.h"
 
-#define WriteMSR(number, value)             \
-    __asm__ __volatile__ (                  \
-        "wrmsr"                             \
-        : :                                 \
-        "rcx"(number),                      \
-        "rdx"((value >> 32) & 0xFFFFFFFF),  \
-        "rax"(value & 0xFFFFFFFF)           \
-    );
-
 namespace MSR
 {
     void Write(uint32 reg, uint64 val)

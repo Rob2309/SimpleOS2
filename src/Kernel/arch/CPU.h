@@ -23,7 +23,7 @@ namespace CPU {
     };
 
     inline void CPUID(uint64 func, uint64 subFunc, uint64& eax, uint64& ebx, uint64& ecx, uint64& edx) {
-        __asm__ __volatile__ (
+        __asm__ (
             "cpuid"
             : "=a"(eax), "=b"(ebx), "=c"(ecx), "=d"(edx)
             : "a"(func), "c"(subFunc)

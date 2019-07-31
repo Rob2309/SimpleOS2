@@ -90,7 +90,7 @@ namespace IDT {
         }
 
         uint64 cr2;
-        __asm__ __volatile__ (
+        __asm__ (
             "movq %%cr2, %0"
             : "=r"(cr2)
         );
