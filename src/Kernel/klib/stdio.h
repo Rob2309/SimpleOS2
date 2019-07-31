@@ -5,6 +5,7 @@
 /**
  * Very rudimentary printf-like function
  * %i: Decimal 64-Bit Integer
+ * %I: Decimal 64-Bit Integer, padded with zeros (number given after the arg)
  * %X: Hexadecimal 64-Bit Integer
  * %x: Hexadecimal 64-Bit Integer, zero extended
  * %s: String

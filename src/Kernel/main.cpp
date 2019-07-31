@@ -30,6 +30,8 @@
 
 #include "syscalls/SyscallDefine.h"
 
+#include "time/Time.h"
+
 static User g_RootUser;
 
 static uint64 SetupInitProcess() {
@@ -124,6 +126,10 @@ static void InitThread() {
 
     uint64 tid = SetupInitProcess();
 
+    Time::DateTime dt;
+    Time::GetRTC(&dt);
+    klog_info("Time", "UTC Time is %I.%I.20%I %I:%I:%I", dt.dayOfMonth, 2, dt.month, 2, dt.year, 2, dt.hours, 2, dt.minutes, 2, dt.seconds, 2);
+
     Scheduler::ThreadExit(0);
 }
 
@@ -136,6 +142,10 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     kprintf("%CStarting SimpleOS2 Kernel\n", 40, 200, 40);
     klog_info("Boot", "Kernel at 0x%x", info->kernelImage.buffer);
 
+    if(!Time::Init()) {
+        klog_fatal("Boot", "Boot failed...");
+        while(true);
+    }
     MemoryManager::Init(info);
     APIC::Init();
     SMP::GatherInfo(info);

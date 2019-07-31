@@ -13,6 +13,7 @@
 #include "arch/SSE.h"
 #include "ktl/new.h"
 #include "syscalls/SyscallDefine.h"
+#include "time/Time.h"
 
 namespace Scheduler {
 
@@ -36,6 +37,8 @@ namespace Scheduler {
         StickyLock threadListLock;
         ktl::nlist<ThreadInfo> threadList;
         ktl::nlist<ThreadInfo> deadThreads;
+
+        uint64 lastTSC;
     };
 
     static CPUData* g_CPUData;
@@ -273,6 +276,10 @@ namespace Scheduler {
     static void UpdateEvents() {
         uint64 coreID = SMP::GetLogicalCoreID();
 
+        uint64 tsc = Time::GetTSC();
+        uint64 passed = tsc - g_CPUData[coreID].lastTSC;
+        g_CPUData[coreID].lastTSC = tsc;
+
         ktl::nlist<ThreadInfo> transferList;
 
         g_CPUData[coreID].threadListLock.Spinlock_Raw();
@@ -280,10 +287,10 @@ namespace Scheduler {
             ThreadInfo* p = *a;
             switch(p->blockEvent.type) {
             case ThreadBlockEvent::TYPE_WAIT:
-                if(p->blockEvent.wait.remainingMillis <= 10) {
+                if(p->blockEvent.wait.remainingTicks <= passed) {
                     p->blockEvent.type = ThreadBlockEvent::TYPE_NONE;
                 } else {
-                    p->blockEvent.wait.remainingMillis -= 10;
+                    p->blockEvent.wait.remainingTicks -= passed;
                 }
                 ++a;
                 break;
@@ -453,7 +460,7 @@ namespace Scheduler {
         ThreadSetSticky();
 
         g_CPUData[coreID].currentThread->blockEvent.type = ThreadBlockEvent::TYPE_WAIT;
-        g_CPUData[coreID].currentThread->blockEvent.wait.remainingMillis = ms;
+        g_CPUData[coreID].currentThread->blockEvent.wait.remainingTicks = ms * Time::GetTSCTicksPerMilli();
         
         Yield();
 

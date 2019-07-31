@@ -18,7 +18,7 @@ struct ThreadBlockEvent {
 
     union {
         struct {
-            uint64 remainingMillis;
+            uint64 remainingTicks;
         } wait;
         struct {
             uint64 coreID;
