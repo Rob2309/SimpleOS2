@@ -3,6 +3,8 @@
 #include "klib/stdio.h"
 #include "klib/string.h"
 
+#include "init/Init.h"
+
 using namespace VFS;
 
 namespace Ext2 {
@@ -17,8 +19,9 @@ namespace Ext2 {
         klog_info("Ext2", "Volume name: %s", m_SB.volumeName);
     }
 
-    void Ext2Driver::GetSuperBlock(VFS::SuperBlock* sb) {
+    void Ext2Driver::GetSuperBlock(VFS::SuperBlock* sb, void* infoPtr) {
         sb->rootNode = 2;
+        m_InfoPtr = infoPtr;
     }
 
     void Ext2Driver::CreateNode(Node* node) {
@@ -154,8 +157,9 @@ namespace Ext2 {
         return new Ext2Driver(driver, subID);
     }
 
-    void Ext2Driver::Init() {
+    static void Init() {
         FileSystemRegistry::RegisterFileSystem("ext2", Ext2Factory);
     }
+    REGISTER_INIT_FUNC(Init, INIT_STAGE_FSDRIVERS);
 
 }

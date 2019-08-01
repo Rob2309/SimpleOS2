@@ -17,7 +17,7 @@ namespace VFS {
 
     class PipeFS : public FileSystem {
     public:
-        void GetSuperBlock(SuperBlock* sb) override;
+        void GetSuperBlock(SuperBlock* sb, void* infoPtr) override;
 
         void CreateNode(Node* node) override;
         void DestroyNode(Node* node) override;

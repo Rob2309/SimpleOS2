@@ -2,28 +2,31 @@
 
 #include "klib/memory.h"
 
-using namespace VFS;
+#include "init/Init.h"
 
 struct TestNode {
-    Node::Type type;
-    Directory* dir;
+    VFS::Node::Type type;
+    VFS::Directory* dir;
     uint64 linkRefCount;
 
     uint64 uid;
     uint64 gid;
-    Permissions perms;
+    VFS::Permissions perms;
     
     uint64 fileSize;
     char* fileData;
 };
 
-static FileSystem* TempFSFactory() {
+static VFS::FileSystem* TempFSFactory() {
     return new TempFS();
 }
 
-void TempFS::Init() {
-    FileSystemRegistry::RegisterFileSystem("tempfs", TempFSFactory);
+static void Init() {
+    VFS::FileSystemRegistry::RegisterFileSystem("tempfs", TempFSFactory);
 }
+REGISTER_INIT_FUNC(Init, INIT_STAGE_FSDRIVERS);
+
+using namespace VFS;
 
 TempFS::TempFS() {
     TestNode* node = new TestNode();
@@ -39,8 +42,9 @@ TempFS::TempFS() {
     m_RootNodeID = (uint64)node;
 }
 
-void TempFS::GetSuperBlock(SuperBlock* sb) {
+void TempFS::GetSuperBlock(SuperBlock* sb, void* infoPtr) {
     sb->rootNode = m_RootNodeID;
+    m_InfoPtr = infoPtr;
 }
 
 void TempFS::CreateNode(Node* node) {

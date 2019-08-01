@@ -4,12 +4,9 @@
 
 class TempFS : public VFS::FileSystem {
 public:
-    static void Init();
-
-public:
     TempFS();
 
-    void GetSuperBlock(VFS::SuperBlock* sb) override;
+    void GetSuperBlock(VFS::SuperBlock* sb, void* infoPtr) override;
 
     void CreateNode(VFS::Node* node) override;
     void DestroyNode(VFS::Node* node) override;
@@ -25,5 +22,6 @@ public:
     virtual void WriteDirEntries(VFS::Node* node) override;
 
 private:
+    void* m_InfoPtr;
     uint64 m_RootNodeID;
 };

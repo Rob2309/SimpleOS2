@@ -13,13 +13,15 @@ public:
     };
 
 public:
-    DeviceDriver(Type type);
+    DeviceDriver(Type type, const char* name);
 
     Type GetType() const { return m_Type; }
     /**
      * Returns the ID with which this Driver can be retrieved from DeviceDriverRegistry::GetDriver
      **/
     uint64 GetDriverID() const { return m_ID; }
+
+    const char* GetName() const { return m_Name; }
 
 public:
     DeviceDriver* next;
@@ -28,11 +30,12 @@ public:
 private:
     Type m_Type;
     uint64 m_ID;
+    const char* m_Name;
 };
 
 class CharDeviceDriver : public DeviceDriver {
 public:
-    CharDeviceDriver();
+    CharDeviceDriver(const char* name);
 
     virtual uint64 Read(uint64 subID, void* buffer, uint64 bufferSize) = 0;
     virtual uint64 Write(uint64 subID, const void* buffer, uint64 bufferSize) = 0;
@@ -42,7 +45,7 @@ struct CachedBlock;
 
 class BlockDeviceDriver : public DeviceDriver {
 public:
-    BlockDeviceDriver();
+    BlockDeviceDriver(const char* name);
 
     uint64 GetData(uint64 subID, uint64 pos, void* buffer, uint64 bufferSize);
     uint64 SetData(uint64 subID, uint64 pos, const void* buffer, uint64 bufferSize);
@@ -72,4 +75,6 @@ public:
      * Retrieves a Driver from the Registry
      **/
     static DeviceDriver* GetDriver(uint64 id);
+
+    static DeviceDriver* GetDriver(const char* name);
 };

@@ -19,7 +19,7 @@ namespace VFS {
         /**
          * Reads the FileSystems SuperBlock
          **/
-        virtual void GetSuperBlock(SuperBlock* sb) = 0;
+        virtual void GetSuperBlock(SuperBlock* sb, void* infoPtr) = 0;
         
         /**
          * Seeks for a suitable free Node and creates a new Node out of it

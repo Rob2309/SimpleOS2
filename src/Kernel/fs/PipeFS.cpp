@@ -7,7 +7,7 @@
 
 namespace VFS {
 
-    void PipeFS::GetSuperBlock(SuperBlock* sb) { }
+    void PipeFS::GetSuperBlock(SuperBlock* sb, void* infoPtr) { }
 
     void PipeFS::CreateNode(Node* node) {
         m_PipesLock.Spinlock();
