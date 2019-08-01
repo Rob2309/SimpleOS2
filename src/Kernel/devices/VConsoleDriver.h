@@ -6,7 +6,7 @@
 
 class VConsoleDriver : public CharDeviceDriver {
 public:
-    static void Init();
+    VConsoleDriver();
 
     uint64 AddConsole(Terminal::TerminalInfo* info);
 

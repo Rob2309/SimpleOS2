@@ -124,12 +124,9 @@ namespace Ext2 {
 
     class Ext2Driver : public VFS::FileSystem {
     public:
-        static void Init();
-
-    public:
         Ext2Driver(BlockDeviceDriver* driver, uint64 subID);
 
-        void GetSuperBlock(VFS::SuperBlock* sb) override;
+        void GetSuperBlock(VFS::SuperBlock* sb, void* infoPtr) override;
 
         void CreateNode(VFS::Node* node) override;
         void DestroyNode(VFS::Node* node) override;
@@ -145,6 +142,7 @@ namespace Ext2 {
         void WriteDirEntries(VFS::Node* node) override;
 
     private:
+        void* m_InfoPtr;
         BlockDeviceDriver* m_Driver;
         uint64 m_Dev;
         SuperBlock m_SB;

@@ -2,13 +2,25 @@
 
 #include "klib/memory.h"
 
-void RamDeviceDriver::Init() {
+#include "init/Init.h"
+
+#include "devices/DevFS.h"
+
+static void Init() {
     RamDeviceDriver* driver = new RamDeviceDriver();
 }
+REGISTER_INIT_FUNC(Init, INIT_STAGE_DEVDRIVERS);
+
+RamDeviceDriver::RamDeviceDriver()
+    : BlockDeviceDriver("ram")
+{ }
 
 uint64 RamDeviceDriver::AddDevice(char* buffer, uint64 blockSize, uint64 numBlocks) {
     uint64 res = m_Devices.size();
     m_Devices.push_back({ buffer, blockSize, numBlocks });
+
+    DevFS::RegisterBlockDevice("ram0", GetDriverID(), res);
+
     return res;
 }
 

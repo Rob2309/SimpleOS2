@@ -5,19 +5,20 @@
 #include "scheduler/Scheduler.h"
 #include "locks/QueueLock.h"
 #include "fs/VFS.h"
+#include "klib/string.h"
 
-DeviceDriver::DeviceDriver(Type type) 
-    : m_Type(type)
+DeviceDriver::DeviceDriver(Type type, const char* name) 
+    : m_Type(type), m_Name(name)
 {
     m_ID = DeviceDriverRegistry::RegisterDriver(this);
 }
 
-CharDeviceDriver::CharDeviceDriver() 
-    : DeviceDriver(TYPE_CHAR)
+CharDeviceDriver::CharDeviceDriver(const char* name) 
+    : DeviceDriver(TYPE_CHAR, name)
 { }
 
-BlockDeviceDriver::BlockDeviceDriver()
-    : DeviceDriver(TYPE_BLOCK)
+BlockDeviceDriver::BlockDeviceDriver(const char* name)
+    : DeviceDriver(TYPE_BLOCK, name)
 { }
 
 
@@ -177,6 +178,17 @@ DeviceDriver* DeviceDriverRegistry::GetDriver(uint64 id) {
     g_DriverLock.Spinlock();
     for(DeviceDriver* driver : g_Drivers) {
         if(driver->GetDriverID() == id) {
+            g_DriverLock.Unlock();
+            return driver;
+        }
+    }
+    g_DriverLock.Unlock();
+    return nullptr;
+}
+DeviceDriver* DeviceDriverRegistry::GetDriver(const char* name) {
+    g_DriverLock.Spinlock();
+    for(DeviceDriver* driver : g_Drivers) {
+        if(kstrcmp(driver->GetName(), name) == 0) {
             g_DriverLock.Unlock();
             return driver;
         }

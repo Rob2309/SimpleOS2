@@ -3,13 +3,25 @@
 #include "klib/memory.h"
 #include "errno.h"
 
-void VConsoleDriver::Init() {
+#include "init/Init.h"
+
+#include "devices/DevFS.h"
+
+static void Init() {
     VConsoleDriver* driver = new VConsoleDriver();
 }
+REGISTER_INIT_FUNC(Init, INIT_STAGE_DEVDRIVERS);
+
+VConsoleDriver::VConsoleDriver()
+    : CharDeviceDriver("vconsole")
+{ }
 
 uint64 VConsoleDriver::AddConsole(Terminal::TerminalInfo* info) {
     uint64 res = m_Consoles.size();
     m_Consoles.push_back(info);
+
+    DevFS::RegisterCharDevice("tty0", GetDriverID(), res);
+
     return res;
 }
 

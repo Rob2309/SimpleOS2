@@ -198,6 +198,28 @@ namespace VFS {
         }
     }
 
+    void InvalidateDirEntries(void* infoPtr, uint64 nodeID) {
+        MountPoint* mp = (MountPoint*)infoPtr;
+
+        mp->nodeCacheLock.Spinlock();
+        for(CachedNode* n : mp->nodeCache) {
+            if(n->nodeID == nodeID) {
+                n->softRefCount++;
+                mp->nodeCacheLock.Unlock();
+                n->node.lock.Lock();
+
+                if(n->node.dir != nullptr) {
+                    Directory::Destroy(n->node.dir);
+                    n->node.dir = nullptr;
+                }
+
+                ReleaseNode(mp, n, true);
+                return;
+            }
+        }
+        mp->nodeCacheLock.Unlock();
+    }
+
     static Directory* GetDir(Node* node) {
         if(node->dir == nullptr)
             node->dir = node->fs->ReadDirEntries(node);
@@ -328,7 +350,7 @@ namespace VFS {
     void Init(FileSystem* rootFS) {
         MountPoint* mp = new MountPoint();
         mp->fs = rootFS;
-        rootFS->GetSuperBlock(&mp->sb);
+        rootFS->GetSuperBlock(&mp->sb, mp);
         kstrcpy(mp->path, "/");
         g_RootMount = mp;
 
@@ -720,7 +742,7 @@ namespace VFS {
         MountPoint* newMP = new MountPoint();
         kstrcpy(newMP->path, cleanBuffer);
         newMP->fs = fs;
-        fs->GetSuperBlock(&newMP->sb);
+        fs->GetSuperBlock(&newMP->sb, newMP);
         
         mp->childMountLock.Spinlock();
         mp->childMounts.push_back(newMP);

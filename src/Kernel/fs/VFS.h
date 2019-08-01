@@ -66,6 +66,8 @@ namespace VFS {
      **/
     void Init(FileSystem* rootFS);
 
+    void InvalidateDirEntries(void* infoPtr, uint64 nodeID);
+
     /**
      * Creates a regular file at the given path. 
      * All directories up to the given path have to exist.

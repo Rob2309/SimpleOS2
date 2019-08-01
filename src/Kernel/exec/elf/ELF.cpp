@@ -9,9 +9,12 @@
 
 #include "ELFProgramInfo.h"
 
-void ELFExecHandler::Init() {
+#include "init/Init.h"
+
+static void Init() {
     ExecHandlerRegistry::RegisterHandler(new ELFExecHandler());
 }
+REGISTER_INIT_FUNC(Init, INIT_STAGE_EXECHANDLERS);
 
 bool ELFExecHandler::CheckAndPrepare(uint8* buffer, uint64 bufferSize, uint64 pml4Entry, IDT::Registers* regs)
 {

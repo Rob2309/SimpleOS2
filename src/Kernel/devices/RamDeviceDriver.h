@@ -8,9 +8,8 @@
  **/
 class RamDeviceDriver : public BlockDeviceDriver {
 public:
-    static void Init();
+    RamDeviceDriver();
 
-public:
     /**
      * Register a Ramdisk to the driver.
      * @returns the SubID with which the given ramdisk can be accessed.
