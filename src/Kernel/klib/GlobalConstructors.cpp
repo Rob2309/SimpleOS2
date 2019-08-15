@@ -11,4 +11,6 @@ extern "C" {
 
     void __cxa_finalize(void *f) { }
 
+    void __cxa_pure_virtual() { }
+
 }

@@ -49,11 +49,15 @@ bootloader: FORCE
 	@ printf "\e[32mBuilding Bootloader\e[0m\n"
 	@ $(MAKE) -s -C src/Bootloader
 kernel: FORCE
+	@ $(MAKE) -s acpica
 	@ printf "\e[32mBuilding Kernel\e[0m\n"
 	@ $(MAKE) -s -C src/Kernel
 libc: FORCE
 	@ printf "\e[32mBuilding LibC\e[0m\n"
 	@ $(MAKE) -s -C src/libc
+acpica: FORCE
+	@ printf "\e[32mBuilding ACPICA\e[0m\n"
+	@ $(MAKE) -s -C src/acpica
 programs: FORCE
 	@ $(MAKE) -s libc
 	@ printf "\e[32mBuilding Init\e[0m\n"

@@ -85,4 +85,6 @@ namespace ACPI {
         }
     };
 
+    extern RSDPDescriptor* g_RSDP;
+
 }

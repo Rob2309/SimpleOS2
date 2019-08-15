@@ -4,6 +4,8 @@
 
 namespace ACPI {
 
+    RSDPDescriptor* g_RSDP;
+
     SDTHeader* XSDT::FindTable(uint32 signature) {
         uint32 numEntries = (header.length - sizeof(XSDT)) / 8;
         for(int i = 0; i < numEntries; i++) {

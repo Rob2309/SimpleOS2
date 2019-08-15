@@ -1,13 +1,15 @@
 cpp_compiler := $(ELF_GCC)
 asm_compiler := $(NASM) -g -f elf64
 
+libs := $(bin_dir)/acpica/acpica.a
+
 int_dir := $(int_dir)/Kernel
 bin_dir := $(bin_dir)/Kernel
 
-includes := 
+includes := ../acpica/include
 
-compile_flags := -g -fPIC -ffreestanding -fno-stack-protector -fno-exceptions -mno-sse
-link_flags := -g -fPIC -nostdlib -shared -e main -static -lgcc -T linker.ld
+compile_flags := -g -fPIC -ffreestanding -fno-stack-protector -fno-exceptions -mno-sse -fno-rtti -DACPI_LIBRARY
+link_flags := -g -fPIC -nostdlib -shared -e main -static -lgcc -T linker.ld -Wl,--no-undefined
 
 ifeq ($(config),Debug)
 	compile_flags += -DDEBUG -O0

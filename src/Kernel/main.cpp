@@ -36,6 +36,10 @@
 #include "init/Init.h"
 #include "init/InitInvoke.h"
 
+extern "C" {
+#include "acpica/acpi.h"
+}
+
 static User g_RootUser;
 
 static uint64 SetupInitProcess() {
@@ -175,6 +179,8 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
 
     SMP::StartSchedulers();
     Scheduler::Start();
+
+    AcpiEnterSleepState(5);
 
     klog_fatal("Boot", "Something went really wrong (Scheduler did not start), halting...");
     while(true)
