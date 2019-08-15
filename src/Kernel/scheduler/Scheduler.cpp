@@ -203,6 +203,9 @@ namespace Scheduler {
 
     uint64 CreateKernelThread(uint64 rip)
     {
+        return CreateKernelThread(rip, 0);
+    }
+    uint64 CreateKernelThread(uint64 rip, uint64 arg) {
         uint64 coreID = SMP::GetLogicalCoreID();
 
         ThreadInfo* tInfo = CreateThreadStruct();
@@ -215,6 +218,7 @@ namespace Scheduler {
         regs.rflags = CPU::FLAGS_IF;
         regs.rip = rip;
         regs.userrsp = tInfo->kernelStack;
+        regs.rdi = arg;
 
         tInfo->tid = g_TIDCounter++;
         tInfo->process = nullptr;

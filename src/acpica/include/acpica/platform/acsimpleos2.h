@@ -11,6 +11,9 @@
 
 #define ACPI_INIT_FUNCTION 
 
+#define ACPI_CACHE_T ACPI_MEMORY_LIST
+#define ACPI_USE_LOCAL_CACHE 1
+
 /* Host-dependent types and defines for in-kernel ACPICA */
 
 #define ACPI_MACHINE_WIDTH          64
