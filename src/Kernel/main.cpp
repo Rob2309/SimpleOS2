@@ -36,8 +36,10 @@
 #include "init/Init.h"
 #include "init/InitInvoke.h"
 
+#include "acpi/ACPI.h"
+
 extern "C" {
-#include "acpica/acpi.h"
+    #include "acpica/acpi.h"
 }
 
 static User g_RootUser;
@@ -139,6 +141,9 @@ static void InitThread() {
     Time::GetRTC(&dt);
     klog_info("Time", "UTC Time is %I.%I.20%I %I:%I:%I", dt.dayOfMonth, 2, dt.month, 2, dt.year, 2, dt.hours, 2, dt.minutes, 2, dt.seconds, 2);
 
+    klog_info("ACPICA", "Initializing ACPICA");
+    AcpiInitializeSubsystem();
+
     Scheduler::ThreadExit(0);
 }
 
@@ -156,6 +161,7 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
         while(true);
     }
     MemoryManager::Init(info);
+    ACPI::g_RSDP = (ACPI::RSDPDescriptor*)info->rsdp;
     APIC::Init();
     SMP::GatherInfo(info);
     MemoryManager::InitCore(SMP::GetLogicalCoreID());
@@ -179,8 +185,6 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
 
     SMP::StartSchedulers();
     Scheduler::Start();
-
-    AcpiEnterSleepState(5);
 
     klog_fatal("Boot", "Something went really wrong (Scheduler did not start), halting...");
     while(true)

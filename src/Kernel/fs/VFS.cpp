@@ -170,7 +170,7 @@ namespace VFS {
         CachedNode* newNode = new CachedNode();
         newNode->nodeID = nodeID;
         newNode->softRefCount = 1;
-        newNode->node.lock.SetLocked();
+        new(&newNode->node.lock) QueueLock(0);
         mp->nodeCache.push_back(newNode);
         mp->nodeCacheLock.Unlock();
 
@@ -338,7 +338,7 @@ namespace VFS {
         mp->fs->CreateNode(&newNode->node);
         newNode->nodeID = newNode->node.id;
         newNode->softRefCount = softRefs;
-        newNode->node.lock.SetLocked();
+        new(&newNode->node.lock) QueueLock(0);
 
         mp->nodeCacheLock.Spinlock();
         mp->nodeCache.push_back(newNode);

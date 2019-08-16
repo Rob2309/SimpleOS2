@@ -40,8 +40,9 @@ public:
      **/
     void Unlock_Raw();
 
-private:
     bool TryLock();
+
+private:
     void DoUnlock();
 
 private:
