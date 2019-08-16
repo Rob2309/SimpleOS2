@@ -4,7 +4,7 @@ asm_compiler :=
 int_dir := $(int_dir)/acpica
 bin_dir := $(bin_dir)/acpica
 
-includes := include/acpica
+includes := include/acpica ../Kernel
 
 compile_flags := -ffreestanding -fno-stack-protector -fno-exceptions -DACPI_LIBRARY -fPIC
 
