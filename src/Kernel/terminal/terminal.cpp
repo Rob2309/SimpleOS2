@@ -26,7 +26,7 @@ namespace Terminal {
     static void Blt(uint32* dest, uint32* src, int srcX, int srcY, int dstX, int dstY, int width, int height, int srcScan, int dstScan)
     {
         for(int y = 0; y < height; y++) {
-            kmemcpy(&dest[(dstY + y) * dstScan], &src[(srcY + y) * srcScan], width);
+            kmemcpy(&dest[(dstY + y) * dstScan], &src[(srcY + y) * srcScan], width * sizeof(uint32));
         }
     }
 
