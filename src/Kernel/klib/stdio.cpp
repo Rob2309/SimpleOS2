@@ -116,6 +116,12 @@ void kprintf(const char* format, ...)
     __builtin_va_list arg;
     __builtin_va_start(arg, format);
 
+    kvprintf(format, arg);
+
+    __builtin_va_end(arg);
+}
+
+void kvprintf(const char* format, __builtin_va_list arg) {
     g_PrintLock.Spinlock_Raw();
 
     uint32 color = g_TerminalColor;
@@ -172,8 +178,6 @@ void kprintf(const char* format, ...)
     }
 
     g_PrintLock.Unlock_Raw();
-
-    __builtin_va_end(arg);
 }
 
 void kprintf_setcolor(uint32 color)

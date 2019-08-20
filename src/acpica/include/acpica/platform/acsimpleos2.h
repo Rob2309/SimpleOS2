@@ -1,5 +1,8 @@
 #pragma once
 
+#undef ACPI_DEBUGGER
+#undef ACPI_DISASSEMBLER
+
 #define ACPI_SPINLOCK void*
 #define ACPI_SEMAPHORE void*
 #define ACPI_MUTEX_TYPE ACPI_BINARY_SEMAPHORE

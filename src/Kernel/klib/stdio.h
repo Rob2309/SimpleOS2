@@ -15,6 +15,8 @@
  **/ 
 void kprintf(const char* format, ...);
 
+void kvprintf(const char* format, __builtin_va_list args);
+
 /**
  * Set the color in which text is printed by printf by default
  **/
