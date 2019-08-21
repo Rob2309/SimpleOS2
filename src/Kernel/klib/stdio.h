@@ -4,18 +4,13 @@
 
 /**
  * Very rudimentary printf-like function
- * %i: Decimal 64-Bit Integer
- * %I: Decimal 64-Bit Integer, padded with zeros (number given after the arg)
- * %X: Hexadecimal 64-Bit Integer
- * %x: Hexadecimal 64-Bit Integer, zero extended
- * %s: String
- * %S: String, centered, padding size given in uint64 after the string
- * %c: change color, given as one 32 bit integer
- * %C: change color, given as three 8 bit integers
+ * Standard integer format specifiers supported
+ * Additional format specifiers:
+ *      %C: change color, given as three 8 bit integers
  **/ 
 void kprintf(const char* format, ...);
 
-void kvprintf(const char* format, __builtin_va_list args);
+void kvprintf(const char* format, __builtin_va_list arg);
 
 /**
  * Set the color in which text is printed by printf by default

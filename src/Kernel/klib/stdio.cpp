@@ -18,7 +18,6 @@ struct Format {
     bool leftJustify;
     bool forceSign;
     bool spaceIfNoSign;
-    bool addPrefix;
     bool leftPadWithZeroes;
     bool argWidth;
     int minWidth;
@@ -128,7 +127,6 @@ static const char* ParseFlags(const char* fmt, Format& flags) {
         case '-': flags.leftJustify = true; break;
         case '+': flags.forceSign = true; break;
         case ' ': flags.spaceIfNoSign = true; break;
-        case '#': flags.addPrefix = true; break;
         case '0': flags.leftPadWithZeroes = true; break;
         default: return &fmt[i];
         }
@@ -201,20 +199,6 @@ static void PrintInt64Base(int64 val, const char* digits, int base, const Format
         length++;
     }
 
-    if(fmt.addPrefix) {
-        if(base == 16) {
-            *buffer = 'x';
-            buffer--;
-            *buffer = '0';
-            buffer--;
-            length += 2;
-        } else if(base == 8) {
-            *buffer = '0';
-            buffer--;
-            length++;
-        }
-    }
-
     if(neg) {
         *buffer = '-';
         buffer--;
@@ -252,20 +236,6 @@ static void PrintUInt64Base(uint64 val, const char* digits, int base, const Form
         *buffer = digits[0];
         buffer--;
         length++;
-    }
-
-    if(fmt.addPrefix) {
-        if(base == 16) {
-            *buffer = 'x';
-            buffer--;
-            *buffer = '0';
-            buffer--;
-            length += 2;
-        } else if(base == 8) {
-            *buffer = '0';
-            buffer--;
-            length++;
-        }
     }
 
     if(fmt.forceSign) {
