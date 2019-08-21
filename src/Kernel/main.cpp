@@ -87,6 +87,44 @@ static uint64 SetupInitProcess() {
 static KernelHeader* g_KernelHeader;
 Terminal::TerminalInfo g_TerminalInfo;
 
+static void ACPICAThread() {
+    ACPI_STATUS err;
+    err = AcpiInitializeSubsystem();
+    if(err != AE_OK) {
+        klog_fatal("ACPICA", "Failed to init ACPICA: %i", err);
+        while(true);
+    }
+    err = AcpiInitializeTables(nullptr, 16, false);
+    if(err != AE_OK) {
+        klog_fatal("ACPICA", "Failed to init ACPICA tables: %i", err);
+        while(true);
+    }
+    err = AcpiLoadTables();
+    if(err != AE_OK) {
+        klog_fatal("ACPICA", "Failed to load ACPICA tables: %i", err);
+        while(true);
+    }
+    err = AcpiEnableSubsystem(ACPI_FULL_INITIALIZATION);
+    if(err != AE_OK) {
+        klog_fatal("ACPICA", "Failed to enter ACPI mode: %i", err);
+        while(true);
+    }
+    err = AcpiInitializeObjects(ACPI_FULL_INITIALIZATION);
+    if(err != AE_OK) {
+        klog_fatal("ACPICA", "Failed to init ACPI Objects: %i", err);
+        while(true);
+    }
+
+    klog_warning("ACPI", "Shutting down in 5 seconds");
+    Scheduler::ThreadWait(5000);
+
+    AcpiEnterSleepStatePrep(5);
+    IDT::DisableInterrupts();
+    AcpiEnterSleepState(5);
+
+    Scheduler::ThreadExit(0);
+}
+
 static void InitThread() {
     PCI::Init(g_KernelHeader);
 
@@ -141,8 +179,7 @@ static void InitThread() {
     Time::GetRTC(&dt);
     klog_info("Time", "UTC Time is %02i.%02i.20%02i %02i:%02i:%02i", dt.dayOfMonth, dt.month, dt.year, dt.hours, dt.minutes, dt.seconds);
 
-    AcpiInitializeSubsystem();
-    AcpiInitializeTables(nullptr, 0, true);
+    Scheduler::CreateKernelThread((uint64)&ACPICAThread);
 
     Scheduler::ThreadExit(0);
 }

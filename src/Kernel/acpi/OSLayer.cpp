@@ -261,6 +261,8 @@ extern "C" {
 
     }
 
-
+    ACPI_STATUS AcpiOsEnterSleep (UINT8 sleepState, UINT32 regAValue, UINT32 regBValue) {
+        return AE_OK;
+    }
 
 }
