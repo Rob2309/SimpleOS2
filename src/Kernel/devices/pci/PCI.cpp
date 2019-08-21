@@ -134,7 +134,7 @@ namespace PCI {
             }
         }   
 
-        klog_info("PCIe", "Found device: class=%X:%X:%X, loc=%i:%i:%i:%i", dev.classCode, dev.subclassCode, dev.progIf, dev.group, dev.bus, dev.device, dev.function);
+        klog_info("PCIe", "Found device: class=%02X:%02X:%02X, loc=%i:%i:%i:%i", dev.classCode, dev.subclassCode, dev.progIf, dev.group, dev.bus, dev.device, dev.function);
         g_Devices.push_back(dev);
 
         return true;
