@@ -141,6 +141,9 @@ static void InitThread() {
     Time::GetRTC(&dt);
     klog_info("Time", "UTC Time is %I.%I.20%I %I:%I:%I", dt.dayOfMonth, 2, dt.month, 2, dt.year, 2, dt.hours, 2, dt.minutes, 2, dt.seconds, 2);
 
+    AcpiInitializeSubsystem();
+    AcpiInitializeTables(nullptr, 0, true);
+
     Scheduler::ThreadExit(0);
 }
 
@@ -159,14 +162,6 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     }
     MemoryManager::Init(info);
     ACPI::g_RSDP = (ACPI::RSDPDescriptor*)info->rsdp;
-
-    ACPI_TABLE_DESC acpiTables[16];
-    ACPI_STATUS error = AcpiInitializeTables(acpiTables, 16, true);
-    if(error != AE_OK) {
-        klog_fatal("ACPICA", "Failed to init tables: %i", error);
-        while(true);
-    }
-
     APIC::Init();
     SMP::GatherInfo(info);
     MemoryManager::InitCore(SMP::GetLogicalCoreID());
