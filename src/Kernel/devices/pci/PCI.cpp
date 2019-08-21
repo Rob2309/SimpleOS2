@@ -47,6 +47,7 @@ namespace PCI {
         uint16 data;
     };
 
+    static ktl::vector<Group> g_Groups;
     static ktl::vector<Device> g_Devices;
 
     static uint8 g_VectCounter = ISRNumbers::PCIBase;
@@ -174,6 +175,8 @@ namespace PCI {
             group.busEnd = mcfg->entries[g].busEnd;
             group.id = mcfg->entries[g].groupID;
 
+            g_Groups.push_back(group);
+
             CheckGroup(group);
         }
     }
@@ -215,6 +218,84 @@ namespace PCI {
         IDT::SetISR(vect, handler);
 
         klog_info("PCIe", "Allocated interrupt %i for device %i:%i:%i:%i", vect, dev->group, dev->bus, dev->device, dev->function);
+    }
+
+    uint8 ReadConfigByte(uint16 groupID, uint8 bus, uint8 device, uint8 function, uint32 reg) {
+        for(const auto& g : g_Groups) {
+            if(g.id == groupID) {
+                uint8* addr = (uint8*)GetMemBase(g, bus, device, function) + reg;
+                return *addr;
+            }
+        }
+
+        return 0;
+    }
+    uint16 ReadConfigWord(uint16 groupID, uint8 bus, uint8 device, uint8 function, uint32 reg) {
+        for(const auto& g : g_Groups) {
+            if(g.id == groupID) {
+                uint16* addr = (uint16*)GetMemBase(g, bus, device, function) + reg;
+                return *addr;
+            }
+        }
+
+        return 0;
+    }
+    uint32 ReadConfigDWord(uint16 groupID, uint8 bus, uint8 device, uint8 function, uint32 reg) {
+        for(const auto& g : g_Groups) {
+            if(g.id == groupID) {
+                uint32* addr = (uint32*)GetMemBase(g, bus, device, function) + reg;
+                return *addr;
+            }
+        }
+
+        return 0;
+    }
+    uint64 ReadConfigQWord(uint16 groupID, uint8 bus, uint8 device, uint8 function, uint32 reg) {
+        for(const auto& g : g_Groups) {
+            if(g.id == groupID) {
+                uint64* addr = (uint64*)GetMemBase(g, bus, device, function) + reg;
+                return *addr;
+            }
+        }
+
+        return 0;
+    }
+
+    void WriteConfigByte(uint16 groupID, uint8 bus, uint8 device, uint8 function, uint32 reg, uint8 val) {
+        for(const auto& g : g_Groups) {
+            if(g.id == groupID) {
+                uint8* addr = (uint8*)GetMemBase(g, bus, device, function) + reg;
+                *addr = val;
+                break;
+            }
+        }
+    }
+    void WriteConfigWord(uint16 groupID, uint8 bus, uint8 device, uint8 function, uint32 reg, uint16 val) {
+        for(const auto& g : g_Groups) {
+            if(g.id == groupID) {
+                uint16* addr = (uint16*)GetMemBase(g, bus, device, function) + reg;
+                *addr = val;
+                break;
+            }
+        }
+    }
+    void WriteConfigDWord(uint16 groupID, uint8 bus, uint8 device, uint8 function, uint32 reg, uint32 val) {
+        for(const auto& g : g_Groups) {
+            if(g.id == groupID) {
+                uint32* addr = (uint32*)GetMemBase(g, bus, device, function) + reg;
+                *addr = val;
+                break;
+            }
+        }
+    }
+    void WriteConfigQWord(uint16 groupID, uint8 bus, uint8 device, uint8 function, uint32 reg, uint64 val) {
+        for(const auto& g : g_Groups) {
+            if(g.id == groupID) {
+                uint64* addr = (uint64*)GetMemBase(g, bus, device, function) + reg;
+                *addr = val;
+                break;
+            }
+        }
     }
 
 };

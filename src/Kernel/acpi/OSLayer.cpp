@@ -13,6 +13,7 @@ extern "C" {
 #include "locks/QueueLock.h"
 #include "locks/StickyLock.h"
 #include "arch/port.h"
+#include "devices/pci/PCI.h"
 
 extern "C" {
 
@@ -227,11 +228,25 @@ extern "C" {
     }
 
     ACPI_STATUS AcpiOsReadPciConfiguration(ACPI_PCI_ID* pciID, UINT32 reg, UINT64* val, UINT32 width) {
-        // TODO: Implement AcpiOsReadPciConfiguration
+        switch(width) {
+        case 8:  *val = PCI::ReadConfigByte(pciID->Segment, pciID->Bus, pciID->Device, pciID->Function, reg); break;
+        case 16: *val = PCI::ReadConfigWord(pciID->Segment, pciID->Bus, pciID->Device, pciID->Function, reg); break;
+        case 32: *val = PCI::ReadConfigDWord(pciID->Segment, pciID->Bus, pciID->Device, pciID->Function, reg); break;
+        case 64: *val = PCI::ReadConfigQWord(pciID->Segment, pciID->Bus, pciID->Device, pciID->Function, reg); break;
+        }
+
+        return AE_OK;
     }
 
     ACPI_STATUS AcpiOsWritePciConfiguration(ACPI_PCI_ID* pciID, UINT32 reg, UINT64 val, UINT32 width) {
-        // TODO: Implement AcpiOsWritePciConfiguration
+        switch(width) {
+        case 8: PCI::WriteConfigByte(pciID->Segment, pciID->Bus, pciID->Device, pciID->Function, reg, val); break;
+        case 16: PCI::WriteConfigWord(pciID->Segment, pciID->Bus, pciID->Device, pciID->Function, reg, val); break;
+        case 32: PCI::WriteConfigDWord(pciID->Segment, pciID->Bus, pciID->Device, pciID->Function, reg, val); break;
+        case 64: PCI::WriteConfigQWord(pciID->Segment, pciID->Bus, pciID->Device, pciID->Function, reg, val); break;
+        }
+
+        return AE_OK;
     }
 
     void ACPI_INTERNAL_VAR_XFACE AcpiOsPrintf(const char* fmt, ...) {
