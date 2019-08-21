@@ -103,6 +103,8 @@ static const char* ParseFlags(const char* fmt, Format& flags) {
         case '0': flags.leftPadWithZeroes = true; break;
         default: return &fmt[i];
         }
+
+        i++;
     }
 }
 
