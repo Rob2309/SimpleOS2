@@ -154,7 +154,7 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     Terminal::Clear(&g_TerminalInfo);
 
     kprintf("%CStarting SimpleOS2 Kernel\n", 40, 200, 40);
-    klog_info("Boot", "Kernel at 0x%x", info->kernelImage.buffer);
+    klog_info("Boot", "Kernel at 0x%16X", info->kernelImage.buffer);
 
     if(!Time::Init()) {
         klog_fatal("Boot", "Boot failed...");

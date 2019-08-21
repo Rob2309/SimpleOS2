@@ -153,7 +153,7 @@ namespace SSE {
     }
     void RestoreFPUBlock(char* buffer) {
         if((uint64)buffer % 64 != 0)
-            kprintf("misaligned: %i\n", (uint64)buffer % 64);
+            klog_warning("SSE", "Misaligned FPU block: 0x%16X\n", buffer);
         if(g_ExtendedSSE) {
             __asm__ __volatile__ (
                 "xrstorq (%0)"

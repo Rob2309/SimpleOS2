@@ -86,7 +86,7 @@ namespace IDT {
             uint64 mxcsr __attribute__((aligned(64))) = 0;
             __asm__ __volatile__ ("stmxcsr (%0)" : : "r"(&mxcsr));
 
-            kprintf("Error code: 0x%x\n", mxcsr);
+            kprintf("Error code: 0x%X\n", mxcsr);
         }
 
         uint64 cr2;
@@ -94,7 +94,7 @@ namespace IDT {
             "movq %%cr2, %0"
             : "=r"(cr2)
         );
-        klog_fatal("PANIC", "Unhandled interrupt %i: CR2=0x%x, ErrorCode=0x%X, RIP=0x%x", regs->intNumber, cr2, regs->errorCode, regs->rip);
+        klog_fatal("PANIC", "Unhandled interrupt %i: CR2=0x%016X, ErrorCode=0x%X, RIP=0x%016X", regs->intNumber, cr2, regs->errorCode, regs->rip);
         while(true);
     }
 

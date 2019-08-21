@@ -66,7 +66,7 @@ namespace SMP {
     void GatherInfo(KernelHeader* header) {
         ACPI::RSDPDescriptor* rsdp = (ACPI::RSDPDescriptor*)header->rsdp;
         ACPI::XSDT* xsdt = (ACPI::XSDT*)MemoryManager::PhysToKernelPtr((void*)rsdp->xsdtAddress);
-        klog_info("ACPI", "XSDT at 0x%x", xsdt);
+        klog_info("ACPI", "XSDT at 0x%016X", xsdt);
 
         ACPI::MADT* madt = (ACPI::MADT*)xsdt->FindTable(SIGNATURE('A', 'P', 'I', 'C'));
         if(madt == nullptr) {
@@ -74,7 +74,7 @@ namespace SMP {
             return;
         }
         else
-            klog_info("ACPI", "MADT at 0x%x", madt);
+            klog_info("ACPI", "MADT at 0x%016X", madt);
 
         g_NumCores = 0;
 
