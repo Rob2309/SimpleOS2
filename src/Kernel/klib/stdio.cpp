@@ -49,6 +49,17 @@ static void PrintString(const char* str, uint32 color) {
     }
 }
 
+static void PrintStringMaxLength(const char* str, int length, uint32 color) {
+    int i = 0;
+    while(str[i] != '\0' && i < length) {
+        if(str[i] == '\n')
+            Terminal::NewLine(&g_TerminalInfo);
+        else
+            Terminal::PutChar(&g_TerminalInfo, str[i], color);
+        i++;    
+    }
+}
+
 static void PrintPadding(int length, bool padWithZeroes, uint32 color) {
     if(padWithZeroes) {
         for(int i = 0; i < length; i++)
@@ -70,6 +81,24 @@ static void PrintStringPadded(const char* str, int length, const Format& fmt, ui
         }
     } else {
         PrintString(str, color);
+    }
+}
+
+static void PrintStringPaddedPrecision(const char* str, int length, const Format& fmt, uint32 color) {
+    if(length > fmt.precision && fmt.precision != 0) {
+        length = fmt.precision;
+    }
+
+    if(length < fmt.minWidth) {
+        if(fmt.leftJustify) {
+            PrintStringMaxLength(str, length, color);
+            PrintPadding(fmt.minWidth - length, false, color);
+        } else {
+            PrintPadding(fmt.minWidth - length, fmt.leftPadWithZeroes, color);
+            PrintStringMaxLength(str, length, color);
+        }
+    } else {
+        PrintStringMaxLength(str, length, color);
     }
 }
 
@@ -166,6 +195,12 @@ static void PrintInt64Base(int64 val, const char* digits, int base, const Format
         length++;
     } while(val != 0);
 
+    for(int i = length; i < fmt.precision; i++) {
+        *buffer = digits[0];
+        buffer--;
+        length++;
+    }
+
     if(fmt.addPrefix) {
         if(base == 16) {
             *buffer = 'x';
@@ -212,6 +247,12 @@ static void PrintUInt64Base(uint64 val, const char* digits, int base, const Form
         buffer--;
         length++;
     } while(val != 0);
+
+    for(int i = length; i < fmt.precision; i++) {
+        *buffer = digits[0];
+        buffer--;
+        length++;
+    }
 
     if(fmt.addPrefix) {
         if(base == 16) {
@@ -318,7 +359,7 @@ void kvprintf(const char* format, __builtin_va_list arg) {
                 PrintOctalInt(val, outFormat, color);
             } else if(f == 's') {
                 const char* val = __builtin_va_arg(arg, const char*);
-                PrintStringPadded(val, kstrlen(val), outFormat, color);
+                PrintStringPaddedPrecision(val, kstrlen(val), outFormat, color);
             } else if(f == 'u') {
                 uint64 val = __builtin_va_arg(arg, uint64);
                 PrintUInt(val, outFormat, color);

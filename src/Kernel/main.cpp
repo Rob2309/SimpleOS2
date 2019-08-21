@@ -139,7 +139,7 @@ static void InitThread() {
 
     Time::DateTime dt;
     Time::GetRTC(&dt);
-    klog_info("Time", "UTC Time is %I.%I.20%I %I:%I:%I", dt.dayOfMonth, 2, dt.month, 2, dt.year, 2, dt.hours, 2, dt.minutes, 2, dt.seconds, 2);
+    klog_info("Time", "UTC Time is %02i.%02i.20%02i %02i:%02i:%02i", dt.dayOfMonth, dt.month, dt.year, dt.hours, dt.minutes, dt.seconds);
 
     AcpiInitializeSubsystem();
     AcpiInitializeTables(nullptr, 0, true);
@@ -154,7 +154,7 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     Terminal::Clear(&g_TerminalInfo);
 
     kprintf("%CStarting SimpleOS2 Kernel\n", 40, 200, 40);
-    klog_info("Boot", "Kernel at 0x%16X", info->kernelImage.buffer);
+    klog_info("Boot", "Kernel at 0x%016X", info->kernelImage.buffer);
 
     if(!Time::Init()) {
         klog_fatal("Boot", "Boot failed...");
