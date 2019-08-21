@@ -87,40 +87,58 @@ static uint64 SetupInitProcess() {
 static KernelHeader* g_KernelHeader;
 Terminal::TerminalInfo g_TerminalInfo;
 
-static void ACPICAThread() {
-    ACPI_STATUS err;
-    err = AcpiInitializeSubsystem();
-    if(err != AE_OK) {
-        klog_fatal("ACPICA", "Failed to init ACPICA: %i", err);
-        while(true);
-    }
-    err = AcpiInitializeTables(nullptr, 16, false);
-    if(err != AE_OK) {
-        klog_fatal("ACPICA", "Failed to init ACPICA tables: %i", err);
-        while(true);
-    }
-    err = AcpiLoadTables();
-    if(err != AE_OK) {
-        klog_fatal("ACPICA", "Failed to load ACPICA tables: %i", err);
-        while(true);
-    }
-    err = AcpiEnableSubsystem(ACPI_FULL_INITIALIZATION);
-    if(err != AE_OK) {
-        klog_fatal("ACPICA", "Failed to enter ACPI mode: %i", err);
-        while(true);
-    }
-    err = AcpiInitializeObjects(ACPI_FULL_INITIALIZATION);
-    if(err != AE_OK) {
-        klog_fatal("ACPICA", "Failed to init ACPI Objects: %i", err);
-        while(true);
-    }
+static UINT32 PowerButtonHandler(void* arg) {
+    klog_warning("ACPI", "Power button pressed, shutting down in 5 secs");
 
-    klog_warning("ACPI", "Shutting down in 5 seconds");
     Scheduler::ThreadWait(5000);
 
     AcpiEnterSleepStatePrep(5);
     IDT::DisableInterrupts();
     AcpiEnterSleepState(5);
+
+    return AE_OK;
+}
+
+static void ACPIThread() {
+    ACPI_STATUS err;
+    err = AcpiInitializeSubsystem();
+    if(err != AE_OK) {
+        klog_fatal("ACPI", "Failed to init ACPICA: %i", err);
+        while(true);
+    }
+    err = AcpiInitializeTables(nullptr, 16, false);
+    if(err != AE_OK) {
+        klog_fatal("ACPI", "Failed to init ACPICA tables: %i", err);
+        while(true);
+    }
+    err = AcpiLoadTables();
+    if(err != AE_OK) {
+        klog_fatal("ACPI", "Failed to load ACPICA tables: %i", err);
+        while(true);
+    }
+    err = AcpiEnableSubsystem(ACPI_FULL_INITIALIZATION);
+    if(err != AE_OK) {
+        klog_fatal("ACPI", "Failed to enter ACPI mode: %i", err);
+        while(true);
+    }
+    err = AcpiInitializeObjects(ACPI_FULL_INITIALIZATION);
+    if(err != AE_OK) {
+        klog_fatal("ACPI", "Failed to init ACPI Objects: %i", err);
+        while(true);
+    }
+
+    err = AcpiInstallFixedEventHandler(ACPI_EVENT_POWER_BUTTON, PowerButtonHandler, nullptr);
+    if(err != AE_OK) {
+        klog_fatal("ACPI", "Failed to install power button handler: %i", err);
+        while(true);
+    }
+    err = AcpiEnableEvent(ACPI_EVENT_POWER_BUTTON, 0);
+    if(err != AE_OK) {
+        klog_fatal("ACPI", "Failed to enable power button handler: %i", err);
+        while(true);
+    }
+
+    klog_info("ACPI", "Entered ACPI mode");
 
     Scheduler::ThreadExit(0);
 }
@@ -179,7 +197,7 @@ static void InitThread() {
     Time::GetRTC(&dt);
     klog_info("Time", "UTC Time is %02i.%02i.20%02i %02i:%02i:%02i", dt.dayOfMonth, dt.month, dt.year, dt.hours, dt.minutes, dt.seconds);
 
-    Scheduler::CreateKernelThread((uint64)&ACPICAThread);
+    Scheduler::CreateKernelThread((uint64)&ACPIThread);
 
     Scheduler::ThreadExit(0);
 }
