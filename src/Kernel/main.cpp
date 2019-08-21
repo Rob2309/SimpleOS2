@@ -103,17 +103,17 @@ static void ACPIThread() {
     ACPI_STATUS err;
     err = AcpiInitializeSubsystem();
     if(err != AE_OK) {
-        klog_fatal("ACPI", "Failed to init ACPICA: %i", err);
+        klog_fatal("ACPI", "Failed to init ACPI: %i", err);
         while(true);
     }
     err = AcpiInitializeTables(nullptr, 16, false);
     if(err != AE_OK) {
-        klog_fatal("ACPI", "Failed to init ACPICA tables: %i", err);
+        klog_fatal("ACPI", "Failed to init ACPI tables: %i", err);
         while(true);
     }
     err = AcpiLoadTables();
     if(err != AE_OK) {
-        klog_fatal("ACPI", "Failed to load ACPICA tables: %i", err);
+        klog_fatal("ACPI", "Failed to load ACPI tables: %i", err);
         while(true);
     }
     err = AcpiEnableSubsystem(ACPI_FULL_INITIALIZATION);
