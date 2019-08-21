@@ -18,7 +18,6 @@ struct Format {
     bool leftJustify;
     bool forceSign;
     bool spaceIfNoSign;
-    bool addPrefix;
     bool leftPadWithZeroes;
     bool argWidth;
     int minWidth;
@@ -41,6 +40,17 @@ static const char* stoui(const char* str, int& outVal) {
 static void PrintString(const char* str, uint32 color) {
     int i = 0;
     while(str[i] != '\0') {
+        if(str[i] == '\n')
+            Terminal::NewLine(&g_TerminalInfo);
+        else
+            Terminal::PutChar(&g_TerminalInfo, str[i], color);
+        i++;    
+    }
+}
+
+static void PrintStringMaxLength(const char* str, int length, uint32 color) {
+    int i = 0;
+    while(str[i] != '\0' && i < length) {
         if(str[i] == '\n')
             Terminal::NewLine(&g_TerminalInfo);
         else
@@ -73,6 +83,24 @@ static void PrintStringPadded(const char* str, int length, const Format& fmt, ui
     }
 }
 
+static void PrintStringPaddedPrecision(const char* str, int length, const Format& fmt, uint32 color) {
+    if(length > fmt.precision && fmt.precision != 0) {
+        length = fmt.precision;
+    }
+
+    if(length < fmt.minWidth) {
+        if(fmt.leftJustify) {
+            PrintStringMaxLength(str, length, color);
+            PrintPadding(fmt.minWidth - length, false, color);
+        } else {
+            PrintPadding(fmt.minWidth - length, fmt.leftPadWithZeroes, color);
+            PrintStringMaxLength(str, length, color);
+        }
+    } else {
+        PrintStringMaxLength(str, length, color);
+    }
+}
+
 static void PrintStringCentered(const char* str, uint32 color, uint64 padding) {
     int len = kstrlen(str);
     if(len > padding) {
@@ -99,7 +127,6 @@ static const char* ParseFlags(const char* fmt, Format& flags) {
         case '-': flags.leftJustify = true; break;
         case '+': flags.forceSign = true; break;
         case ' ': flags.spaceIfNoSign = true; break;
-        case '#': flags.addPrefix = true; break;
         case '0': flags.leftPadWithZeroes = true; break;
         default: return &fmt[i];
         }
@@ -166,18 +193,10 @@ static void PrintInt64Base(int64 val, const char* digits, int base, const Format
         length++;
     } while(val != 0);
 
-    if(fmt.addPrefix) {
-        if(base == 16) {
-            *buffer = 'x';
-            buffer--;
-            *buffer = '0';
-            buffer--;
-            length += 2;
-        } else if(base == 8) {
-            *buffer = '0';
-            buffer--;
-            length++;
-        }
+    for(int i = length; i < fmt.precision; i++) {
+        *buffer = digits[0];
+        buffer--;
+        length++;
     }
 
     if(neg) {
@@ -213,18 +232,10 @@ static void PrintUInt64Base(uint64 val, const char* digits, int base, const Form
         length++;
     } while(val != 0);
 
-    if(fmt.addPrefix) {
-        if(base == 16) {
-            *buffer = 'x';
-            buffer--;
-            *buffer = '0';
-            buffer--;
-            length += 2;
-        } else if(base == 8) {
-            *buffer = '0';
-            buffer--;
-            length++;
-        }
+    for(int i = length; i < fmt.precision; i++) {
+        *buffer = digits[0];
+        buffer--;
+        length++;
     }
 
     if(fmt.forceSign) {
@@ -270,6 +281,12 @@ void kprintf(const char* format, ...)
     __builtin_va_list arg;
     __builtin_va_start(arg, format);
 
+    kvprintf(format, arg);
+
+    __builtin_va_end(arg);
+}
+
+void kvprintf(const char* format, __builtin_va_list arg) {
     g_PrintLock.Spinlock_Raw();
 
     uint32 color = g_TerminalColor;
@@ -312,7 +329,7 @@ void kprintf(const char* format, ...)
                 PrintOctalInt(val, outFormat, color);
             } else if(f == 's') {
                 const char* val = __builtin_va_arg(arg, const char*);
-                PrintStringPadded(val, kstrlen(val), outFormat, color);
+                PrintStringPaddedPrecision(val, kstrlen(val), outFormat, color);
             } else if(f == 'u') {
                 uint64 val = __builtin_va_arg(arg, uint64);
                 PrintUInt(val, outFormat, color);
@@ -339,8 +356,6 @@ void kprintf(const char* format, ...)
     }
 
     g_PrintLock.Unlock_Raw();
-
-    __builtin_va_end(arg);
 }
 
 void kprintf_setcolor(uint32 color)

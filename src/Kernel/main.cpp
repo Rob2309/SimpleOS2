@@ -133,7 +133,7 @@ static void InitThread() {
 
     Time::DateTime dt;
     Time::GetRTC(&dt);
-    klog_info("Time", "UTC Time is %I.%I.20%I %I:%I:%I", dt.dayOfMonth, 2, dt.month, 2, dt.year, 2, dt.hours, 2, dt.minutes, 2, dt.seconds, 2);
+    klog_info("Time", "UTC Time is %02i.%02i.20%02i %02i:%02i:%02i", dt.dayOfMonth, dt.month, dt.year, dt.hours, dt.minutes, dt.seconds);
 
     Scheduler::ThreadExit(0);
 }
