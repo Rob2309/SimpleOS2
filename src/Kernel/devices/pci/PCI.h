@@ -27,7 +27,9 @@ namespace PCI {
         void* msi;
     };
 
-    void SetMSI(Device* dev, uint8 apicID, IDT::ISR handler);
+    void SetPinEntry(uint8 dev, uint8 pin, uint8 gsi);
+
+    void SetInterruptHandler(Device* dev, IDT::ISR handler);
 
     const Device* FindDevice(uint8 classCode, uint8 subclassCode);
 

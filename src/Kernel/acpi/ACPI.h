@@ -1,6 +1,7 @@
 #pragma once
 
 #include "types.h"
+#include "KernelHeader.h"
 
 namespace ACPI {
 
@@ -102,5 +103,7 @@ namespace ACPI {
     };
 
     extern RSDPDescriptor* g_RSDP;
+
+    void AcpiSystemThread(KernelHeader* header);
 
 }

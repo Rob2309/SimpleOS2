@@ -73,4 +73,23 @@ namespace IOAPIC {
         klog_info("IOAPIC", "Routing IRQ %i through GSI %i", irq, gsi);
     }
 
+    void RegisterGSI(uint32 gsi, IDT::ISR isr) {
+        uint8 intNo = g_ISRCounter++;
+        IDT::SetISR(intNo, isr);
+
+        uint32 valA = 0, valB = 0;
+        valA |= intNo;
+
+        uint64 apicID = SMP::GetApicID(SMP::GetLogicalCoreID());
+        valB |= apicID << 24;
+
+        uint32 reg = REG_IRQ_BASE + 2 * gsi;
+        *(volatile uint32*)(g_MemBase + REG_SEL) = reg;
+        *(volatile uint32*)(g_MemBase + REG_DATA) = valA;
+        *(volatile uint32*)(g_MemBase + REG_SEL) = reg + 1;
+        *(volatile uint32*)(g_MemBase + REG_DATA) = valB;
+
+        klog_info("IOAPIC", "Installed handler for GSI %i", gsi);
+    }
+
 }

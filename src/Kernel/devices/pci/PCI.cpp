@@ -8,6 +8,9 @@
 
 #include "ktl/vector.h"
 
+#include "arch/APIC.h"
+#include "arch/IOAPIC.h"
+
 namespace PCI {
 
     struct Group {
@@ -51,6 +54,8 @@ namespace PCI {
     static ktl::vector<Device> g_Devices;
 
     static uint8 g_VectCounter = ISRNumbers::PCIBase;
+
+    static uint8 g_PinEntries[255 * 4] = { 0 };
 
     static uint64 GetMemBase(const Group& group, uint32 bus, uint32 device, uint32 func) {
         return group.baseAddr + ((uint64)bus << 20) + ((uint64)device << 15) + ((uint64)func << 12);
@@ -189,7 +194,11 @@ namespace PCI {
         return nullptr;
     }
 
-    void SetMSI(Device* dev, uint8 apicID, IDT::ISR handler) {
+    void SetPinEntry(uint8 dev, uint8 pin, uint8 gsi) {
+        g_PinEntries[dev * 4 + pin] = gsi;
+    }
+
+    static void SetMSI(Device* dev, uint8 apicID, IDT::ISR handler) {
         uint8 vect = g_VectCounter;
         g_VectCounter++;
 
@@ -218,6 +227,22 @@ namespace PCI {
         IDT::SetISR(vect, handler);
 
         klog_info("PCIe", "Allocated interrupt %i for device %i:%i:%i:%i", vect, dev->group, dev->bus, dev->device, dev->function);
+    }
+
+    void SetInterruptHandler(Device* dev, IDT::ISR handler) {
+        if(dev->msi != nullptr) {
+            SetMSI(dev, APIC::GetID(), handler);
+        } else {
+            uint8 pin = ReadConfigByte(dev->group, dev->bus, dev->device, dev->function, 0x3D);
+            uint8 gsi = g_PinEntries[dev->device * 4 + pin];
+
+            if(gsi == 0) {
+                klog_error("PCI", "Could not find GSI associated with device %04X:%02X:%02X:%02X", dev->group, dev->bus, dev->device, dev->function);
+                return;
+            }
+
+            IOAPIC::RegisterGSI(gsi, handler);
+        }
     }
 
     uint8 ReadConfigByte(uint16 groupID, uint8 bus, uint8 device, uint8 function, uint32 reg) {

@@ -88,69 +88,6 @@ static uint64 SetupInitProcess() {
 static KernelHeader* g_KernelHeader;
 Terminal::TerminalInfo g_TerminalInfo;
 
-static void EventHandler (UINT32 eventType, ACPI_HANDLE dev, UINT32 eventNumber, void* arg) {
-    if(eventType == ACPI_EVENT_TYPE_FIXED && eventNumber == ACPI_EVENT_POWER_BUTTON) {
-        klog_warning("ACPI", "Power button pressed, shutting down in 5 seconds...");
-
-        AcpiOsStall(5000000);
-
-        AcpiEnterSleepStatePrep(ACPI_STATE_S5);
-        IDT::DisableInterrupts();
-        AcpiEnterSleepState(ACPI_STATE_S5);
-    }
-}
-
-static void ACPIThread() {
-    ACPI_STATUS err;
-    err = AcpiInitializeSubsystem();
-    if(err != AE_OK) {
-        klog_fatal("ACPI", "Failed to init ACPI: %i", err);
-        while(true);
-    }
-    err = AcpiInitializeTables(nullptr, 16, false);
-    if(err != AE_OK) {
-        klog_fatal("ACPI", "Failed to init ACPI tables: %i", err);
-        while(true);
-    }
-    err = AcpiLoadTables();
-    if(err != AE_OK) {
-        klog_fatal("ACPI", "Failed to load ACPI tables: %i", err);
-        while(true);
-    }
-
-    err = AcpiEnableSubsystem(ACPI_FULL_INITIALIZATION);
-    if(err != AE_OK) {
-        klog_fatal("ACPI", "Failed to enter ACPI mode: %i", err);
-        while(true);
-    }
-    err = AcpiInitializeObjects(ACPI_FULL_INITIALIZATION);
-    if(err != AE_OK) {
-        klog_fatal("ACPI", "Failed to init ACPI Objects: %i", err);
-        while(true);
-    }
-
-    err = AcpiUpdateAllGpes();
-    if(err != AE_OK) {
-        klog_fatal("ACPI", "Failed to update GPEs: %i", err);
-        while(true);
-    }
-
-    err = AcpiInstallGlobalEventHandler(EventHandler, nullptr);
-    if(err != AE_OK) {
-        klog_fatal("ACPI", "Failed to install power button handler: %i", err);
-        while(true);
-    }
-    err = AcpiEnableEvent(ACPI_EVENT_POWER_BUTTON, 0);
-    if(err != AE_OK) {
-        klog_fatal("ACPI", "Failed to enable power button handler: %i", err);
-        while(true);
-    }
-
-    klog_info("ACPI", "Entered ACPI mode");
-
-    Scheduler::ThreadExit(0);
-}
-
 static void InitThread() {
     PCI::Init(g_KernelHeader);
 
@@ -205,7 +142,7 @@ static void InitThread() {
     Time::GetRTC(&dt);
     klog_info("Time", "UTC Time is %02i.%02i.20%02i %02i:%02i:%02i", dt.dayOfMonth, dt.month, dt.year, dt.hours, dt.minutes, dt.seconds);
 
-    Scheduler::CreateKernelThread((uint64)&ACPIThread);
+    Scheduler::CreateKernelThread((uint64)&ACPI::AcpiSystemThread, (uint64)g_KernelHeader);
 
     Scheduler::ThreadExit(0);
 }
