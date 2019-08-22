@@ -5,6 +5,7 @@
 #include "arch/GDT.h"
 #include "interrupts/IDT.h"
 #include "arch/APIC.h"
+#include "arch/IOAPIC.h"
 #include "syscalls/SyscallHandler.h"
 #include "memory/MemoryManager.h"
 #include "multicore/SMP.h"
@@ -87,16 +88,16 @@ static uint64 SetupInitProcess() {
 static KernelHeader* g_KernelHeader;
 Terminal::TerminalInfo g_TerminalInfo;
 
-static UINT32 PowerButtonHandler(void* arg) {
-    klog_warning("ACPI", "Power button pressed, shutting down in 5 secs");
+static void EventHandler (UINT32 eventType, ACPI_HANDLE dev, UINT32 eventNumber, void* arg) {
+    if(eventType == ACPI_EVENT_TYPE_FIXED && eventNumber == ACPI_EVENT_POWER_BUTTON) {
+        klog_warning("ACPI", "Power button pressed, shutting down in 5 seconds...");
 
-    Scheduler::ThreadWait(5000);
+        AcpiOsStall(5000000);
 
-    AcpiEnterSleepStatePrep(5);
-    IDT::DisableInterrupts();
-    AcpiEnterSleepState(5);
-
-    return AE_OK;
+        AcpiEnterSleepStatePrep(ACPI_STATE_S5);
+        IDT::DisableInterrupts();
+        AcpiEnterSleepState(ACPI_STATE_S5);
+    }
 }
 
 static void ACPIThread() {
@@ -116,6 +117,7 @@ static void ACPIThread() {
         klog_fatal("ACPI", "Failed to load ACPI tables: %i", err);
         while(true);
     }
+
     err = AcpiEnableSubsystem(ACPI_FULL_INITIALIZATION);
     if(err != AE_OK) {
         klog_fatal("ACPI", "Failed to enter ACPI mode: %i", err);
@@ -127,7 +129,13 @@ static void ACPIThread() {
         while(true);
     }
 
-    err = AcpiInstallFixedEventHandler(ACPI_EVENT_POWER_BUTTON, PowerButtonHandler, nullptr);
+    err = AcpiUpdateAllGpes();
+    if(err != AE_OK) {
+        klog_fatal("ACPI", "Failed to update GPEs: %i", err);
+        while(true);
+    }
+
+    err = AcpiInstallGlobalEventHandler(EventHandler, nullptr);
     if(err != AE_OK) {
         klog_fatal("ACPI", "Failed to install power button handler: %i", err);
         while(true);
@@ -218,6 +226,7 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     MemoryManager::Init(info);
     ACPI::g_RSDP = (ACPI::RSDPDescriptor*)info->rsdp;
     APIC::Init();
+    IOAPIC::Init(info);
     SMP::GatherInfo(info);
     MemoryManager::InitCore(SMP::GetLogicalCoreID());
     GDT::Init(SMP::GetCoreCount());

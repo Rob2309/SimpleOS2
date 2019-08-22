@@ -34,6 +34,8 @@ namespace ISRNumbers
     constexpr uint8 IPIPagingSync = 120; // Called by memory manager to keep page tables in sync across multiple cores
     constexpr uint8 IPIMoveThread = 121; // Called by Scheduler to move a Thread to another processor
     constexpr uint8 IPIKillProcess = 122;
+
+    constexpr uint8 IRQBase = 150;
     
     constexpr uint8 APICSpurious = 255; // Spurious Local APIC Interrupt
 }

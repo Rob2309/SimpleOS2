@@ -14,6 +14,7 @@ extern "C" {
 #include "locks/StickyLock.h"
 #include "arch/port.h"
 #include "devices/pci/PCI.h"
+#include "arch/IOAPIC.h"
 
 extern "C" {
 
@@ -92,7 +93,7 @@ extern "C" {
     void AcpiOsStall(UINT32 micros) {
         Scheduler::ThreadSetSticky();
 
-        uint32 ticks = Time::GetTSCTicksPerMilli() / 1000 * micros;
+        uint64 ticks = Time::GetTSCTicksPerMilli() / 1000 * micros;
 
         uint64 start = Time::GetTSC();
         while(true) {
@@ -173,7 +174,11 @@ extern "C" {
             return AE_BAD_PARAMETER;
         g_AcpiISRFunc = handler;
         g_AcpiISRArg = arg;
-        IDT::SetISR(no, AcpiISR);
+        
+        IOAPIC::RegisterIRQ(no, AcpiISR);
+
+        klog_info("ACPI", "Installed ISR %u", no);
+
         return AE_OK;
     }
 
