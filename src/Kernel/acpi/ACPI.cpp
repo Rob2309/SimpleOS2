@@ -39,7 +39,7 @@ namespace ACPI {
         g_MCFG = mcfg;
     }
 
-    static ACPI_BUFFER RunAcpi(const char* obj, ACPI_OBJECT* args, uint64 argCount);
+    static ACPI_BUFFER RunAcpi(const char* obj, ACPI_OBJECT* args, uint32 argCount);
     static void FreeBuffer(const ACPI_BUFFER& buffer);
     static void AcpiEventHandler(UINT32 eventType, ACPI_HANDLE dev, UINT32 eventNumber, void* arg);
 
@@ -141,7 +141,7 @@ namespace ACPI {
         }
     }
 
-    static ACPI_BUFFER RunAcpi(const char* obj, ACPI_OBJECT* args, uint64 argCount) {
+    static ACPI_BUFFER RunAcpi(const char* obj, ACPI_OBJECT* args, uint32 argCount) {
         ACPI_BUFFER retVal = { ACPI_ALLOCATE_BUFFER, nullptr };
         ACPI_OBJECT_LIST argList = { argCount, args };
         ACPI_STATUS err = AcpiEvaluateObject(nullptr, (char*)obj, &argList, &retVal);
