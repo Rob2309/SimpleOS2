@@ -92,6 +92,8 @@ static void InitThread() {
     ACPI::StartSystem();
     PCI::Init();
 
+    ACPI::Handle rootBridge = ACPI::GetPCIRootBridge();
+
     klog_info("Boot", "Init KernelThread starting");
 
     g_RootUser.gid = 0;

@@ -115,4 +115,7 @@ namespace ACPI {
     const MCFG* GetMCFG();
     const RSDPDescriptor* GetRSDP();
 
+    typedef void* Handle;
+    Handle GetPCIRootBridge();
+
 }

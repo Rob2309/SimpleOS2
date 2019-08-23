@@ -156,38 +156,29 @@ namespace ACPI {
             AcpiOsFree(buffer.Pointer);
     }
 
-    static ACPI_STATUS AcpiWalk (ACPI_HANDLE dev, UINT32 nestLevel, void* ctx, void** retVal) {
+    static ACPI_STATUS SearchPCIRootBridge (ACPI_HANDLE dev, UINT32 nestLevel, void* ctx, void** retVal) {
         ACPI_DEVICE_INFO* info;
         AcpiGetObjectInfo(dev, &info);
 
         if(info->Flags & ACPI_PCI_ROOT_BRIDGE) {
-            klog_info("ACPI", "Found PCI Root bridge");
-
-            ACPI_BUFFER buffer = { ACPI_ALLOCATE_BUFFER, nullptr };
-            ACPI_STATUS err = AcpiGetIrqRoutingTable(dev, &buffer);
-            if(err != AE_OK) {
-                klog_error("ACPI", "Failed to retrieve Irq info");
-                return AE_ERROR;
-            }
-            
-            auto table = (ACPI_PCI_ROUTING_TABLE*)buffer.Pointer;
-            while(true) {
-                if(table->Length == 0)
-                    break;
-
-                uint8 devID = table->Address >> 16;
-                if(*(uint32*)table->Source == 0) {
-                    PCI::SetPinEntry(devID, table->Pin, table->SourceIndex);
-                } else {
-                    klog_warning("ACPI", "PCI device %02X uses unsupported IRQ routing mode", devID);
-                }
-
-                table = (ACPI_PCI_ROUTING_TABLE*)((char*)table + table->Length);
-            }
+            *retVal = dev;
+            ACPI_FREE(info);
+            return -1;
         }
 
         ACPI_FREE(info);
         return AE_OK;
+    }
+
+    Handle GetPCIRootBridge() {
+        void* retVal;
+        ACPI_STATUS err = AcpiGetDevices(nullptr, SearchPCIRootBridge, nullptr, &retVal);
+        if(err != -1) {
+            klog_error("ACPI", "Failed to find PCIe Root Bridge: %i", err);
+            return nullptr;
+        }
+
+        return retVal;
     }
 
 }
