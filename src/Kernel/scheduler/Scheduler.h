@@ -25,8 +25,7 @@ namespace Scheduler {
      * @param rip the Entry point of the Thread
      * @returns the TID of the created Thread
      **/
-    uint64 CreateKernelThread(uint64 rip);
-    uint64 CreateKernelThread(uint64 rip, uint64 arg);
+    uint64 CreateKernelThread(uint64 rip, uint64 arg1 = 0, uint64 arg2 = 0);
     /**
      * Clones the currently active Process and its User Memory Space. All Open FileDescriptors will be cloned onto the new Process.
      * The new Process will have a single Thread.

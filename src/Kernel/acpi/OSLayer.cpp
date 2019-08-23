@@ -82,7 +82,7 @@ extern "C" {
 
     ACPI_STATUS AcpiOsExecute(ACPI_EXECUTE_TYPE type, ACPI_OSD_EXEC_CALLBACK func, void* arg) {
         g_NumACPICAThreads.Inc();
-        uint64 tid = Scheduler::CreateKernelThread((uint64)func, (uint64)arg);
+        uint64 tid = Scheduler::CreateKernelThread((uint64)&AcpiThread, (uint64)func, (uint64)arg);
         klog_info("ACPICA", "Created kernel thread with tid %i", tid);
         return AE_OK;
     }
