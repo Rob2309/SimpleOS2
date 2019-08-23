@@ -20,7 +20,7 @@ namespace Scheduler {
     extern "C" void IdleThread();
 
     static uint64 g_PIDCounter = 1;
-    static uint64 g_TIDCounter = 0;
+    static uint64 g_TIDCounter = 1;
 
     static ThreadInfo* FindNextThread();
     static ThreadInfo* FindNextThreadFromInterrupt();

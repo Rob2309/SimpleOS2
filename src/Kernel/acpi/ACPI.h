@@ -36,7 +36,7 @@ namespace ACPI {
         SDTHeader header;
         void* tables[];
 
-        SDTHeader* FindTable(uint32 signature);
+        SDTHeader* FindTable(uint32 signature) const;
     };
 
     struct MADTEntryHeader;
@@ -47,7 +47,7 @@ namespace ACPI {
         uint32 flags;
         char entries[];
 
-        MADTEntryHeader* GetNextEntry(uint64& pos);
+        MADTEntryHeader* GetNextEntry(uint64& pos) const;
     };
 
     struct __attribute__((packed)) MADTEntryHeader {
@@ -97,13 +97,22 @@ namespace ACPI {
         uint64 reserved;
         MCFGEntry entries[];
 
-        inline uint64 GetEntryCount() {
+        inline uint64 GetEntryCount() const {
             return (header.length - sizeof(MCFG)) / sizeof(MCFGEntry);
         }
     };
 
-    extern RSDPDescriptor* g_RSDP;
+    /**
+     * Has to be called before retrieving any ACPI tables
+     **/
+    void InitEarlyTables(KernelHeader* header);
+    /**
+     * Starts the ACPICA subsystem and puts the system into ACPI mode
+     **/
+    bool StartSystem();
 
-    void AcpiSystemThread(KernelHeader* header);
+    const MADT* GetMADT();
+    const MCFG* GetMCFG();
+    const RSDPDescriptor* GetRSDP();
 
 }

@@ -20,18 +20,8 @@ namespace IOAPIC {
 
     static uint64 g_MemBase;
 
-    void Init(KernelHeader* header) {
-        ACPI::RSDPDescriptor* rsdp = (ACPI::RSDPDescriptor*)header->rsdp;
-        ACPI::XSDT* xsdt = (ACPI::XSDT*)MemoryManager::PhysToKernelPtr((void*)rsdp->xsdtAddress);
-        klog_info("IOAPIC", "XSDT at 0x%016X", xsdt);
-
-        ACPI::MADT* madt = (ACPI::MADT*)xsdt->FindTable(SIGNATURE('A', 'P', 'I', 'C'));
-        if(madt == nullptr) {
-            klog_fatal("IOAPIC", "MADT not found");
-            return;
-        }
-        else
-            klog_info("IOAPIC", "MADT at 0x%016X", madt);
+    void Init() {
+        auto madt = ACPI::GetMADT();
 
         uint64 pos = 0;
         ACPI::MADTEntryHeader* entry;

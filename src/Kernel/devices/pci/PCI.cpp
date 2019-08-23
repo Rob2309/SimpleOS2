@@ -163,14 +163,8 @@ namespace PCI {
                 CheckDevice(group, i, j);
     }
 
-    void Init(KernelHeader* header) {
-        auto rsdp = (ACPI::RSDPDescriptor*)header->rsdp;
-        auto xsdt = (ACPI::XSDT*)MemoryManager::PhysToKernelPtr((void*)rsdp->xsdtAddress);
-        auto mcfg = (ACPI::MCFG*)xsdt->FindTable(SIGNATURE('M', 'C', 'F', 'G'));
-        if(mcfg == nullptr) {
-            klog_fatal("PCIe", "PCIe not supported (ACPI MCFG not found)");
-            return;
-        }
+    void Init() {
+        auto mcfg = ACPI::GetMCFG();
 
         uint64 length = mcfg->GetEntryCount();
         for(uint64 g = 0; g < length; g++) {

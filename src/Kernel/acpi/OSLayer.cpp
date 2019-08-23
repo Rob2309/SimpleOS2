@@ -1,7 +1,7 @@
 #include "types.h"
 
 extern "C" {
-#include "acpica/acpi.h"
+    #include "acpica/acpi.h"
 }
 
 #include "ACPI.h"
@@ -22,7 +22,7 @@ extern "C" {
     ACPI_STATUS AcpiOsTerminate() { return AE_OK; }
 
     ACPI_PHYSICAL_ADDRESS AcpiOsGetRootPointer() {
-        return (ACPI_PHYSICAL_ADDRESS)MemoryManager::KernelToPhysPtr(ACPI::g_RSDP);
+        return (ACPI_PHYSICAL_ADDRESS)MemoryManager::KernelToPhysPtr(ACPI::GetRSDP());
     }
 
     ACPI_STATUS AcpiOsPredefinedOverride(const ACPI_PREDEFINED_NAMES* predefObj, ACPI_STRING* newVal) {

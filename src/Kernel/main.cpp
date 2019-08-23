@@ -89,7 +89,8 @@ static KernelHeader* g_KernelHeader;
 Terminal::TerminalInfo g_TerminalInfo;
 
 static void InitThread() {
-    PCI::Init(g_KernelHeader);
+    ACPI::StartSystem();
+    PCI::Init();
 
     klog_info("Boot", "Init KernelThread starting");
 
@@ -142,8 +143,6 @@ static void InitThread() {
     Time::GetRTC(&dt);
     klog_info("Time", "UTC Time is %02i.%02i.20%02i %02i:%02i:%02i", dt.dayOfMonth, dt.month, dt.year, dt.hours, dt.minutes, dt.seconds);
 
-    Scheduler::CreateKernelThread((uint64)&ACPI::AcpiSystemThread, (uint64)g_KernelHeader);
-
     Scheduler::ThreadExit(0);
 }
 
@@ -161,10 +160,10 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
         while(true);
     }
     MemoryManager::Init(info);
-    ACPI::g_RSDP = (ACPI::RSDPDescriptor*)info->rsdp;
+    ACPI::InitEarlyTables(info);
     APIC::Init();
-    IOAPIC::Init(info);
-    SMP::GatherInfo(info);
+    IOAPIC::Init();
+    SMP::GatherInfo();
     MemoryManager::InitCore(SMP::GetLogicalCoreID());
     GDT::Init(SMP::GetCoreCount());
     GDT::InitCore(SMP::GetLogicalCoreID());
@@ -179,7 +178,7 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     }
     Scheduler::Init(SMP::GetCoreCount());
 
-    SMP::StartCores();
+    SMP::StartCores(info->smpTrampolineBuffer, info->pageBuffer);
     MemoryManager::EarlyFreePages(MemoryManager::KernelToPhysPtr(info->smpTrampolineBuffer), info->smpTrampolineBufferPages);
 
     Scheduler::CreateInitThread(InitThread);

@@ -12,9 +12,105 @@ extern "C" {
 
 namespace ACPI {
 
-    RSDPDescriptor* g_RSDP;
+    static RSDPDescriptor* g_RSDP;
+    static XSDT* g_XSDT;
+    static MADT* g_MADT;
+    static MCFG* g_MCFG;
 
-    SDTHeader* XSDT::FindTable(uint32 signature) {
+    void InitEarlyTables(KernelHeader* header) {
+        auto rsdp = static_cast<RSDPDescriptor*>(header->rsdp);
+        auto xsdt = static_cast<XSDT*>(MemoryManager::PhysToKernelPtr((void*)rsdp->xsdtAddress));
+        
+        auto mcfg = reinterpret_cast<MCFG*>(xsdt->FindTable(SIGNATURE('M', 'C', 'F', 'G')));
+        if(mcfg == nullptr) {
+            klog_fatal("ACPI", "Could not retrieve MCFG table");
+            while(true);
+        }
+
+        auto madt = reinterpret_cast<MADT*>(xsdt->FindTable(SIGNATURE('A', 'P', 'I', 'C')));
+        if(madt == nullptr) {
+            klog_fatal("ACPI", "Could not retrieve MADT table");
+            while(true);
+        }
+
+        g_RSDP = rsdp;
+        g_XSDT = xsdt;
+        g_MADT = madt;
+        g_MCFG = mcfg;
+    }
+
+    static ACPI_BUFFER RunAcpi(const char* obj, ACPI_OBJECT* args, uint64 argCount);
+    static void FreeBuffer(const ACPI_BUFFER& buffer);
+    static void AcpiEventHandler(UINT32 eventType, ACPI_HANDLE dev, UINT32 eventNumber, void* arg);
+
+    bool StartSystem() {
+        ACPI_STATUS err;
+        err = AcpiInitializeSubsystem();
+        if(err != AE_OK) {
+            klog_fatal("ACPI", "Failed to init ACPI: %i", err);
+            return false;
+        }
+        err = AcpiInitializeTables(nullptr, 16, false);
+        if(err != AE_OK) {
+            klog_fatal("ACPI", "Failed to init ACPI tables: %i", err);
+            return false;
+        }
+        err = AcpiLoadTables();
+        if(err != AE_OK) {
+            klog_fatal("ACPI", "Failed to load ACPI tables: %i", err);
+            return false;
+        }
+
+        err = AcpiEnableSubsystem(ACPI_FULL_INITIALIZATION);
+        if(err != AE_OK) {
+            klog_fatal("ACPI", "Failed to enter ACPI mode: %i", err);
+            return false;
+        }
+        err = AcpiInitializeObjects(ACPI_FULL_INITIALIZATION);
+        if(err != AE_OK) {
+            klog_fatal("ACPI", "Failed to init ACPI Objects: %i", err);
+            return false;
+        }
+
+        err = AcpiUpdateAllGpes();
+        if(err != AE_OK) {
+            klog_fatal("ACPI", "Failed to update GPEs: %i", err);
+            return false;
+        }
+
+        err = AcpiInstallGlobalEventHandler(AcpiEventHandler, nullptr);
+        if(err != AE_OK) {
+            klog_fatal("ACPI", "Failed to install power button handler: %i", err);
+            return false;
+        }
+        err = AcpiEnableEvent(ACPI_EVENT_POWER_BUTTON, 0);
+        if(err != AE_OK) {
+            klog_fatal("ACPI", "Failed to enable power button handler: %i", err);
+            return false;
+        }
+
+        ACPI_OBJECT arg;
+        arg.Type = ACPI_TYPE_INTEGER;
+        arg.Integer.Value = 1;
+        auto ret = RunAcpi("\\_PIC", &arg, 1);
+        FreeBuffer(ret);
+
+        klog_info("ACPI", "Entered ACPI mode");
+
+        return true;
+    }
+
+    const MADT* GetMADT() {
+        return g_MADT;
+    }
+    const MCFG* GetMCFG() {
+        return g_MCFG;
+    }
+    const RSDPDescriptor* GetRSDP() {
+        return g_RSDP;
+    }
+
+    SDTHeader* XSDT::FindTable(uint32 signature) const {
         uint32 numEntries = (header.length - sizeof(XSDT)) / 8;
         for(int i = 0; i < numEntries; i++) {
             SDTHeader* entry = (SDTHeader*)MemoryManager::PhysToKernelPtr(tables[i]);
@@ -24,7 +120,7 @@ namespace ACPI {
         return nullptr;
     }
 
-    MADTEntryHeader* MADT::GetNextEntry(uint64& pos) {
+    MADTEntryHeader* MADT::GetNextEntry(uint64& pos) const {
         if(pos >= header.length - sizeof(MADT))
             return nullptr;
 
@@ -92,66 +188,6 @@ namespace ACPI {
 
         ACPI_FREE(info);
         return AE_OK;
-    }
-
-    void AcpiSystemThread(KernelHeader* header) {
-        ACPI_STATUS err;
-        err = AcpiInitializeSubsystem();
-        if(err != AE_OK) {
-            klog_fatal("ACPI", "Failed to init ACPI: %i", err);
-            Scheduler::ThreadExit(1);
-        }
-        err = AcpiInitializeTables(nullptr, 16, false);
-        if(err != AE_OK) {
-            klog_fatal("ACPI", "Failed to init ACPI tables: %i", err);
-            Scheduler::ThreadExit(1);
-        }
-        err = AcpiLoadTables();
-        if(err != AE_OK) {
-            klog_fatal("ACPI", "Failed to load ACPI tables: %i", err);
-            Scheduler::ThreadExit(1);
-        }
-
-        err = AcpiEnableSubsystem(ACPI_FULL_INITIALIZATION);
-        if(err != AE_OK) {
-            klog_fatal("ACPI", "Failed to enter ACPI mode: %i", err);
-            Scheduler::ThreadExit(1);
-        }
-        err = AcpiInitializeObjects(ACPI_FULL_INITIALIZATION);
-        if(err != AE_OK) {
-            klog_fatal("ACPI", "Failed to init ACPI Objects: %i", err);
-            Scheduler::ThreadExit(1);
-        }
-
-        err = AcpiUpdateAllGpes();
-        if(err != AE_OK) {
-            klog_fatal("ACPI", "Failed to update GPEs: %i", err);
-            Scheduler::ThreadExit(1);
-        }
-
-        err = AcpiInstallGlobalEventHandler(AcpiEventHandler, nullptr);
-        if(err != AE_OK) {
-            klog_fatal("ACPI", "Failed to install power button handler: %i", err);
-            Scheduler::ThreadExit(1);
-        }
-        err = AcpiEnableEvent(ACPI_EVENT_POWER_BUTTON, 0);
-        if(err != AE_OK) {
-            klog_fatal("ACPI", "Failed to enable power button handler: %i", err);
-            Scheduler::ThreadExit(1);
-        }
-
-        klog_info("ACPI", "Entered ACPI mode");
-
-        ACPI_OBJECT arg;
-        arg.Type = ACPI_TYPE_INTEGER;
-        arg.Integer.Value = 1;
-        auto ret = RunAcpi("\\_PIC", &arg, 1);
-        FreeBuffer(ret);
-
-        void* retVal;
-        AcpiGetDevices(nullptr, AcpiWalk, nullptr, &retVal);
-
-        Scheduler::ThreadExit(0);
     }
 
 }
