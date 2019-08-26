@@ -573,6 +573,68 @@ namespace VFS {
         return 0;
     }
 
+    int64 CreateSymLink(User* user, const char* path, const Permissions& permissions, const char* linkPath) {
+        char cleanBuffer[255];
+        if(!kpathcpy_usersafe(cleanBuffer, path))
+            return ErrorInvalidBuffer;
+        if(!CleanPath(cleanBuffer))
+            return ErrorInvalidPath;
+
+        const char* folderPath;
+        const char* fileName;
+        SplitFolderAndFile(cleanBuffer, &folderPath, &fileName);
+
+        MountPoint* mp = AcquireMountPoint(folderPath);
+        folderPath = AdvancePath(folderPath, mp->path);
+
+        CachedNode* folderNode;
+        CachedNode* fileNode;
+        int64 error = AcquirePathAndParent(user, mp, folderPath, fileName, &folderNode, &fileNode);
+        if(error != OK)
+            return error;
+        if(fileNode != nullptr) {
+            ReleaseNode(mp, folderNode);
+            ReleaseNode(mp, fileNode);
+            return ErrorFileExists;
+        }
+        if(!CheckPermissions(user, &folderNode->node, Permissions::Write)) {
+            ReleaseNode(mp, folderNode);
+            return ErrorPermissionDenied;
+        }
+
+        GetDir(&folderNode->node);
+        DirectoryEntry* newEntry;
+        Directory::AddEntry(&folderNode->node.dir, &newEntry);
+
+        CachedNode* newNode = CreateNode(mp);
+        newNode->node.linkRefCount = 1;
+        newNode->node.type = Node::TYPE_SYMLINK;
+        newNode->node.ownerGID = user->gid;
+        newNode->node.ownerUID = user->uid;
+        newNode->node.permissions = permissions;
+
+        int64 l = kstrlen(linkPath);
+        newNode->node.symlink.linkPath = new char[l+1];
+        kmemcpy(newNode->node.symlink.linkPath, linkPath, l+1);
+        
+        newEntry->nodeID = newNode->nodeID;
+        kstrcpy(newEntry->name, fileName);
+
+        ReleaseNode(mp, folderNode);
+        ReleaseNode(mp, newNode);
+
+        return OK;
+    }
+    SYSCALL_DEFINE2(syscall_create_symlink, const char* path, const char* linkPath) {
+        if(!MemoryManager::IsUserPtr(path) || !MemoryManager::IsUserPtr(linkPath))
+            Scheduler::ThreadKillProcess("InvalidUserPointer");
+
+        ThreadInfo* tInfo = Scheduler::GetCurrentThreadInfo();
+        ProcessInfo* pInfo = tInfo->process;
+
+        return CreateSymLink(pInfo->owner, path, { 3, 3, 3 }, linkPath);
+    }
+
     int64 Delete(User* user, const char* path) {
         char cleanBuffer[255];
         if(!kpathcpy_usersafe(cleanBuffer, path))

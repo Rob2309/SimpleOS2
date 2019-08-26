@@ -31,6 +31,7 @@ namespace VFS {
             TYPE_DEVICE_CHAR,       // Character Device File
             TYPE_DEVICE_BLOCK,      // Block Device File
             TYPE_PIPE,              // (Named) Pipe
+            TYPE_SYMLINK,           // Symbolic link
         } type;
 
         FileSystem* fs;     // The FileSystem instance this node belongs to
@@ -43,6 +44,9 @@ namespace VFS {
                 uint64 driverID;
                 uint64 subID;
             } device;
+            struct {
+                char* linkPath;
+            } symlink;
         };
 
         uint64 ownerUID;
@@ -91,6 +95,11 @@ namespace VFS {
      * @param writeDesc Filled with a FileDescriptor that can be used to write to the Pipe.
      **/
     int64 CreatePipe(User* user, uint64* readDesc, uint64* writeDesc);
+
+    /**
+     * Creates a symlink to another file
+     **/
+    int64 CreateSymLink(User* user, const char* path, const Permissions& permissions, const char* linkPath);
 
     /**
      * Removes the files directory entry from the containing directory.
