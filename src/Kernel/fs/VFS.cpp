@@ -351,9 +351,9 @@ namespace VFS {
             }
 
             if(lB > 0) {
+                kmemmove(inOutPathBuffer + lA + 1, restPath, lB + 1);
                 kmemcpy(inOutPathBuffer, linkPath, lA);
                 inOutPathBuffer[lA] = '/';
-                kmemmove(inOutPathBuffer + lA + 1, restPath, lB + 1);
             } else {
                 kmemcpy(inOutPathBuffer, linkPath, lA + 1);
             }
