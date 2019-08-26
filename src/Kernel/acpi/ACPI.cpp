@@ -39,7 +39,7 @@ namespace ACPI {
         g_MCFG = mcfg;
     }
 
-    static ACPI_BUFFER RunAcpi(const char* obj, ACPI_OBJECT* args, uint32 argCount);
+    static ACPI_BUFFER RunAcpi(ACPI_HANDLE objHandle, const char* method, ACPI_OBJECT* args, uint32 argCount);
     static void FreeBuffer(const ACPI_BUFFER& buffer);
     static void AcpiEventHandler(UINT32 eventType, ACPI_HANDLE dev, UINT32 eventNumber, void* arg);
 
@@ -92,7 +92,7 @@ namespace ACPI {
         ACPI_OBJECT arg;
         arg.Type = ACPI_TYPE_INTEGER;
         arg.Integer.Value = 1;
-        auto ret = RunAcpi("\\_PIC", &arg, 1);
+        auto ret = RunAcpi(nullptr, "\\_PIC", &arg, 1);
         FreeBuffer(ret);
 
         klog_info("ACPI", "Entered ACPI mode");
@@ -141,12 +141,12 @@ namespace ACPI {
         }
     }
 
-    static ACPI_BUFFER RunAcpi(const char* obj, ACPI_OBJECT* args, uint32 argCount) {
+    static ACPI_BUFFER RunAcpi(ACPI_HANDLE objHandle, const char* method, ACPI_OBJECT* args, uint32 argCount) {
         ACPI_BUFFER retVal = { ACPI_ALLOCATE_BUFFER, nullptr };
         ACPI_OBJECT_LIST argList = { argCount, args };
-        ACPI_STATUS err = AcpiEvaluateObject(nullptr, (char*)obj, &argList, &retVal);
+        ACPI_STATUS err = AcpiEvaluateObject(objHandle, (char*)method, &argList, &retVal);
         if(err != AE_OK) {
-            klog_error("ACPI", "Failed to execute %s: %i", obj, err);
+            klog_error("ACPI", "Failed to execute %s: %i", method, err);
         }
         return retVal;
     }
@@ -179,6 +179,96 @@ namespace ACPI {
         }
 
         return retVal;
+    }
+
+    bool GetPCIDeviceIRQ(uint8 devID, uint8 pin, AcpiIRQInfo& irqInfo) {
+        auto rootBridge = GetPCIRootBridge();
+        if(rootBridge == nullptr) {
+            klog_error("ACPI", "GetPCIDeviceIRQ: Failed to find PCI root bridge");
+            return false;
+        }
+
+        ACPI_BUFFER retBuffer = { ACPI_ALLOCATE_BUFFER, nullptr };
+        ACPI_STATUS err = AcpiGetIrqRoutingTable(rootBridge, &retBuffer);
+        if(err != AE_OK) {
+            klog_error("ACPI", "GetPCIDeviceIRQ: Failed to retrieve routing table of root bridge: %i", err);
+            FreeBuffer(retBuffer);
+            return false;
+        }
+
+        ACPI_PCI_ROUTING_TABLE* entry = nullptr;
+
+        auto routeTable = (ACPI_PCI_ROUTING_TABLE*)retBuffer.Pointer;
+        while(routeTable->Length != 0) {
+            uint16 entryDevID = (routeTable->Address >> 16) & 0xFFFF;
+            if(entryDevID == devID && routeTable->Pin == pin) {
+                entry = routeTable;
+                break;
+            }
+
+            routeTable = (ACPI_PCI_ROUTING_TABLE*)((char*)routeTable + routeTable->Length);
+        }
+
+        if(entry == nullptr) {
+            klog_error("ACPI", "GetPCIDeviceIRQ: Failed to find routing table entry for device %i", devID);
+            FreeBuffer(retBuffer);
+            return false;
+        }
+
+        if(entry->Source[0] == '\0') {
+            irqInfo.isGSI = true;
+            irqInfo.number = entry->SourceIndex;
+            FreeBuffer(retBuffer);
+            return true;
+        } else {
+            ACPI_HANDLE dev;
+            err = AcpiGetHandle(nullptr, entry->Source, &dev);
+            if(err != AE_OK) {
+                klog_error("ACPI", "GetPCIDeviceIRQ: Failed to find Link device %s: %i", entry->Source, err);
+                FreeBuffer(retBuffer);
+                return false;
+            }
+
+            uint32 index = entry->SourceIndex;
+
+            FreeBuffer(retBuffer);
+
+            retBuffer = RunAcpi(dev, "_CRS", nullptr, 0);
+            if(retBuffer.Pointer == nullptr) {
+                klog_error("ACPI", "GetPCIDeviceIRQ: Failed to execute _CRS method on link device");
+                return false;
+            }
+
+            char* entryPtr = (char*)retBuffer.Pointer;
+            for(int i = 0; i < index; i++) {
+                if(entryPtr[0] & 0x80) {
+                    entryPtr += ((int16)entryPtr[2] << 16) | (int16)entryPtr[1];
+                } else {
+                    entryPtr += entryPtr[0] & 0x7;
+                }
+            }
+
+            if(entryPtr[0] & 0xFE == 0x22) {
+                uint16 mask = *(uint16*)(&entryPtr[1]);
+                for(int i = 0; i < 16; i++) {
+                    if(mask & (1 << i)) {
+                        irqInfo.isGSI = false;
+                        irqInfo.number = i;
+                        FreeBuffer(retBuffer);
+                        return true;
+                    }
+                }
+            } else if(entryPtr[0] == 0x89) {
+                irqInfo.isGSI = false;
+                irqInfo.number = *(uint32*)&entryPtr[5];
+                FreeBuffer(retBuffer);
+                return true;
+            }
+
+            klog_error("ACPI", "GetPCIDeviceIRQ: Unsupported Resource descriptor type: %02X", entryPtr[0]);
+            FreeBuffer(retBuffer);
+            return false;
+        }
     }
 
 }

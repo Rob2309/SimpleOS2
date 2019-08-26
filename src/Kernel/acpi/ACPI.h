@@ -118,4 +118,10 @@ namespace ACPI {
     typedef void* Handle;
     Handle GetPCIRootBridge();
 
+    struct AcpiIRQInfo {
+        bool isGSI;
+        uint32 number;
+    };
+    bool GetPCIDeviceIRQ(uint8 devID, uint8 pin, AcpiIRQInfo& irqInfo);
+
 }
