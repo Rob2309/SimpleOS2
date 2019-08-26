@@ -34,9 +34,9 @@ int64 close(int64 fd) {
     return syscall_invoke(syscall_close, fd);
 }
 
-int64 reopenfd(int64 fd, const char* path, uint64 mode) {
+/*int64 reopenfd(int64 fd, const char* path, uint64 mode) {
     return syscall_invoke(syscall_reopenfd, fd, (uint64)path, mode);
-}
+}*/
 int64 copyfd(int64 destFD, int64 srcFD) {
     return syscall_invoke(syscall_copyfd, destFD, srcFD);
 }

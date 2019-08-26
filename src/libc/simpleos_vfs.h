@@ -22,7 +22,7 @@ constexpr uint64 open_mode_failexist = 0x400;
 int64 open(const char* path, uint64 mode);
 int64 close(int64 fd);
 
-int64 reopenfd(int64 fd, const char* path, uint64 mode);
+//int64 reopenfd(int64 fd, const char* path, uint64 mode);
 int64 copyfd(int64 destFD, int64 srcFD);
 int64 seekfd(int64 fd, uint64 pos);
 

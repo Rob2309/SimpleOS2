@@ -29,6 +29,7 @@ int main()
             print(buffer);
         }
     } else {
+        copyfd(0, stdinRead);
         copyfd(1, stdoutWrite);
 
         exec("/boot/Test2.elf");
