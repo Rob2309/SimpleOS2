@@ -252,6 +252,15 @@ namespace VFS {
         }
     }
 
+    static bool IsLastPathEntry(const char* path) {
+        while(*path != '\0') {
+            if(*path == '/')
+                return false;
+            path++;
+        }
+        return true;
+    }
+
     static bool CheckPermissions(User* user, Node* node, uint8 reqPerms) {
         if(user->uid == 0)
             return true;
@@ -265,72 +274,100 @@ namespace VFS {
         }
     }
 
-    static int64 AcquirePath(User* user, MountPoint* mp, const char* path, CachedNode** outNode) {
-        CachedNode* current = AcquireNode(mp, mp->sb.rootNode);
+    static int64 _AcquirePathRec(User* user, MountPoint* mp, const char*& pathBuffer, bool fileHasToExist, CachedNode*& outNode, CachedNode*& outParent) {
+        auto currentNode = AcquireNode(mp, mp->sb.rootNode);
 
-        if(*path == '\0') {
-            *outNode = current;
+        if(pathBuffer[0] == '\0') {
+            outNode = currentNode;
+            outParent = nullptr;
             return OK;
         }
 
         while(true) {
-            if(current->node.type != Node::TYPE_DIRECTORY) {
-                ReleaseNode(mp, current);
+            if(currentNode->node.type != Node::TYPE_DIRECTORY) {
+                ReleaseNode(mp, currentNode);
                 return ErrorFileNotFound;
             }
-            if(!CheckPermissions(user, &current->node, Permissions::Read)) {
-                ReleaseNode(mp, current);
+            if(!CheckPermissions(user, &currentNode->node, Permissions::Read)) {
+                ReleaseNode(mp, currentNode);
                 return ErrorPermissionDenied;
             }
 
-            Directory* dir = GetDir(&current->node);
+            auto dir = GetDir(&currentNode->node);
             CachedNode* next = nullptr;
             for(uint64 i = 0; i < dir->numEntries; i++) {
-                if(PathWalk(&path, dir->entries[i].name)) {
+                if(PathWalk(&pathBuffer, dir->entries[i].name)) {
                     next = AcquireNode(mp, dir->entries[i].nodeID);
-                    ReleaseNode(mp, current);
 
-                    if(*path == '\0') {
-                        *outNode = next;
+                    if(next->node.type == Node::TYPE_SYMLINK) {
+                        outNode = next;
+                        outParent = currentNode;
+                        return ErrorEncounteredSymlink;
+                    }
+
+                    if(*pathBuffer == '\0') {
+                        outNode = next;
+                        outParent = currentNode;
                         return OK;
                     }
                 }
             }
 
             if(next == nullptr) {
-                ReleaseNode(mp, current);
-                return ErrorFileNotFound;
+                if(fileHasToExist || !IsLastPathEntry(pathBuffer)) {
+                    ReleaseNode(mp, currentNode);
+                    return ErrorFileNotFound;
+                } else {
+                    outParent = currentNode;
+                    outNode = nullptr;
+                    return OK;
+                }
             } else {
-                current = next;
+                ReleaseNode(mp, currentNode);
+                currentNode = next;
             }
         }
     }
 
-    static int64 AcquirePathAndParent(User* user, MountPoint* mp, const char* folder, const char* file, CachedNode** outParent, CachedNode** outFile) {
-        CachedNode* parent;
-        int64 error = AcquirePath(user, mp, folder, &parent);
-        if(error != OK)
-            return error;
+    /**
+     * If outParent is nullptr, outNode has to be a mountPoint
+     **/
+    static int64 AcquirePath(User* user, MountPoint*& outMP, char*& inOutPathBuffer, bool fileHasToExist, CachedNode*& outNode, CachedNode*& outParent) {
+        MountPoint* mp = AcquireMountPoint(inOutPathBuffer);
+        const char* currentPath = AdvancePath(inOutPathBuffer, mp->path);
 
-        if(parent->node.type != Node::TYPE_DIRECTORY) {
-            ReleaseNode(mp, parent);
-            return ErrorFileNotFound;
-        }
-        if(!CheckPermissions(user, &parent->node, Permissions::Read)) {
-            ReleaseNode(mp, parent);
-            return ErrorPermissionDenied;
-        }
-        *outParent = parent;
+        int64 error;
+        while((error = _AcquirePathRec(user, mp, currentPath, fileHasToExist, outNode, outParent)) == ErrorEncounteredSymlink) {
+            const char* linkPath = outNode->node.symlink.linkPath;
+            const char* restPath = currentPath;
 
-        Directory* dir = GetDir(&parent->node);
-        for(uint64 i = 0; i < dir->numEntries; i++) {
-            if(PathWalk(&file, dir->entries[i].name)) {
-                *outFile = AcquireNode(mp, dir->entries[i].nodeID);
-                return OK;
+            int lA = kstrlen(linkPath);
+            int lB = kstrlen(restPath);
+            int l = lA + lB + 2;
+            if(l > 255) {
+                ReleaseNode(mp, outNode);
+                ReleaseNode(mp, outParent);
+                return ErrorInvalidPath;
             }
+
+            if(lB > 0) {
+                kmemcpy(inOutPathBuffer, linkPath, lA);
+                inOutPathBuffer[lA] = '/';
+                kmemmove(inOutPathBuffer + lA + 1, restPath, lB + 1);
+            } else {
+                kmemcpy(inOutPathBuffer, linkPath, lA + 1);
+            }
+
+            ReleaseNode(mp, outNode);
+            ReleaseNode(mp, outParent);
+
+            mp = AcquireMountPoint(inOutPathBuffer);
+            currentPath = AdvancePath(inOutPathBuffer, mp->path);
         }
 
-        return OK;
+        outMP = mp;
+        inOutPathBuffer = (char*)currentPath;
+        return error;
     }
 
     static CachedNode* CreateNode(MountPoint* mp, uint64 softRefs = 1) {
@@ -365,16 +402,11 @@ namespace VFS {
         if(!CleanPath(cleanBuffer))
             return ErrorInvalidPath;
 
-        const char* folderPath;
-        const char* fileName;
-        SplitFolderAndFile(cleanBuffer, &folderPath, &fileName);
-
-        MountPoint* mp = AcquireMountPoint(folderPath);
-        folderPath = AdvancePath(folderPath, mp->path);
-
+        MountPoint* mp;
+        char* tmpPath = cleanBuffer;
         CachedNode* folderNode;
         CachedNode* fileNode;
-        int64 error = AcquirePathAndParent(user, mp, folderPath, fileName, &folderNode, &fileNode);
+        int64 error = AcquirePath(user, mp, tmpPath, false, fileNode, folderNode);
         if(error != OK)
             return error;
         if(fileNode != nullptr) {
@@ -399,7 +431,7 @@ namespace VFS {
         newNode->node.permissions = perms;
         
         newEntry->nodeID = newNode->nodeID;
-        kstrcpy(newEntry->name, fileName);
+        kstrcpy(newEntry->name, tmpPath);
 
         ReleaseNode(mp, folderNode);
         ReleaseNode(mp, newNode);
@@ -423,16 +455,11 @@ namespace VFS {
         if(!CleanPath(cleanBuffer))
             return ErrorInvalidPath;
 
-        const char* folderPath;
-        const char* fileName;
-        SplitFolderAndFile(cleanBuffer, &folderPath, &fileName);
-
-        MountPoint* mp = AcquireMountPoint(folderPath);
-        folderPath = AdvancePath(folderPath, mp->path);
-
+        MountPoint* mp;
+        char* tmpPath = cleanBuffer;
         CachedNode* folderNode = nullptr;
         CachedNode* fileNode = nullptr;
-        int64 error = AcquirePathAndParent(user, mp, folderPath, fileName, &folderNode, &fileNode);
+        int64 error = AcquirePath(user, mp, tmpPath, false, fileNode, folderNode);
         if(error != OK)
             return error;
         if(fileNode != nullptr) {
@@ -458,7 +485,7 @@ namespace VFS {
         newNode->node.permissions = perms;
         
         newEntry->nodeID = newNode->nodeID;
-        kstrcpy(newEntry->name, fileName);
+        kstrcpy(newEntry->name, tmpPath);
 
         ReleaseNode(mp, folderNode);
         ReleaseNode(mp, newNode);
@@ -482,16 +509,11 @@ namespace VFS {
         if(!CleanPath(cleanBuffer))
             return ErrorInvalidPath;
 
-        const char* folderPath;
-        const char* fileName;
-        SplitFolderAndFile(cleanBuffer, &folderPath, &fileName);
-
-        MountPoint* mp = AcquireMountPoint(folderPath);
-        folderPath = AdvancePath(folderPath, mp->path);
-
+        MountPoint* mp;
+        char* tmpPath = cleanBuffer;
         CachedNode* folderNode = nullptr;
         CachedNode* fileNode = nullptr;
-        int64 error = AcquirePathAndParent(user, mp, folderPath, fileName, &folderNode, &fileNode);
+        int64 error = AcquirePath(user, mp, tmpPath, false, fileNode, folderNode);
         if(error != OK)
             return error;
         if(fileNode != nullptr) {
@@ -520,7 +542,7 @@ namespace VFS {
         newNode->node.permissions = perms;
         
         newEntry->nodeID = newNode->nodeID;
-        kstrcpy(newEntry->name, fileName);
+        kstrcpy(newEntry->name, tmpPath);
 
         ReleaseNode(mp, folderNode);
         ReleaseNode(mp, newNode);
@@ -580,16 +602,11 @@ namespace VFS {
         if(!CleanPath(cleanBuffer))
             return ErrorInvalidPath;
 
-        const char* folderPath;
-        const char* fileName;
-        SplitFolderAndFile(cleanBuffer, &folderPath, &fileName);
-
-        MountPoint* mp = AcquireMountPoint(folderPath);
-        folderPath = AdvancePath(folderPath, mp->path);
-
+        MountPoint* mp;
+        char* tmpPath = cleanBuffer;
         CachedNode* folderNode;
         CachedNode* fileNode;
-        int64 error = AcquirePathAndParent(user, mp, folderPath, fileName, &folderNode, &fileNode);
+        int64 error = AcquirePath(user, mp, tmpPath, false, fileNode, folderNode);
         if(error != OK)
             return error;
         if(fileNode != nullptr) {
@@ -618,7 +635,7 @@ namespace VFS {
         kmemcpy(newNode->node.symlink.linkPath, linkPath, l+1);
         
         newEntry->nodeID = newNode->nodeID;
-        kstrcpy(newEntry->name, fileName);
+        kstrcpy(newEntry->name, tmpPath);
 
         ReleaseNode(mp, folderNode);
         ReleaseNode(mp, newNode);
@@ -642,43 +659,35 @@ namespace VFS {
         if(!CleanPath(cleanBuffer))
             return ErrorInvalidPath;
 
-        MountPoint* mp = AcquireMountPoint(cleanBuffer);
-        char* relPath = (char*)AdvancePath(cleanBuffer, mp->path);
-        if(*relPath == '\0') // trying to delete a mountpoint
-            return ErrorPermissionDenied;
-        
-        const char* folderPath;
-        const char* fileName;
-        SplitFolderAndFile(relPath, &folderPath, &fileName);
-
+        MountPoint* mp;
+        char* tmpPath = cleanBuffer;
+        CachedNode* fileNode;
         CachedNode* folderNode;
-        int64 error = AcquirePath(user, mp, folderPath, &folderNode);
+        int64 error = AcquirePath(user, mp, tmpPath, true, fileNode, folderNode);
         if(error != OK)
             return error;
-        if(folderNode->node.type != Node::TYPE_DIRECTORY) {
-            ReleaseNode(mp, folderNode);
-            return ErrorFileNotFound;
-        } 
+        // attempting to delete mountpoint
+        if(folderNode == nullptr) {
+            ReleaseNode(mp, fileNode);
+            return ErrorPermissionDenied;
+        }
         if(!CheckPermissions(user, &folderNode->node, Permissions::Write)) {
             ReleaseNode(mp, folderNode);
+            ReleaseNode(mp, fileNode);
             return ErrorPermissionDenied;
+        }
+        if(fileNode->node.type == Node::TYPE_DIRECTORY) {
+            Directory* dir = GetDir(&fileNode->node);
+            if(dir->numEntries != 0) {
+                ReleaseNode(mp, fileNode);
+                ReleaseNode(mp, folderNode);
+                return ErrorPermissionDenied;
+            }
         }
 
         Directory* dir = GetDir(&folderNode->node);
         for(uint64 i = 0; i < dir->numEntries; i++) {
-            if(kstrcmp(fileName, dir->entries[i].name) == 0) {
-                uint64 nodeID = dir->entries[i].nodeID;
-                CachedNode* fileNode = AcquireNode(mp, nodeID);
-
-                if(fileNode->node.type == Node::TYPE_DIRECTORY) {
-                    Directory* dir = GetDir(&fileNode->node);
-                    if(dir->numEntries != 0) {
-                        ReleaseNode(mp, fileNode);
-                        ReleaseNode(mp, folderNode);
-                        return ErrorPermissionDenied;
-                    }
-                }
-
+            if(kstrcmp(tmpPath, dir->entries[i].name) == 0) {
                 Directory::RemoveEntry(&folderNode->node.dir, i);
                 fileNode->node.linkRefCount--;
 
@@ -687,9 +696,6 @@ namespace VFS {
                 return OK;
             }
         }
-
-        ReleaseNode(mp, folderNode);
-        return ErrorFileNotFound;
     }
     SYSCALL_DEFINE1(syscall_delete, const char* filePath) {
         if(!MemoryManager::IsUserPtr(filePath))
@@ -708,21 +714,23 @@ namespace VFS {
         if(!CleanPath(cleanBuffer))
             return ErrorInvalidPath;
 
-        MountPoint* mp = AcquireMountPoint(cleanBuffer);
-        path = AdvancePath(cleanBuffer, mp->path);
-
-        CachedNode* node;
-        int64 error = AcquirePath(user, mp, path, &node);
+        MountPoint* mp;
+        char* tmpPath = cleanBuffer;
+        CachedNode* fileNode;
+        CachedNode* folderNode;
+        int64 error = AcquirePath(user, mp, tmpPath, true, fileNode, folderNode);
         if(error != OK)
             return error;
-        if(user->uid != 0 && user->uid != node->node.ownerUID) {
-            ReleaseNode(mp, node);
+        if(folderNode != nullptr)
+            ReleaseNode(mp, folderNode);
+        if(user->uid != 0 && user->uid != fileNode->node.ownerUID) {
+            ReleaseNode(mp, fileNode);
             return ErrorPermissionDenied;
         }
         
-        node->node.ownerUID = newUID;
-        node->node.ownerGID = newGID;
-        ReleaseNode(mp, node);
+        fileNode->node.ownerUID = newUID;
+        fileNode->node.ownerGID = newGID;
+        ReleaseNode(mp, fileNode);
 
         return OK;
     }
@@ -743,20 +751,22 @@ namespace VFS {
         if(!CleanPath(cleanBuffer))
             return ErrorInvalidPath;
 
-        MountPoint* mp = AcquireMountPoint(cleanBuffer);
-        path = AdvancePath(cleanBuffer, mp->path);
-
-        CachedNode* node;
-        int64 error = AcquirePath(user, mp, path, &node);
+        MountPoint* mp;
+        char* tmpPath = cleanBuffer;
+        CachedNode* fileNode;
+        CachedNode* folderNode;
+        int64 error = AcquirePath(user, mp, tmpPath, true, fileNode, folderNode);
         if(error != OK)
             return error;
-        if(user->uid != 0 && user->uid != node->node.ownerUID) {
-            ReleaseNode(mp, node);
+        if(folderNode != nullptr)
+            ReleaseNode(mp, folderNode);
+        if(user->uid != 0 && user->uid != fileNode->node.ownerUID) {
+            ReleaseNode(mp, fileNode);
             return ErrorPermissionDenied;
         }
         
-        node->node.permissions = permissions;
-        ReleaseNode(mp, node);
+        fileNode->node.permissions = permissions;
+        ReleaseNode(mp, fileNode);
 
         return OK;
     }
@@ -777,27 +787,33 @@ namespace VFS {
         if(!CleanPath(cleanBuffer))
             return ErrorInvalidPath;
 
-        MountPoint* mp = AcquireMountPoint(cleanBuffer);
-        const char* folderPath = AdvancePath(cleanBuffer, mp->path);
-        if(*folderPath == '\0') // Trying to mount onto mountpoint
-            return ErrorPermissionDenied;
-
+        MountPoint* mp;
+        char* tmpPath = cleanBuffer;
         CachedNode* folderNode;
-        int64 error = AcquirePath(user, mp, folderPath, &folderNode);
+        CachedNode* fileNode;
+        int64 error = AcquirePath(user, mp, tmpPath, true, fileNode, folderNode);
         if(error != OK)
             return error;
-        if(folderNode->node.type != Node::TYPE_DIRECTORY) {
-            ReleaseNode(mp, folderNode);
+        // Trying to mount onto a mountPoint
+        if(folderNode == nullptr) {
+            ReleaseNode(mp, fileNode);
+            return ErrorPermissionDenied;
+        }
+
+        ReleaseNode(mp, folderNode);
+
+        if(fileNode->node.type != Node::TYPE_DIRECTORY) {
+            ReleaseNode(mp, fileNode);
             return ErrorFileNotFound;
         } 
-        if(!CheckPermissions(user, &folderNode->node, Permissions::Write)) {
-            ReleaseNode(mp, folderNode);
+        if(!CheckPermissions(user, &fileNode->node, Permissions::Write)) {
+            ReleaseNode(mp, fileNode);
             return ErrorPermissionDenied;
         }
         
-        Directory* dir = GetDir(&folderNode->node);
+        Directory* dir = GetDir(&fileNode->node);
         if(dir->numEntries != 0) {
-            ReleaseNode(mp, folderNode);
+            ReleaseNode(mp, fileNode);
             return ErrorPermissionDenied;
         }
 
@@ -809,6 +825,8 @@ namespace VFS {
         mp->childMountLock.Spinlock();
         mp->childMounts.push_back(newMP);
         mp->childMountLock.Unlock();
+
+        ReleaseNode(mp, fileNode);
 
         return OK;
     }
@@ -841,26 +859,28 @@ namespace VFS {
         if(!CleanPath(cleanBuffer))
             return ErrorInvalidPath;
 
-        MountPoint* mp = AcquireMountPoint(cleanBuffer);
-        devFile = AdvancePath(cleanBuffer, mp->path);
-
-        CachedNode* node;
-        int64 error = AcquirePath(user, mp, devFile, &node);
+        MountPoint* mp;
+        char* tmpPath = cleanBuffer;
+        CachedNode* folderNode;
+        CachedNode* fileNode;
+        int64 error = AcquirePath(user, mp, tmpPath, true, fileNode, folderNode);
         if(error != OK)
             return error;
-        if(node->node.type != Node::TYPE_DEVICE_BLOCK) {
-            ReleaseNode(mp, node);
+        if(folderNode != nullptr)
+            ReleaseNode(mp, folderNode);
+        if(fileNode->node.type != Node::TYPE_DEVICE_BLOCK) {
+            ReleaseNode(mp, fileNode);
             return ErrorInvalidDevice;
         }
-        if(!CheckPermissions(user, &node->node, Permissions::Read)) {
-            ReleaseNode(mp, node);
+        if(!CheckPermissions(user, &fileNode->node, Permissions::Read)) {
+            ReleaseNode(mp, fileNode);
             return ErrorPermissionDenied;
         }
         
-        uint64 driverID = node->node.device.driverID;
-        uint64 subID = node->node.device.subID;
+        uint64 driverID = fileNode->node.device.driverID;
+        uint64 subID = fileNode->node.device.subID;
 
-        ReleaseNode(mp, node);
+        ReleaseNode(mp, fileNode);
 
         return Mount(user, mountPoint, fsID, driverID, subID);
     }
@@ -901,59 +921,51 @@ namespace VFS {
         if(!CleanPath(cleanBuffer))
             return ErrorInvalidPath;
 
-        const char* folderPath;
-        const char* fileName;
-        SplitFolderAndFile(cleanBuffer, &folderPath, &fileName);
-
-        MountPoint* mp = AcquireMountPoint(folderPath);
-        folderPath = AdvancePath(folderPath, mp->path);
-
-        CachedNode* parent = nullptr;
-        CachedNode* file = nullptr;
-        int64 error = AcquirePathAndParent(user, mp, folderPath, fileName, &parent, &file);
+        MountPoint* mp;
+        char* tmpPath = cleanBuffer;
+        CachedNode* folderNode;
+        CachedNode* fileNode;
+        int64 error = AcquirePath(user, mp, tmpPath, (openMode & OpenMode_Create) ? false : true, fileNode, folderNode);
         if(error != OK)
             return error;
-            
-        if(file == nullptr) {
-            if(openMode & OpenMode_Create) {
-                if(!CheckPermissions(user, &parent->node, Permissions::Write)) {
-                    ReleaseNode(mp, parent);
-                    return ErrorPermissionDenied;
-                }
 
-                file = CreateNode(mp);
-                file->node.linkRefCount = 1;
-                file->node.type = Node::TYPE_FILE;
-                file->node.ownerGID = user->gid;
-                file->node.ownerUID = user->uid;
-                file->node.permissions = parent->node.permissions;
-
-                GetDir(&parent->node);
-                DirectoryEntry* newEntry;
-                Directory::AddEntry(&parent->node.dir, &newEntry);
-                newEntry->nodeID = file->nodeID;
-                kstrcpy(newEntry->name, fileName);
-            } else {
-                ReleaseNode(mp, parent);
-                return ErrorFileNotFound;
+        if(fileNode == nullptr) {
+            if(!CheckPermissions(user, &folderNode->node, Permissions::Write)) {
+                ReleaseNode(mp, folderNode);
+                return ErrorPermissionDenied;
             }
+
+            fileNode = CreateNode(mp);
+            fileNode->node.linkRefCount = 1;
+            fileNode->node.type = Node::TYPE_FILE;
+            fileNode->node.ownerGID = user->gid;
+            fileNode->node.ownerUID = user->uid;
+            fileNode->node.permissions = folderNode->node.permissions;
+
+            GetDir(&folderNode->node);
+            DirectoryEntry* newEntry;
+            Directory::AddEntry(&folderNode->node.dir, &newEntry);
+            newEntry->nodeID = fileNode->nodeID;
+            kstrcpy(newEntry->name, tmpPath);
         } else if(openMode & OpenMode_FailIfExist) {
-            ReleaseNode(mp, parent);
-            ReleaseNode(mp, file);
+            if(folderNode != nullptr)
+                ReleaseNode(mp, folderNode);
+            ReleaseNode(mp, fileNode);
             return ErrorFileExists;
         }
         
-        ReleaseNode(mp, parent);
+        if(folderNode != nullptr)
+            ReleaseNode(mp, folderNode);
         
-        if((openMode & OpenMode_Clear) && file->node.type == Node::TYPE_FILE) {
-            mp->fs->ClearNodeData(&file->node);
+        if((openMode & OpenMode_Clear) && fileNode->node.type == Node::TYPE_FILE) {
+            mp->fs->ClearNodeData(&fileNode->node);
         }
 
-        ReleaseNode(mp, file, false);
+        ReleaseNode(mp, fileNode, false);
 
         FileDescriptor* desc = new FileDescriptor();
         desc->mp = mp;
-        desc->node = file;
+        desc->node = fileNode;
         desc->pos = 0;
         desc->refCount = 1;
         desc->permissions = openMode & 0xFF;
@@ -1011,19 +1023,21 @@ namespace VFS {
         if(!CleanPath(cleanBuffer))
             return ErrorInvalidPath;
 
-        MountPoint* mp = AcquireMountPoint(cleanBuffer);
-        path = AdvancePath(cleanBuffer, mp->path);
-
-        CachedNode* node;
-        int64 error = AcquirePath(user, mp, path, &node);
+        MountPoint* mp;
+        char* tmpPath = cleanBuffer;
+        CachedNode* folderNode;
+        CachedNode* fileNode;
+        int64 error = AcquirePath(user, mp, tmpPath, true, fileNode, folderNode);
         if(error != OK)
             return error;
-        if(node->node.type != Node::TYPE_DIRECTORY || !CheckPermissions(user, &node->node, Permissions::Read)) {
-            ReleaseNode(mp, node);
+        if(folderNode != nullptr)
+            ReleaseNode(mp, folderNode);
+        if(fileNode->node.type != Node::TYPE_DIRECTORY || !CheckPermissions(user, &fileNode->node, Permissions::Read)) {
+            ReleaseNode(mp, fileNode);
             return ErrorPermissionDenied;
         }
         
-        Directory* dir = GetDir(&node->node);
+        Directory* dir = GetDir(&fileNode->node);
         list->numEntries = dir->numEntries;
         list->entries = new FileList::Entry[list->numEntries];
         for(uint64 i = 0; i < list->numEntries; i++) {
@@ -1035,7 +1049,7 @@ namespace VFS {
             }
         }
 
-        ReleaseNode(mp, node);
+        ReleaseNode(mp, fileNode);
         return OK;
     }
 

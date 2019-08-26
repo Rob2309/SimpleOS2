@@ -12,6 +12,7 @@ const char* ErrorToString(int64 error) {
     case ErrorInvalidDevice: return "Invalid device";
     case ErrorFileExists: return "File already exists";
     case ErrorSeekOffsetOOB: return "Seek offset out of bounds";
+    case ErrorEncounteredSymlink: return "Encountered Symlink";
     default: return "unknown error";
     }
 }

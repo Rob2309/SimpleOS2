@@ -17,3 +17,4 @@ extern __thread int errno;
 #define EINVALIDDEV -10
 #define EFILEEXISTS -11
 #define ESEEKOOB -12
+#define ESYMLINK -13

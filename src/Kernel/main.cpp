@@ -118,9 +118,14 @@ static void InitThread() {
 
     klog_info("Init", "Mounting boot filesystem");
 
-    error = VFS::CreateFolder(&g_RootUser, "/boot", { 3, 1, 1 });
+    error = VFS::CreateFolder(&g_RootUser, "/boot2", { 3, 1, 1 });
     if(error < 0) {
-        klog_fatal("Init", "Failed to create /boot folder (%s)", ErrorToString(error));
+        klog_fatal("Init", "Failed to create /boot2 folder (%s)", ErrorToString(error));
+        Scheduler::ThreadExit(1);
+    }
+    error = VFS::CreateSymLink(&g_RootUser, "/boot", { 3, 1, 1 }, "/boot2");
+    if(error < 0) {
+        klog_fatal("Init", "Failed to create /boot symlink (%s)", ErrorToString(error));
         Scheduler::ThreadExit(1);
     }
     error = VFS::Mount(&g_RootUser, "/boot", config_BootFS_FSID, config_BootFS_DevFile);
