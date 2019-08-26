@@ -144,11 +144,17 @@ FILE* freopen(const char* path, const char* mode, FILE* oldFile) {
         index++;
     }
 
-    int64 error = reopenfd(oldFile->descID, path, req);
-    if(error != 0) {
+    int64 newFD = open(path, req);
+    if(newFD < 0) {
+        errno = newFD;
+        fclose(oldFile);
+        return nullptr;
+    }
+
+    int64 error = copyfd(oldFile->descID, newFD);
+    if(error < 0) {
         errno = error;
-        g_OpenFiles.erase(oldFile);
-        FreeFile(oldFile);
+        fclose(oldFile);
         return nullptr;
     }
 

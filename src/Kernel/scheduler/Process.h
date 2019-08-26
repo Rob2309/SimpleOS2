@@ -18,7 +18,7 @@ struct ProcessInfo {
     uint64 pml4Entry;
 
     StickyLock fileDescLock;
-    ktl::vector<ProcessFileDescriptor*> fileDescs;
+    ktl::vector<ProcessFileDescriptor> fileDescs;
 
     StickyLock mainLock;
     uint64 numThreads;
