@@ -101,6 +101,8 @@ namespace VFS {
      **/
     int64 CreateSymLink(User* user, const char* path, const Permissions& permissions, const char* linkPath);
 
+    int64 CreateHardLink(User* user, const char* path, const Permissions& permissions, const char* linkPath);
+
     /**
      * Removes the files directory entry from the containing directory.
      * The node will, however, only be freed if every reference to it is closed.

@@ -663,6 +663,87 @@ namespace VFS {
         return CreateSymLink(pInfo->owner, path, { 3, 3, 3 }, linkPath);
     }
 
+    int64 CreateHardLink(User* user, const char* path, const Permissions& permissions, const char* linkPath) {
+        char cleanBuffer[255];
+        if(!kpathcpy_usersafe(cleanBuffer, linkPath))
+            return ErrorInvalidBuffer;
+        if(!CleanPath(cleanBuffer))
+            return ErrorInvalidPath;
+
+        MountPoint* linkMP;
+        char* tmpPath = cleanBuffer;
+        CachedNode* linkFolderNode;
+        CachedNode* linkFileNode;
+        int64 error = AcquirePath(user, linkMP, tmpPath, true, linkFileNode, linkFolderNode);
+        if(error != OK)
+            return error;
+        if(linkFolderNode != nullptr)
+            ReleaseNode(linkMP, linkFolderNode);
+        // Hardlinks to folders not allowed
+        if(linkFileNode->node.type == Node::TYPE_DIRECTORY) {
+            ReleaseNode(linkMP, linkFileNode);
+            return ErrorPermissionDenied;
+        }
+
+        if(!kpathcpy_usersafe(cleanBuffer, path)) {
+            ReleaseNode(linkMP, linkFileNode);
+            return ErrorInvalidBuffer;
+        }
+        if(!CleanPath(cleanBuffer)) {
+            ReleaseNode(linkMP, linkFileNode);
+            return ErrorInvalidPath;
+        }
+
+        MountPoint* mp;
+        tmpPath = cleanBuffer;
+        CachedNode* folderNode;
+        CachedNode* fileNode;
+        error = AcquirePath(user, mp, tmpPath, false, fileNode, folderNode);
+        if(error != OK) {
+            ReleaseNode(linkMP, linkFileNode);
+            return error;
+        }
+        if(fileNode != nullptr) {
+            ReleaseNode(linkMP, linkFileNode);
+            if(folderNode != nullptr)
+                ReleaseNode(mp, folderNode);
+            ReleaseNode(mp, fileNode);
+            return ErrorFileExists;
+        }
+        if(!CheckPermissions(user, &folderNode->node, Permissions::Write)) {
+            ReleaseNode(linkMP, linkFileNode);
+            ReleaseNode(mp, folderNode);
+            return ErrorPermissionDenied;
+        }
+        // Creating hardlink to different filesystem
+        if(mp != linkMP) {
+            ReleaseNode(linkMP, linkFileNode);
+            ReleaseNode(mp, folderNode);
+            return ErrorPermissionDenied;
+        }
+
+        auto dir = GetDir(&folderNode->node);
+        DirectoryEntry* newEntry;
+        Directory::AddEntry(&dir, &newEntry);
+
+        newEntry->nodeID = linkFileNode->nodeID;
+        linkFileNode->node.linkRefCount++;
+        kstrcpy(newEntry->name, tmpPath);
+
+        ReleaseNode(mp, folderNode);
+        ReleaseNode(linkMP, linkFileNode);
+        return OK;
+    }
+    SYSCALL_DEFINE2(syscall_create_hardlink, const char* path, const char* linkPath) {
+        if(!MemoryManager::IsUserPtr(path) || !MemoryManager::IsUserPtr(linkPath))
+            Scheduler::ThreadKillProcess("InvalidUserPointer");
+
+        ThreadInfo* tInfo = Scheduler::GetCurrentThreadInfo();
+        ProcessInfo* pInfo = tInfo->process;
+
+        return CreateHardLink(pInfo->owner, path, { 3, 3, 3 }, linkPath);
+    }
+
     int64 Delete(User* user, const char* path) {
         char cleanBuffer[255];
         if(!kpathcpy_usersafe(cleanBuffer, path))
