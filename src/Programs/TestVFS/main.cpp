@@ -202,10 +202,33 @@ static void Test8() {
         exit(1);
     }
 
+    puts("Closing /etc/test.txt\n");
+    if(close(fd) < 0) {
+        puts("Failed...\n");
+        exit(1);
+    }
+
     puts("Content: ");
     puts(buffer);
 
     puts("Test 8 probably successful\n");
+}
+
+// Pass identical path to create_hardlink
+static void Test9() {
+    puts("Creating hardlink /etc/test.txt -> /etc/test.txt\n");
+    if(create_hardlink("/etc/test.txt", "/etc/test.txt") == 0) {
+        puts("Returned OK even though operation is impossible\n");
+        exit(1);
+    }
+
+    puts("Creating hardlink /etc/test3.txt -> /etc/test3.txt\n");
+    if(create_hardlink("/etc/test3.txt", "/etc/test3.txt") == 0) {
+        puts("Returned OK even though operation is impossible\n");
+        exit(1);
+    }
+
+    puts("Test 9 successful\n");
 }
 
 int main()
@@ -218,6 +241,7 @@ int main()
     Test6();
     Test7();
     Test8();
+    Test9();
 
     puts("All tests successful!\n");
     return 0;
