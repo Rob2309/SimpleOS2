@@ -261,6 +261,17 @@ namespace VFS {
         return true;
     }
 
+    static const char* GetFileName(const char* path) {
+        int lastSep = -1;
+        int index = 0;
+        while(path[index] != '\0') {
+            if(path[index] == '/')
+                lastSep = index;
+            index++;
+        }
+        return &path[lastSep + 1];
+    }
+
     static bool CheckPermissions(User* user, Node* node, uint8 reqPerms) {
         if(user->uid == 0)
             return true;
@@ -685,9 +696,11 @@ namespace VFS {
             }
         }
 
+        const char* fileName = GetFileName(cleanBuffer);
+
         Directory* dir = GetDir(&folderNode->node);
         for(uint64 i = 0; i < dir->numEntries; i++) {
-            if(kstrcmp(tmpPath, dir->entries[i].name) == 0) {
+            if(kstrcmp(fileName, dir->entries[i].name) == 0) {
                 Directory::RemoveEntry(&folderNode->node.dir, i);
                 fileNode->node.linkRefCount--;
 
