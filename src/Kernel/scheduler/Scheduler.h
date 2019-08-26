@@ -97,8 +97,15 @@ namespace Scheduler {
     const char* ThreadGetUserName();
 
     int64 ProcessAddFileDescriptor(uint64 sysDescriptor);
+    /**
+     * Copies oldPDesc to newPDesc.
+     * Attention:
+     *      1. if oldPDesc == newPDesc, this function does nothing and returns OK
+     *      2. if oldPDesc is invalid, this function does nothing and returns ErrorInvalidFD
+     *      3. if oldPDesc and newPDesc refer to the same File descriptor, this function does nothing and returns OK
+     *      4. if newPDesc is already open, this function closes newPDesc first
+     **/
     int64 ProcessReplaceFileDescriptor(int64 oldPDesc, int64 newPDesc);
-    int64 ProcessReplaceFileDescriptorValue(int64 oldPDesc, uint64 newSysDesc);
     int64 ProcessCloseFileDescriptor(int64 desc);
     int64 ProcessGetSystemFileDescriptor(int64 pDesc, uint64& sysDesc);
 

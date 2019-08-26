@@ -75,6 +75,20 @@ namespace ktl {
             }
         }
 
+        void insert(const Iterator& at, const T& t) {
+            if(m_Capacity < m_Size + 1) {
+                MakeCapacity(m_Size + 1);
+            }
+
+            for(int i = m_Size; i > at.m_Pos; i--) {
+                new(&m_Data[i]) T((T&&)m_Data[i-1]);
+                m_Data[i-1].~T();
+            }
+
+            new(&m_Data[at.m_Pos]) T(t);
+            m_Size++;
+        }
+
         T& operator[] (uint64 index) {
             return m_Data[index];
         }
