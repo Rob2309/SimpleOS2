@@ -53,10 +53,46 @@ static void Test2() {
     puts("Test2 successful\n");
 }
 
+// Test3: delete /usr2, try to create /usr/test.txt
+static void Test3() {
+    puts("Deleting /usr2\n");
+    if(delete_file("/usr2") < 0) {
+        puts("Failed...\n");
+        exit(1);
+    }
+
+    puts("Creating /usr/test.txt\n");
+    if(create_file("/usr/test.txt") == 0) {
+        puts("/usr still exists...\n");
+        exit(1);
+    }
+
+    puts("Test3 successful\n");
+}
+
+// Test4: create /usr, try to create /usr2/test.txt
+static void Test4() {
+    puts("Creating /usr\n");
+    if(create_folder("/usr") < 0) {
+        puts("Failed...\n");
+        exit(1);
+    }
+
+    puts("Creating /usr2/test.txt\n");
+    if(create_file("/usr2/test.txt") < 0) {
+        puts("Failed...\n");
+        exit(1);
+    }
+
+    puts("Test 4 successful\n");
+}
+
 int main()
 {
     Test1();
     Test2();
+    Test3();
+    Test4();
 
     puts("All tests successful!\n");
     return 0;
