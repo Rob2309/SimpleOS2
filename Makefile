@@ -58,8 +58,8 @@ programs: FORCE
 	@ $(MAKE) -s libc
 	@ printf "\e[32mBuilding Init\e[0m\n"
 	@ $(MAKE) -s -C src/Programs/Init
-	@ printf "\e[32mBuilding Test2\e[0m\n"
-	@ $(MAKE) -s -C src/Programs/Test2
+	@ printf "\e[32mBuilding TestVFS\e[0m\n"
+	@ $(MAKE) -s -C src/Programs/TestVFS
 rdbuilder: FORCE
 	@ printf "\e[32mBuilding initrd tool\e[0m\n"
 	@ $(MAKE) -s -C src/RamdiskBuilder
