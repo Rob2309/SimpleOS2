@@ -19,9 +19,14 @@ namespace Ext2 {
         klog_info("Ext2", "Volume name: %s", m_SB.volumeName);
     }
 
-    void Ext2Driver::GetSuperBlock(VFS::SuperBlock* sb, void* infoPtr) {
+    void Ext2Driver::GetSuperBlock(VFS::SuperBlock* sb) {
         sb->rootNode = 2;
-        m_InfoPtr = infoPtr;
+    }
+    void Ext2Driver::SetMountPoint(MountPoint* mp) {
+        m_MP = mp;
+    }
+    void Ext2Driver::PrepareUnmount() {
+
     }
 
     void Ext2Driver::CreateNode(Node* node) {
@@ -31,7 +36,6 @@ namespace Ext2 {
 
     void Ext2Driver::ReadNode(uint64 id, Node* node) {
         node->id = id;
-        node->fs = this;
 
         uint64 group = (id - 1) / m_SB.inodesPerGroup;
         
@@ -53,10 +57,33 @@ namespace Ext2 {
         case INode_TypeFIFO: node->type = Node::TYPE_PIPE; break;
         }
 
-        node->dir = nullptr;
+        if(node->type == Node::TYPE_DIRECTORY) {
+            Directory* dir = Directory::Create(10);
+
+            uint64 pos = 0;
+            while(pos < inode->size) {
+                uint64 entryBlock = pos / (1024 << m_SB.blockSizeShift);
+                uint64 entryBlockPos = inode->directPointers[entryBlock] * (1024 << m_SB.blockSizeShift);
+                uint64 entryOffset = pos % (1024 << m_SB.blockSizeShift);
+                
+                DirEntry ext2Entry;
+                m_Driver->GetData(m_Dev, entryBlockPos + entryOffset, &ext2Entry, sizeof(DirEntry));
+
+                DirectoryEntry* vfsEntry;
+                Directory::AddEntry(&dir, &vfsEntry);
+
+                vfsEntry->nodeID = ext2Entry.inode;
+                m_Driver->GetData(m_Dev, entryBlockPos + entryOffset + sizeof(DirEntry), vfsEntry->name, ext2Entry.nameLengthLow);
+                vfsEntry->name[ext2Entry.nameLengthLow] = '\0';
+
+                pos += ext2Entry.entrySize;
+            }
+
+            node->infoFolder.dir = dir;
+        }
         if(node->type == Node::TYPE_FILE)
-            node->fileSize = inode->size;
-        node->linkRefCount = inode->hardlinkCount;
+            node->infoFile.fileSize = inode->size;
+        node->linkCount = inode->hardlinkCount;
 
         node->ownerUID = 0;
         node->ownerGID = 0;
@@ -121,37 +148,6 @@ namespace Ext2 {
         return 0;
     }
     void Ext2Driver::ClearNodeData(VFS::Node* node) { }
-
-    Directory* Ext2Driver::ReadDirEntries(Node* node) {
-        INode* inode = (INode*)node->fsData;
-
-        Directory* dir = Directory::Create(10);
-
-        uint64 pos = 0;
-        while(pos < inode->size) {
-            uint64 entryBlock = pos / (1024 << m_SB.blockSizeShift);
-            uint64 entryBlockPos = inode->directPointers[entryBlock] * (1024 << m_SB.blockSizeShift);
-            uint64 entryOffset = pos % (1024 << m_SB.blockSizeShift);
-            
-            DirEntry ext2Entry;
-            m_Driver->GetData(m_Dev, entryBlockPos + entryOffset, &ext2Entry, sizeof(DirEntry));
-
-            DirectoryEntry* vfsEntry;
-            Directory::AddEntry(&dir, &vfsEntry);
-
-            vfsEntry->nodeID = ext2Entry.inode;
-            m_Driver->GetData(m_Dev, entryBlockPos + entryOffset + sizeof(DirEntry), vfsEntry->name, ext2Entry.nameLengthLow);
-            vfsEntry->name[ext2Entry.nameLengthLow] = '\0';
-
-            pos += ext2Entry.entrySize;
-        }
-
-        node->dir = dir;
-        return dir;
-    }
-    void Ext2Driver::WriteDirEntries(Node* node) {
-
-    }
 
     static FileSystem* Ext2Factory(BlockDeviceDriver* driver, uint64 subID) {
         return new Ext2Driver(driver, subID);

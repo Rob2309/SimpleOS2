@@ -126,7 +126,9 @@ namespace Ext2 {
     public:
         Ext2Driver(BlockDeviceDriver* driver, uint64 subID);
 
-        void GetSuperBlock(VFS::SuperBlock* sb, void* infoPtr) override;
+        void GetSuperBlock(VFS::SuperBlock* sb) override;
+        void SetMountPoint(VFS::MountPoint* mp) override;
+        void PrepareUnmount() override;
 
         void CreateNode(VFS::Node* node) override;
         void DestroyNode(VFS::Node* node) override;
@@ -138,11 +140,8 @@ namespace Ext2 {
         uint64 WriteNodeData(VFS::Node* node, uint64 pos, const void* buffer, uint64 bufferSize) override;
         void ClearNodeData(VFS::Node* node) override;
 
-        VFS::Directory* ReadDirEntries(VFS::Node* node) override;
-        void WriteDirEntries(VFS::Node* node) override;
-
     private:
-        void* m_InfoPtr;
+        VFS::MountPoint* m_MP;
         BlockDeviceDriver* m_Driver;
         uint64 m_Dev;
         SuperBlock m_SB;

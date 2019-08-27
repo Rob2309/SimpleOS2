@@ -4,14 +4,12 @@
 #include "VFS.h"
 #include "Directory.h"
 #include "devices/DeviceDriver.h"
+#include "SuperBlock.h"
 
 namespace VFS {
 
     struct Node;
-
-    struct SuperBlock {
-        uint64 rootNode;
-    };
+    struct MountPoint;
 
     class FileSystem
     {
@@ -19,7 +17,10 @@ namespace VFS {
         /**
          * Reads the FileSystems SuperBlock
          **/
-        virtual void GetSuperBlock(SuperBlock* sb, void* infoPtr) = 0;
+        virtual void GetSuperBlock(SuperBlock* sb) = 0;
+
+        virtual void SetMountPoint(MountPoint* mp) = 0;
+        virtual void PrepareUnmount() = 0;
         
         /**
          * Seeks for a suitable free Node and creates a new Node out of it
@@ -59,19 +60,6 @@ namespace VFS {
          * Will only be called for regular file nodes.
          **/
         virtual void ClearNodeData(Node* node) = 0;
-
-        /**
-         * Reads the Directory entries from the given node.
-         * Will only be called if the directory data is not in the VFS cache.
-         * Node will be locked when given to this function.
-         **/
-        virtual Directory* ReadDirEntries(Node* node) = 0;
-        /**
-         * Writes the Directory entries to the given node.
-         * Will only be called if the directory data gets ejected from the VFS cache.
-         * Node will be locked when given to this function.
-         **/
-        virtual void WriteDirEntries(Node* node) = 0;
     };
 
     typedef FileSystem* (*FileSystemFactory)();
