@@ -132,6 +132,7 @@ namespace VFS {
         newNode->refCount = 1;
         newNode->ready = false;
         newNode->readyQueue.Lock();
+        newNode->dirLock.Unlock_Raw();
         mp->nodeCache.push_back(newNode);
         mp->nodeCacheLock.Unlock();
 
@@ -261,7 +262,9 @@ namespace VFS {
             Node* next = nullptr;
             for(uint64 i = 0; i < currentNode->infoFolder.dir->numEntries; i++) {
                 if(PathWalk(&pathBuffer, currentNode->infoFolder.dir->entries[i].name)) {
-                    next = AcquireNode(mp, currentNode->infoFolder.dir->entries[i].nodeID);
+                    uint64 nid = currentNode->infoFolder.dir->entries[i].nodeID;
+                    currentNode->dirLock.Unlock();
+                    next = AcquireNode(mp, nid);
 
                     if(next->type == Node::TYPE_SYMLINK) {
                         outNode = next;
@@ -274,10 +277,13 @@ namespace VFS {
                         outParent = currentNode;
                         return OK;
                     }
+
+                    break;
                 }
             }
 
             if(next == nullptr) {
+                currentNode->dirLock.Unlock();
                 if(fileHasToExist || !IsLastPathEntry(pathBuffer)) {
                     ReleaseNode(currentNode);
                     return ErrorFileNotFound;
@@ -346,6 +352,7 @@ namespace VFS {
         mp->fs->CreateNode(newNode);
         newNode->refCount = softRefs;
         newNode->mp = mp;
+        newNode->dirLock.Unlock_Raw();
 
         mp->nodeCacheLock.Spinlock();
         mp->nodeCache.push_back(newNode);
