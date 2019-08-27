@@ -202,6 +202,65 @@ static void Test9() {
     puts("Test 9 successful\n");
 }
 
+// Test10: Create /tmp, mount tempfs, unmount tempfs
+static void Test10() {
+    puts("Creating /tmp\n");
+    if(create_folder("/tmp") < 0) {
+        puts("Failed...\n");
+        exit(1);
+    }
+
+    puts("Mounting tmpfs to /tmp\n");
+    if(mount("/tmp", "tempfs") < 0) {
+        puts("Failed...\n");
+        exit(1);
+    }
+
+    puts("Unmounting /tmp\n");
+    if(unmount("/tmp") < 0) {
+        puts("Failed...\n");
+        exit(1);
+    }
+
+    puts("Test 10 successful\n");
+}
+
+// Test11: mount tempfs to /tmp, create /tmp/test.txt, open /tmp/test.txt, try unmounting /tmp, close /tmp/test.txt, try again
+static void Test11() {
+    puts("Mounting tmpfs to /tmp\n");
+    if(mount("/tmp", "tempfs") < 0) {
+        puts("Failed...\n");
+        exit(1);
+    }
+
+    puts("Creating and opening /tmp/test.txt\n");
+    int fd = open("/tmp/test.txt", open_mode_write | open_mode_create);
+    if(fd < 0) {
+        puts("Failed...\n");
+        exit(1);
+    }
+
+    puts("Trying to unmount /tmp\n");
+    if(unmount("/tmp") == 0) {
+        puts("Unmount returned OK even though a file was still open\n");
+        exit(1);
+    }
+
+    puts("Closing /tmp/test.txt");
+    if(close(fd) < 0) {
+        puts("Failed...\n");
+        exit(1);
+    }
+
+    puts("Trying to unmount /tmp\n");
+    if(unmount("/tmp") < 0) {
+        puts("Failed...\n");
+        exit(1);
+    }
+
+    puts("Test 11 successful\n");
+}
+
 int main()
 {
     Test1();
@@ -212,6 +271,8 @@ int main()
     Test7();
     Test8();
     Test9();
+    Test10();
+    Test11();
 
     puts("All tests successful!\n");
     return 0;

@@ -33,3 +33,5 @@ int64 write(int64 fd, const void* buffer, uint64 bufferSize);
 
 int64 mount(const char* mountPoint, const char* fsID);
 int64 mount(const char* mountPoint, const char* fsID, const char* dev);
+
+int64 unmount(const char* mountPoint);

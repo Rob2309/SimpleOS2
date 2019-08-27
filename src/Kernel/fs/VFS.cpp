@@ -955,7 +955,7 @@ namespace VFS {
         mp->childMounts.push_back(newMP);
         mp->childMountLock.Unlock();
 
-        ReleaseMountPoint(mp);
+        ReleaseMountPoint(mp, false);   // dont decrement, newMP inherits reference
 
         return OK;
     }
@@ -1050,33 +1050,32 @@ namespace VFS {
             return ErrorInvalidPath;
 
         auto mp = FindMountPoint(cleanBuffer);
-        if(mp == g_RootMount) {
+        auto path = AdvancePath(cleanBuffer, mp->path);
+        if(mp == g_RootMount || *path != '\0') {
             ReleaseMountPoint(mp);
             return ErrorPermissionDenied;
         }
 
         mp->parent->childMountLock.Spinlock();
-        if(mp->refCount.Read() == 1) {
-            mp->childMountLock.Spinlock();
-            if(mp->childMounts.empty()) {
-                mp->parent->childMounts.erase(mp);
-                mp->parent->childMountLock.Unlock();
+        if(mp->refCount.Read() == 1) {              // only this thread is referencing mp
+            mp->parent->childMounts.erase(mp);
+            mp->parent->childMountLock.Unlock();
 
-                mp->childMountLock.Unlock();
+            mp->fs->PrepareUnmount();
 
-                delete mp;
-                return OK;
-            } else {
-                mp->childMountLock.Unlock();
-                mp->parent->childMountLock.Unlock();
-                ReleaseMountPoint(mp);
-                return ErrorPermissionDenied;
-            }
+            delete mp;
+            return OK;
         } else {
             mp->parent->childMountLock.Unlock();
             ReleaseMountPoint(mp);
             return ErrorPermissionDenied;
         }
+    }
+    SYSCALL_DEFINE1(syscall_unmount, const char* path) {
+        ThreadInfo* tInfo = Scheduler::GetCurrentThreadInfo();
+        ProcessInfo* pInfo = tInfo->process;
+
+        return Unmount(pInfo->owner, path);
     }
 
     int64 Open(User* user, const char* path, uint64 openMode, uint64& fileDesc) {

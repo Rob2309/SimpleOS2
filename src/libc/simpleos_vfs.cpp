@@ -63,3 +63,7 @@ int64 mount(const char* mountPoint, const char* fsID) {
 int64 mount(const char* mountPoint, const char* fsID, const char* dev) {
     return syscall_invoke(syscall_mount_dev, (uint64)mountPoint, (uint64)fsID, (uint64)dev);
 }
+
+int64 unmount(const char* mountPoint) {
+    return syscall_invoke(syscall_unmount, (uint64)mountPoint);
+}
