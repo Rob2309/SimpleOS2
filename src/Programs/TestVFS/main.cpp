@@ -92,37 +92,8 @@ static void Test4() {
     puts("Test 4 successful\n");
 }
 
-// Test5: try mounting tempfs to /usr2, delete /usr2/test.txt, try again
-static void Test5() {
-    puts("Trying to mount to /usr2\n");
-    if(mount("/usr2", "tempfs") == 0) {
-        puts("Mount succeeded even though folder is not empty\n");
-        exit(1);
-    }
-
-    puts("Deleting /usr2/test.txt\n");
-    if(delete_file("/usr2/test.txt") < 0) {
-        puts("Failed...\n");
-        exit(1);
-    }
-
-    puts("Mounting to /usr2\n");
-    if(mount("/usr2", "tempfs") < 0) {
-        puts("Failed...\n");
-        exit(1);
-    }
-
-    puts("Test 5 successful\n");
-}
-
-// Test6: create /usr/test.txt, open /usr2/test.txt
+// Test6: open /usr2/test.txt
 static void Test6() {
-    puts("Creating /usr/test.txt\n");
-    if(create_file("/usr/test.txt") < 0) {
-        puts("Failed...\n");
-        exit(1);
-    }
-
     puts("Opening /usr2/test.txt\n");
     int64 fd = open("/usr2/test.txt", open_mode_read);
     if(fd < 0) {
@@ -237,7 +208,6 @@ int main()
     Test2();
     Test3();
     Test4();
-    Test5();
     Test6();
     Test7();
     Test8();
