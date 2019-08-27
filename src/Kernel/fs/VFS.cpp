@@ -239,7 +239,7 @@ namespace VFS {
         }
     }
 
-    static int64 _AcquirePathRec(User* user, MountPoint* mp, const char*& pathBuffer, bool fileHasToExist, Node*& outNode, Node*& outParent) {
+    static int64 _AcquirePathRec(User* user, MountPoint* mp, const char*& pathBuffer, bool fileHasToExist, bool deleteMode, Node*& outNode, Node*& outParent) {
         auto currentNode = AcquireNode(mp, mp->sb.rootNode);
 
         if(pathBuffer[0] == '\0') {
@@ -265,6 +265,12 @@ namespace VFS {
                     uint64 nid = currentNode->infoFolder.dir->entries[i].nodeID;
                     currentNode->dirLock.Unlock();
                     next = AcquireNode(mp, nid);
+
+                    if(deleteMode && *pathBuffer == '\0') {
+                        outNode = next;
+                        outParent = currentNode;
+                        return OK;
+                    }
 
                     if(next->type == Node::TYPE_SYMLINK) {
                         outNode = next;
@@ -302,12 +308,12 @@ namespace VFS {
     /**
      * If outParent is nullptr, outNode has to be a mountPoint
      **/
-    static int64 AcquirePath(User* user, MountPoint*& outMP, char*& inOutPathBuffer, bool fileHasToExist, Node*& outNode, Node*& outParent) {
+    static int64 AcquirePath(User* user, MountPoint*& outMP, char*& inOutPathBuffer, bool fileHasToExist, bool deleteMode, Node*& outNode, Node*& outParent) {
         MountPoint* mp = FindMountPoint(inOutPathBuffer);
         const char* currentPath = AdvancePath(inOutPathBuffer, mp->path);
 
         int64 error;
-        while((error = _AcquirePathRec(user, mp, currentPath, fileHasToExist, outNode, outParent)) == ErrorEncounteredSymlink) {
+        while((error = _AcquirePathRec(user, mp, currentPath, fileHasToExist, deleteMode, outNode, outParent)) == ErrorEncounteredSymlink) {
             const char* linkPath = outNode->infoSymlink.linkPath;
             const char* restPath = currentPath;
 
@@ -385,7 +391,7 @@ namespace VFS {
         char* tmpPath = cleanBuffer;
         Node* parentNode;
         Node* fileNode;
-        int64 error = AcquirePath(user, mp, tmpPath, false, fileNode, parentNode);
+        int64 error = AcquirePath(user, mp, tmpPath, false, false, fileNode, parentNode);
         if(error != OK)
             return error;
         if(parentNode == nullptr) {
@@ -448,7 +454,7 @@ namespace VFS {
         char* tmpPath = cleanBuffer;
         Node* parentNode;
         Node* fileNode;
-        int64 error = AcquirePath(user, mp, tmpPath, false, fileNode, parentNode);
+        int64 error = AcquirePath(user, mp, tmpPath, false, false, fileNode, parentNode);
         if(error != OK)
             return error;
         if(parentNode == nullptr) {
@@ -511,7 +517,7 @@ namespace VFS {
         char* tmpPath = cleanBuffer;
         Node* parentNode;
         Node* fileNode;
-        int64 error = AcquirePath(user, mp, tmpPath, false, fileNode, parentNode);
+        int64 error = AcquirePath(user, mp, tmpPath, false, false, fileNode, parentNode);
         if(error != OK)
             return error;
         if(parentNode == nullptr) {
@@ -610,7 +616,7 @@ namespace VFS {
         char* tmpPath = cleanBuffer;
         Node* parentNode;
         Node* linkNode;
-        int64 error = AcquirePath(user, mp, tmpPath, false, linkNode, parentNode);
+        int64 error = AcquirePath(user, mp, tmpPath, false, false, linkNode, parentNode);
         if(error != OK)
             return error;
         if(parentNode == nullptr) {
@@ -674,7 +680,7 @@ namespace VFS {
         char* tmpPath = cleanBuffer;
         Node* linkParentNode;
         Node* linkFileNode;
-        int64 error = AcquirePath(user, linkMP, tmpPath, true, linkFileNode, linkParentNode);
+        int64 error = AcquirePath(user, linkMP, tmpPath, true, false, linkFileNode, linkParentNode);
         if(error != OK)
             return error;
         if(linkParentNode != nullptr)
@@ -701,7 +707,7 @@ namespace VFS {
         tmpPath = cleanBuffer;
         Node* parentNode;
         Node* fileNode;
-        error = AcquirePath(user, mp, tmpPath, false, fileNode, parentNode);
+        error = AcquirePath(user, mp, tmpPath, false, false, fileNode, parentNode);
         if(error != OK) {
             ReleaseNode(linkFileNode);
             ReleaseMountPoint(linkMP);
@@ -775,7 +781,7 @@ namespace VFS {
         char* tmpPath = cleanBuffer;
         Node* fileNode;
         Node* parentNode;
-        int64 error = AcquirePath(user, mp, tmpPath, true, fileNode, parentNode);
+        int64 error = AcquirePath(user, mp, tmpPath, true, true, fileNode, parentNode);
         if(error != OK)
             return error;
         // attempting to delete mountpoint
@@ -839,7 +845,7 @@ namespace VFS {
         char* tmpPath = cleanBuffer;
         Node* fileNode;
         Node* folderNode;
-        int64 error = AcquirePath(user, mp, tmpPath, true, fileNode, folderNode);
+        int64 error = AcquirePath(user, mp, tmpPath, true, false, fileNode, folderNode);
         if(error != OK)
             return error;
         if(folderNode != nullptr)
@@ -879,7 +885,7 @@ namespace VFS {
         char* tmpPath = cleanBuffer;
         Node* fileNode;
         Node* folderNode;
-        int64 error = AcquirePath(user, mp, tmpPath, true, fileNode, folderNode);
+        int64 error = AcquirePath(user, mp, tmpPath, true, false, fileNode, folderNode);
         if(error != OK)
             return error;
         if(folderNode != nullptr)
@@ -918,7 +924,7 @@ namespace VFS {
         char* tmpPath = cleanBuffer;
         Node* folderNode;
         Node* fileNode;
-        int64 error = AcquirePath(user, mp, tmpPath, true, fileNode, folderNode);
+        int64 error = AcquirePath(user, mp, tmpPath, true, false, fileNode, folderNode);
         if(error != OK)
             return error;
         // Trying to mount onto a mountPoint
@@ -992,7 +998,7 @@ namespace VFS {
         char* tmpPath = cleanBuffer;
         Node* folderNode;
         Node* fileNode;
-        int64 error = AcquirePath(user, mp, tmpPath, true, fileNode, folderNode);
+        int64 error = AcquirePath(user, mp, tmpPath, true, false, fileNode, folderNode);
         if(error != OK)
             return error;
         if(folderNode != nullptr)
@@ -1089,7 +1095,7 @@ namespace VFS {
         char* tmpPath = cleanBuffer;
         Node* folderNode;
         Node* fileNode;
-        int64 error = AcquirePath(user, mp, tmpPath, (openMode & OpenMode_Create) ? false : true, fileNode, folderNode);
+        int64 error = AcquirePath(user, mp, tmpPath, (openMode & OpenMode_Create) ? false : true, false, fileNode, folderNode);
         if(error != OK)
             return error;
 
