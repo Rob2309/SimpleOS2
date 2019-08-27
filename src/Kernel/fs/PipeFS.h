@@ -17,7 +17,9 @@ namespace VFS {
 
     class PipeFS : public FileSystem {
     public:
-        void GetSuperBlock(SuperBlock* sb, void* infoPtr) override;
+        void GetSuperBlock(SuperBlock* sb) override;
+        void SetMountPoint(MountPoint* mp) override;
+        void PrepareUnmount() override;
 
         void CreateNode(Node* node) override;
         void DestroyNode(Node* node) override;
@@ -28,9 +30,6 @@ namespace VFS {
         uint64 ReadNodeData(Node* node, uint64 pos, void* buffer, uint64 bufferSize) override;
         uint64 WriteNodeData(Node* node, uint64 pos, const void* buffer, uint64 bufferSize) override;
         void ClearNodeData(Node* node) override;
-
-        Directory* ReadDirEntries(Node* node) override;
-        void WriteDirEntries(Node* node) override;
 
     private:
         StickyLock m_PipesLock;

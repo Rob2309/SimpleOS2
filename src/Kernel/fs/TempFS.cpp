@@ -42,9 +42,14 @@ TempFS::TempFS() {
     m_RootNodeID = (uint64)node;
 }
 
-void TempFS::GetSuperBlock(SuperBlock* sb, void* infoPtr) {
+void TempFS::GetSuperBlock(SuperBlock* sb) {
     sb->rootNode = m_RootNodeID;
-    m_InfoPtr = infoPtr;
+}
+void TempFS::SetMountPoint(MountPoint* mp) {
+    m_MP = mp;
+}
+void TempFS::PrepareUnmount() {
+
 }
 
 void TempFS::CreateNode(Node* node) {
@@ -55,9 +60,8 @@ void TempFS::CreateNode(Node* node) {
     newNode->fileData = nullptr;
     
     node->id = (uint64)newNode;
-    node->dir = newNode->dir;
-    node->fs = this;
-    node->linkRefCount = newNode->linkRefCount;
+    node->linkCount.Write(0);
+    node->ready = true;
 }
 void TempFS::DestroyNode(Node* node) {
     TestNode* oldNode = (TestNode*)(node->id);
@@ -69,21 +73,22 @@ void TempFS::DestroyNode(Node* node) {
 void TempFS::ReadNode(uint64 id, VFS::Node* node) {
     TestNode* refNode = (TestNode*)id;
 
-    node->dir = refNode->dir;
-    node->fs = this;
+    node->infoFolder.dir = refNode->dir;
+    node->mp = m_MP;
     node->id = id;
-    node->linkRefCount = refNode->linkRefCount;
+    node->linkCount = refNode->linkRefCount;
     node->type = refNode->type;
     node->ownerGID = refNode->gid;
     node->ownerUID = refNode->uid;
     node->permissions = refNode->perms;
+    node->ready = true;
 }
 void TempFS::WriteNode(Node* node) {
     TestNode* refNode = (TestNode*)(node->id);
 
-    refNode->dir = node->dir;
+    refNode->dir = node->infoFolder.dir;
     refNode->type = node->type;
-    refNode->linkRefCount = node->linkRefCount;
+    refNode->linkRefCount = node->linkCount.Read();
     refNode->gid = node->ownerGID;
     refNode->uid = node->ownerUID;
     refNode->perms = node->permissions;
@@ -125,13 +130,4 @@ void TempFS::ClearNodeData(VFS::Node* node) {
     delete[] refNode->fileData;
     refNode->fileSize = 0;
     refNode->fileData = nullptr;
-}
-
-Directory* TempFS::ReadDirEntries(Node* node) {
-    TestNode* refNode = (TestNode*)(node->id);
-    return refNode->dir;
-}
-void TempFS::WriteDirEntries(Node* node) {
-    TestNode* refNode = (TestNode*)(node->id);
-    refNode->dir = node->dir;
 }

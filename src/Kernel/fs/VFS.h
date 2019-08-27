@@ -7,70 +7,19 @@
 #include "FileSystem.h"
 #include "user/User.h"
 #include "errno.h"
+#include "Node.h"
+#include "Permissions.h"
 
 namespace VFS {
 
     class FileSystem;
-
-    struct Permissions {
-        static constexpr uint8 Read = 0x1;
-        static constexpr uint8 Write = 0x2;
-
-        uint8 ownerPermissions;
-        uint8 groupPermissions;
-        uint8 otherPermissions;
-    };
-
-    struct Node
-    {
-        QueueLock lock;
-
-        enum Type {
-            TYPE_FILE,              // Normal File
-            TYPE_DIRECTORY,         // Directory, containing other nodes
-            TYPE_DEVICE_CHAR,       // Character Device File
-            TYPE_DEVICE_BLOCK,      // Block Device File
-            TYPE_PIPE,              // (Named) Pipe
-            TYPE_SYMLINK,           // Symbolic link
-        } type;
-
-        FileSystem* fs;     // The FileSystem instance this node belongs to
-        void* fsData;
-
-        union {
-            Directory* dir;
-            uint64 fileSize;
-            struct {
-                uint64 driverID;
-                uint64 subID;
-            } device;
-            struct {
-                char* linkPath;
-            } symlink;
-        };
-
-        uint64 ownerUID;
-        uint64 ownerGID;
-        Permissions permissions;
-
-        uint64 id;
-        uint64 linkRefCount;    // How often this node is referenced by directory entries
-    };
-
-    struct NodeStats {
-        uint64 ownerUID;
-        uint64 ownerGID;
-        Permissions permissions;
-
-        uint64 size;
-    };
 
     /**
      * Initializes the VFS and mounts rootFS to /
      **/
     void Init(FileSystem* rootFS);
 
-    void InvalidateDirEntries(void* infoPtr, uint64 nodeID);
+    void ReplaceDirEntries(MountPoint* mp, uint64 nodeID, Directory* newDir);
 
     /**
      * Creates a regular file at the given path. 
@@ -152,19 +101,6 @@ namespace VFS {
      */
     int64 AddRef(uint64 desc);
 
-    struct FileList {
-        uint64 numEntries;
-        
-        struct Entry {
-            char name[50];
-            Node::Type type;
-        } *entries;
-    };
-    /**
-     * Lists the files in a directory, fails if the given path is not a directory.
-     **/
-    int64 List(User* user, const char* path, FileList* list, bool getTypes);
-
     /**
      * Reads from the given File and increases the FileDescriptor position by the number of bytes read.
      * This function blocks until at least one byte was read, or returns 0 to indicate eof.
@@ -188,12 +124,5 @@ namespace VFS {
      * Returns 0 on success, error otherwise
      **/
     int64 Seek(uint64 desc, uint64 offs);
-
-    /**
-     * Retrieves information about the node associated with a FileDescriptor
-     * @param desc The FileDescriptor to retrieve information from
-     * @param stats The buffer to write the stats into
-     **/
-    int64 Stat(uint64 desc, NodeStats* stats);
 
 }

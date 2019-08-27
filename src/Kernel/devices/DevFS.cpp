@@ -18,25 +18,17 @@ struct DevReg {
 
 static StickyLock g_DevLock;
 static ktl::vector<DevReg> g_Devices;
-static void* g_InfoPtr = nullptr;
+static VFS::MountPoint* g_MP = nullptr;
 
 void DevFS::RegisterCharDevice(const char* name, uint64 driverID, uint64 devID) {
     g_DevLock.Spinlock();
     g_Devices.push_back({ name, false, driverID, devID, g_Devices.size() });
     g_DevLock.Unlock();
-
-    if(g_InfoPtr != nullptr) {
-        VFS::InvalidateDirEntries(g_InfoPtr, 0xFFFF);
-    }
 }
 void DevFS::RegisterBlockDevice(const char* name, uint64 driverID, uint64 devID) {
     g_DevLock.Spinlock();
     g_Devices.push_back({ name, true, driverID, devID, g_Devices.size() });
     g_DevLock.Unlock();
-
-    if(g_InfoPtr != nullptr) {
-        VFS::InvalidateDirEntries(g_InfoPtr, 0xFFFF);
-    }
 }
 void DevFS::UnregisterDevice(uint64 driverID, uint64 devID) {
     g_DevLock.Spinlock();
@@ -50,20 +42,17 @@ void DevFS::UnregisterDevice(uint64 driverID, uint64 devID) {
     }
 
     g_DevLock.Unlock();
-
-    if(g_InfoPtr != nullptr) {
-        VFS::InvalidateDirEntries(g_InfoPtr, 0xFFFF);
-    }
 }
 
 DevFS::DevFS() {
 
 }
 
-void DevFS::GetSuperBlock(VFS::SuperBlock* sb, void* infoPtr) {
+void DevFS::GetSuperBlock(VFS::SuperBlock* sb) {
     sb->rootNode = 0xFFFF;
-    g_InfoPtr = infoPtr;
 }
+void DevFS::SetMountPoint(VFS::MountPoint* mp) { g_MP = mp; }
+void DevFS::PrepareUnmount() { }
 
 void DevFS::CreateNode(VFS::Node* node) { }
 void DevFS::DestroyNode(VFS::Node* node) { }
@@ -71,18 +60,17 @@ void DevFS::DestroyNode(VFS::Node* node) { }
 void DevFS::ReadNode(uint64 id, VFS::Node* node) {
     if(id == 0xFFFF) {
         node->type = VFS::Node::TYPE_DIRECTORY;
-        node->fs = this;
         node->ownerUID = 0;
         node->ownerGID = 0;
         node->permissions = { 1, 1, 1 };
         node->id = 0xFFFF;
-        node->linkRefCount = 1;
+        node->linkCount = 1;
 
         g_DevLock.Spinlock();
-        node->dir = VFS::Directory::Create(g_Devices.size());
+        node->infoFolder.dir = VFS::Directory::Create(g_Devices.size());
         for(const DevReg& dr : g_Devices) {
             VFS::DirectoryEntry* entry;
-            VFS::Directory::AddEntry(&node->dir, &entry);
+            VFS::Directory::AddEntry(&node->infoFolder.dir, &entry);
 
             entry->nodeID = dr.index + 1;
             kstrcpy(entry->name, dr.name);
@@ -93,14 +81,13 @@ void DevFS::ReadNode(uint64 id, VFS::Node* node) {
         const DevReg& dr = g_Devices[id - 1];
 
         node->type = dr.blockDev ? VFS::Node::TYPE_DEVICE_BLOCK : VFS::Node::TYPE_DEVICE_CHAR;
-        node->fs = this;
-        node->device.driverID = dr.driverID;
-        node->device.subID = dr.devID;
+        node->infoDevice.driverID = dr.driverID;
+        node->infoDevice.subID = dr.devID;
         node->ownerGID = 0;
         node->ownerUID = 0;
         node->permissions = { 1, 1, 1 };
         node->id = id;
-        node->linkRefCount = 1;
+        node->linkCount = 1;
 
         g_DevLock.Unlock();
     }
@@ -111,30 +98,6 @@ void DevFS::WriteNode(VFS::Node* node) { }
 uint64 DevFS::ReadNodeData(VFS::Node* node, uint64 pos, void* buffer, uint64 bufferSize) { return 0; }
 uint64 DevFS::WriteNodeData(VFS::Node* node, uint64 pos, const void* buffer, uint64 bufferSize) { return 0; }
 void DevFS::ClearNodeData(VFS::Node* node) { }
-
-VFS::Directory* DevFS::ReadDirEntries(VFS::Node* node) { 
-    node->type = VFS::Node::TYPE_DIRECTORY;
-    node->fs = this;
-    node->ownerUID = 0;
-    node->ownerGID = 0;
-    node->permissions = { 1, 1, 1 };
-    node->id = 0xFFFF;
-    node->linkRefCount = 1;
-
-    g_DevLock.Spinlock();
-    node->dir = VFS::Directory::Create(g_Devices.size());
-    for(const DevReg& dr : g_Devices) {
-        VFS::DirectoryEntry* entry;
-        VFS::Directory::AddEntry(&node->dir, &entry);
-
-        entry->nodeID = dr.index + 1;
-        kstrcpy(entry->name, dr.name);
-    }
-    g_DevLock.Unlock();
-
-    return node->dir;
-}
-void DevFS::WriteDirEntries(VFS::Node* node) {  }
 
 
 static VFS::FileSystem* DevFSFactory() {
