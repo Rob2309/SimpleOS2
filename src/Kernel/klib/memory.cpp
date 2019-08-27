@@ -17,6 +17,21 @@ void kmemcpy(void* dest, const void* src, uint64 size) {
     kmemcpyb(d + (numq << 3), s + (numq << 3), rem);
 }
 
+void kmemmove(void* dest, const void* src, uint64 size) {
+    char* d = (char*)dest;
+    const char* s = (const char*)src;
+
+    if(d == s)
+        return;
+    if(d < s) {
+        kmemcpy(dest, src, size);
+    } else {
+        for(uint64 i = size; i > 0; i--) {
+            d[i-1] = s[i-1];
+        }
+    }
+}
+
 void kmemcpyb(void* dest, const void* src, uint64 size)
 {
     __asm__ __volatile__ (

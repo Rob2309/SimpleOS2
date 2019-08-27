@@ -42,7 +42,7 @@ runvbox: FORCE
 debug: FORCE
 	@ $(MAKE) -s disk
 	@ printf "\e[32mDebugging SimpleOS2 in Qemu/GDB\e[0m\n"
-	@ $(QEMU_X64) -gdb tcp::26000 -m 1024 -cpu qemu64 -net none -drive if=pflash,unit=0,format=raw,file=dep/ovmf/x64/OVMF_CODE.fd,readonly=on -drive if=pflash,unit=1,format=raw,file=dep/ovmf/x64/OVMF_VARS.fd,readonly=on -drive file=$(bin_dir)/SimpleOS2.img,if=ide -S & \
+	@ $(QEMU_X64) -gdb tcp::26000 -m 1024 -machine q35 -cpu qemu64 -net none -drive if=pflash,unit=0,format=raw,file=dep/ovmf/x64/OVMF_CODE.fd,readonly=on -drive if=pflash,unit=1,format=raw,file=dep/ovmf/x64/OVMF_VARS.fd,readonly=on -drive file=$(bin_dir)/SimpleOS2.img,if=ide -S & \
 	  gdb --command=debug.cmd
 
 bootloader: FORCE
@@ -58,8 +58,8 @@ programs: FORCE
 	@ $(MAKE) -s libc
 	@ printf "\e[32mBuilding Init\e[0m\n"
 	@ $(MAKE) -s -C src/Programs/Init
-	@ printf "\e[32mBuilding Test2\e[0m\n"
-	@ $(MAKE) -s -C src/Programs/Test2
+	@ printf "\e[32mBuilding TestVFS\e[0m\n"
+	@ $(MAKE) -s -C src/Programs/TestVFS
 rdbuilder: FORCE
 	@ printf "\e[32mBuilding initrd tool\e[0m\n"
 	@ $(MAKE) -s -C src/RamdiskBuilder

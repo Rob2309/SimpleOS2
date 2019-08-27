@@ -11,7 +11,9 @@ public:
 public:
     DevFS();
 
-    void GetSuperBlock(VFS::SuperBlock* sb, void* infoPtr) override;
+    void GetSuperBlock(VFS::SuperBlock* sb) override;
+    void SetMountPoint(VFS::MountPoint* mp) override;
+    void PrepareUnmount() override;
 
     void CreateNode(VFS::Node* node) override;
     void DestroyNode(VFS::Node* node) override;
@@ -22,7 +24,4 @@ public:
     uint64 ReadNodeData(VFS::Node* node, uint64 pos, void* buffer, uint64 bufferSize) override;
     uint64 WriteNodeData(VFS::Node* node, uint64 pos, const void* buffer, uint64 bufferSize) override;
     void ClearNodeData(VFS::Node* node) override;
-
-    VFS::Directory* ReadDirEntries(VFS::Node* node) override;
-    void WriteDirEntries(VFS::Node* node) override;
 };

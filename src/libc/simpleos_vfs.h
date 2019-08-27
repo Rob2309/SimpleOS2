@@ -8,6 +8,8 @@ int64 delete_file(const char* path);
 int64 create_file(const char* path);
 int64 create_folder(const char* path);
 int64 create_dev(const char* path, uint64 driverID, uint64 devID);
+int64 create_symlink(const char* path, const char* linkPath);
+int64 create_hardlink(const char* path, const char* linkPath);
 
 void pipe(int64* readFD, int64* writeFD);
 
@@ -31,3 +33,5 @@ int64 write(int64 fd, const void* buffer, uint64 bufferSize);
 
 int64 mount(const char* mountPoint, const char* fsID);
 int64 mount(const char* mountPoint, const char* fsID, const char* dev);
+
+int64 unmount(const char* mountPoint);

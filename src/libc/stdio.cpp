@@ -429,6 +429,7 @@ void perror(const char* str) {
     case EINVALIDDEV: err = "Invalid device\n"; break;
     case EFILEEXISTS: err = "File exists\n"; break;
     case ESEEKOOB: err = "Seek offset out of bounds\n"; break;
+    case ESYMLINK: err = "Encountered Symlink\n"; break;
     default: err = "unknown error\n"; break;
     }
 

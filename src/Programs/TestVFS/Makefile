@@ -3,8 +3,8 @@ asm_compiler :=
 
 libs := $(bin_dir)/libc/libc.a
 
-int_dir := $(int_dir)/Programs/Test2
-bin_dir := $(bin_dir)/Programs/Test2
+int_dir := $(int_dir)/Programs/TestVFS
+bin_dir := $(bin_dir)/Programs/TestVFS
 
 includes := ../../libc
 
@@ -16,6 +16,6 @@ ifeq ($(config),Release)
 	link_flags += -O2
 endif
 
-out_file := test2.elf
+out_file := testvfs.elf
 
 include ../../makeinclude/cpp.mk

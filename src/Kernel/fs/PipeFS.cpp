@@ -7,7 +7,9 @@
 
 namespace VFS {
 
-    void PipeFS::GetSuperBlock(SuperBlock* sb, void* infoPtr) { }
+    void PipeFS::GetSuperBlock(SuperBlock* sb) { }
+    void PipeFS::SetMountPoint(MountPoint* mp) { }
+    void PipeFS::PrepareUnmount() { }
 
     void PipeFS::CreateNode(Node* node) {
         m_PipesLock.Spinlock();
@@ -17,8 +19,7 @@ namespace VFS {
                 p->readPos = 0;
                 p->writePos = 0;
                 node->id = p->id;
-                node->fs = this;
-                node->linkRefCount = 0;
+                node->linkCount = 0;
                 m_PipesLock.Unlock();
                 return;
             }
@@ -32,8 +33,7 @@ namespace VFS {
         m_Pipes.push_back(newPipe);
         m_PipesLock.Unlock();
         node->id = newPipe->id;
-        node->fs = this;
-        node->linkRefCount = 0;
+        node->linkCount = 0;
     }
     void PipeFS::DestroyNode(Node* node) {
         m_PipesLock.Spinlock();
@@ -180,8 +180,5 @@ namespace VFS {
         return bufferSize;
     }
     void PipeFS::ClearNodeData(Node* node) { }
-
-    Directory* PipeFS::ReadDirEntries(Node* node) { return nullptr; }
-    void PipeFS::WriteDirEntries(Node* node) { }
 
 }
