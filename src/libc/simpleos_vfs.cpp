@@ -15,6 +15,12 @@ int64 create_folder(const char* path) {
 int64 create_dev(const char* path, uint64 driverID, uint64 devID) {
     return syscall_invoke(syscall_create_dev, (uint64)path, driverID, devID);
 }
+int64 create_symlink(const char* path, const char* linkPath) {
+    return syscall_invoke(syscall_create_symlink, (uint64)path, (uint64)linkPath);
+}
+int64 create_hardlink(const char* path, const char* linkPath) {
+    return syscall_invoke(syscall_create_hardlink, (uint64)path, (uint64)linkPath);
+}
 
 void pipe(int64* readFD, int64* writeFD) {
     syscall_invoke(syscall_pipe, (uint64)readFD, (uint64)writeFD);
@@ -56,4 +62,8 @@ int64 mount(const char* mountPoint, const char* fsID) {
 }
 int64 mount(const char* mountPoint, const char* fsID, const char* dev) {
     return syscall_invoke(syscall_mount_dev, (uint64)mountPoint, (uint64)fsID, (uint64)dev);
+}
+
+int64 unmount(const char* mountPoint) {
+    return syscall_invoke(syscall_unmount, (uint64)mountPoint);
 }

@@ -93,16 +93,16 @@ namespace SyscallHandler {
         if(error != OK)
             return error;
         
-        VFS::NodeStats stats;
-        VFS::Stat(file, &stats);
+        //VFS::NodeStats stats;
+        //VFS::Stat(file, &stats);
 
-        uint8* buffer = new uint8[stats.size];
-        VFS::Read(file, buffer, stats.size);
+        uint8* buffer = new uint8[70000];
+        VFS::Read(file, buffer, 70000);
         VFS::Close(file);
 
         uint64 pml4Entry = MemoryManager::CreateProcessMap();
         IDT::Registers regs;
-        if(!ExecHandlerRegistry::Prepare(buffer, stats.size, pml4Entry, &regs)) {
+        if(!ExecHandlerRegistry::Prepare(buffer, 70000, pml4Entry, &regs)) {
             delete[] buffer;
             MemoryManager::FreeProcessMap(pml4Entry);
             return 0;

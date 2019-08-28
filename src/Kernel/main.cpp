@@ -53,15 +53,8 @@ static uint64 SetupInitProcess() {
         return 0;
     }
     
-    VFS::NodeStats stats;
-    error = VFS::Stat(file, &stats);
-    if(error != OK) {
-        klog_fatal("Init", "Failed to stat %s (%s)", config_Init_Command, ErrorToString(error));
-        return 0;
-    }
-    
-    uint8* buffer = new uint8[stats.size];
-    error = VFS::Read(file, buffer, stats.size);
+    uint8* buffer = new uint8[70000];
+    error = VFS::Read(file, buffer, 70000);
     if(error < 0) {
         klog_fatal("Init", "Failed to read %s (%s)", config_Init_Command, ErrorToString(error));
         delete[] buffer;
@@ -71,7 +64,7 @@ static uint64 SetupInitProcess() {
 
     uint64 pml4Entry = MemoryManager::CreateProcessMap();
     IDT::Registers regs;
-    if(!ExecHandlerRegistry::Prepare(buffer, stats.size, pml4Entry, &regs)) {
+    if(!ExecHandlerRegistry::Prepare(buffer, 70000, pml4Entry, &regs)) {
         klog_error("Init", "Failed to execute init process, aborting boot");
         MemoryManager::FreeProcessMap(pml4Entry);
         delete[] buffer;
