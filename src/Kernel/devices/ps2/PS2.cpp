@@ -18,16 +18,35 @@ namespace PS2 {
     static uint8 g_Buffer[1024];
     static uint64 g_ReadIndex = 0;
     static uint64 g_WriteIndex = 0;
+    static bool g_LeftShift = false;
+    static bool g_RightShift = false;
 
     static void KeyHandler(IDT::Registers* regs) {
         APIC::SignalEOI();
 
         uint8 scan = Port::InByte(REG_DATA);
 
+        if(scan == 0x2A) {
+            g_LeftShift = true;
+            return;
+        }
+        if(scan == 0x36) {
+            g_RightShift = true;
+            return;
+        }
+        if(scan == 0xAA) {
+            g_LeftShift = false;
+            return;
+        }
+        if(scan == 0xB6) {
+            g_RightShift = false;
+            return;
+        }
+
         if(scan & 0x80)
             return;
 
-        char c = g_ScancodeMap[scan];
+        char c = (g_LeftShift || g_RightShift) ? g_ScanMapShift[scan] : g_ScanMap[scan];
         if(c == '\0')
             return;
 
