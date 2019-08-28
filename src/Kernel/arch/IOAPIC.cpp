@@ -41,8 +41,8 @@ namespace IOAPIC {
     void RegisterIRQ(uint8 irq, IDT::ISR isr) {
         uint32 gsi = g_GSIMapping[irq];
         if(gsi == 0) {
-            klog_error("IOAPIC", "IRQ %i has no GSI mapping, cannot register irq handler", irq);
-            return;
+            klog_warning("IOAPIC", "IRQ %i has no GSI mapping, assuming identity mapping", irq);
+            gsi = irq;
         }
 
         uint8 intNo = g_ISRCounter++;
