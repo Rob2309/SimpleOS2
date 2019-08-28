@@ -19,16 +19,14 @@ struct QueueLockEntry {
  */
 class QueueLock {
 public:
+    QueueLock();
+    QueueLock(uint64 init);
+
     void Lock();
     void Unlock();
 
-    /**
-     * Forces the QueueLock to the locked state, without checking if it is available
-     **/
-    void SetLocked();
-
 private:
     StickyLock m_Lock;
-    bool m_Locked;
+    uint64 m_Count;
     ktl::nlist<QueueLockEntry> m_Queue;
 };

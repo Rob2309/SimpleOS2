@@ -85,7 +85,7 @@ namespace APIC
         uint64 lapicBase = MSR::Read(MSR::RegLAPICBase);    // Physical address of LAPIC memory space
 
         g_APICBase = (uint64)MemoryManager::PhysToKernelPtr((void*)(lapicBase & 0xFFFFFFFFFFFFF000));
-        klog_info("APIC", "APIC Base: 0x%x", g_APICBase);
+        klog_info("APIC", "APIC Base: 0x%16X", g_APICBase);
 
         IDT::SetISR(ISRNumbers::APICError, ISR_Error);
         IDT::SetISR(ISRNumbers::APICSpurious, ISR_Spurious);

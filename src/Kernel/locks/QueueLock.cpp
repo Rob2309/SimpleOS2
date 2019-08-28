@@ -2,10 +2,17 @@
 
 #include "scheduler/Scheduler.h"
 
+QueueLock::QueueLock()
+    : m_Count(1)
+{ }
+QueueLock::QueueLock(uint64 count)
+    : m_Count(count)
+{ }
+
 void QueueLock::Lock() {
     m_Lock.Spinlock();
-    if(!m_Locked) {
-        m_Locked = true;
+    if(m_Count > 0) {
+        m_Count--;
         m_Lock.Unlock();
     } else {
         ThreadInfo* tInfo = Scheduler::GetCurrentThreadInfo();
@@ -23,7 +30,7 @@ void QueueLock::Lock() {
 void QueueLock::Unlock() {
     m_Lock.Spinlock();
     if(m_Queue.empty()) {
-        m_Locked = false;
+        m_Count++;
         m_Lock.Unlock();
     } else {
         QueueLockEntry* e = m_Queue.front();
@@ -31,8 +38,4 @@ void QueueLock::Unlock() {
         e->thread->blockEvent.type = ThreadBlockEvent::TYPE_NONE;
         m_Lock.Unlock();
     }
-}
-
-void QueueLock::SetLocked() {
-    m_Locked = true;
 }

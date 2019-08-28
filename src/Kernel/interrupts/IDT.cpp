@@ -59,21 +59,21 @@ namespace IDT {
     {
         switch (regs->intNumber)
         {
-        case ISRNumbers::ExceptionDiv0: /*Scheduler::ThreadKillProcessFromInterrupt(regs, "DivideByZero"); return;*/ klog_error("IDT", "Div0"); break;
+        case ISRNumbers::ExceptionDiv0: Scheduler::ThreadKillProcessFromInterrupt(regs, "DivideByZero"); return; break;
         case ISRNumbers::ExceptionDebug: klog_error("IDT", "Debug trap"); break;
         case ISRNumbers::ExceptionNMI: klog_error("IDT", "Non maskable interrupt"); break;
         case ISRNumbers::ExceptionBreakpoint: klog_error("IDT", "Breakpoint"); break;
         case ISRNumbers::ExceptionOverflow: klog_error("IDT", "Overflow"); break;
         case ISRNumbers::ExceptionBoundRangeExceeded: klog_error("IDT", "Bound Range exceeded"); break;
-        case ISRNumbers::ExceptionInvalidOpcode: /*Scheduler::ThreadKillProcessFromInterrupt(regs, "InvalidOpcode"); return;*/klog_error("IDT", "InvOp"); break;
+        case ISRNumbers::ExceptionInvalidOpcode: Scheduler::ThreadKillProcessFromInterrupt(regs, "InvalidOpcode"); return; break;
         case ISRNumbers::ExceptionDeviceUnavailable: klog_error("IDT", "Device unavailable"); break;
         case ISRNumbers::ExceptionDoubleFault: klog_error("IDT", "Double fault"); break;
         case ISRNumbers::ExceptionCoprocesssorSegmentOverrun: klog_error("IDT", "Coprocessor error"); break;
         case ISRNumbers::ExceptionInvalidTSS: klog_error("IDT", "Invalid TSS"); break;
         case ISRNumbers::ExceptionSegmentNotPresent: klog_error("IDT", "Segment not present"); break;
         case ISRNumbers::ExceptionStackSegmentNotPresent: klog_error("IDT", "Stack segment not present"); break;
-        case ISRNumbers::ExceptionGPFault: /*Scheduler::ThreadKillProcessFromInterrupt(regs, "GeneralProtectionFault"); return;*/klog_error("IDT", "GP"); break;
-        case ISRNumbers::ExceptionPageFault: /*Scheduler::ThreadSetupPageFaultHandler(regs); return;*/klog_error("IDT", "PF"); break;
+        case ISRNumbers::ExceptionGPFault: Scheduler::ThreadKillProcessFromInterrupt(regs, "GeneralProtectionFault"); return; break;
+        case ISRNumbers::ExceptionPageFault: Scheduler::ThreadSetupPageFaultHandler(regs); return; break;
         case ISRNumbers::ExceptionFPException: klog_error("IDT", "Floating point exception"); break;
         case ISRNumbers::ExceptionAlignmentCheck: klog_error("IDT", "Alignment check"); break;
         case ISRNumbers::ExceptionMachineCheck: klog_error("IDT", "Machine check"); break;
@@ -86,7 +86,7 @@ namespace IDT {
             uint64 mxcsr __attribute__((aligned(64))) = 0;
             __asm__ __volatile__ ("stmxcsr (%0)" : : "r"(&mxcsr));
 
-            kprintf("Error code: 0x%x\n", mxcsr);
+            kprintf("Error code: 0x%X\n", mxcsr);
         }
 
         uint64 cr2;
@@ -94,7 +94,7 @@ namespace IDT {
             "movq %%cr2, %0"
             : "=r"(cr2)
         );
-        klog_fatal("PANIC", "Unhandled interrupt %i: CR2=0x%x, ErrorCode=0x%X, RIP=0x%x", regs->intNumber, cr2, regs->errorCode, regs->rip);
+        klog_fatal("PANIC", "Unhandled interrupt %i: CR2=0x%016X, ErrorCode=0x%X, RIP=0x%016X", regs->intNumber, cr2, regs->errorCode, regs->rip);
         while(true);
     }
 

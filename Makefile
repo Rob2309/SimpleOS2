@@ -33,6 +33,10 @@ run: FORCE
 	@ $(MAKE) -s disk
 	@ printf "\e[32mStarting SimpleOS2 in Qemu\e[0m\n"
 	@ $(QEMU_X64) -m 1024 -cpu qemu64 -smp 4 -net none -drive if=pflash,unit=0,format=raw,file=dep/ovmf/x64/OVMF_CODE.fd,readonly=on -drive if=pflash,unit=1,format=raw,file=dep/ovmf/x64/OVMF_VARS.fd,readonly=on -drive file=$(bin_dir)/SimpleOS2.img,if=ide
+runkvm: FORCE
+	@ $(MAKE) -s disk
+	@ printf "\e[32mStarting SimpleOS2 in Qemu (KVM)\e[0m\n"
+	@ sudo $(QEMU_X64) -enable-kvm -machine q35 -m 1024 -cpu host,+invtsc -smp 4 -net none -drive if=pflash,unit=0,format=raw,file=dep/ovmf/x64/OVMF_CODE.fd,readonly=on -drive if=pflash,unit=1,format=raw,file=dep/ovmf/x64/OVMF_VARS.fd,readonly=on -drive file=$(bin_dir)/SimpleOS2.img,if=ide
 runvbox: FORCE
 	@ $(MAKE) -s diskvbox
 	@ printf "\e[32mStarting SimpleOS2 in VirtualBox\e[0m\n"
@@ -47,16 +51,25 @@ debug: FORCE
 	@ cp $(bin_dir)/Kernel/Kernel.sys.dbg $(build_dir)/dbgSession/Kernel.sys.dbg
 	@ $(QEMU_X64) -gdb tcp::26000 -m 1024 -machine q35 -cpu qemu64 -net none -drive if=pflash,unit=0,format=raw,file=dep/ovmf/x64/OVMF_CODE.fd,readonly=on -drive if=pflash,unit=1,format=raw,file=dep/ovmf/x64/OVMF_VARS.fd,readonly=on -drive file=$(bin_dir)/SimpleOS2.img,if=ide -S & \
 	  gdb --command=debug.cmd
+debugkvm: FORCE
+	@ $(MAKE) -s disk
+	@ printf "\e[32mDebugging SimpleOS2 in Qemu (KVM)/GDB\e[0m\n"
+	@ sudo $(QEMU_X64) -enable-kvm -machine q35 -gdb tcp::26000 -m 1024 -cpu host,+invtsc -smp 4 -net none -drive if=pflash,unit=0,format=raw,file=dep/ovmf/x64/OVMF_CODE.fd,readonly=on -drive if=pflash,unit=1,format=raw,file=dep/ovmf/x64/OVMF_VARS.fd,readonly=on -drive file=$(bin_dir)/SimpleOS2.img,if=ide -S & \
+	  gdb --command=debug.cmd
 
 bootloader: FORCE
 	@ printf "\e[32mBuilding Bootloader\e[0m\n"
 	@ $(MAKE) -s -C src/Bootloader
 kernel: FORCE
+	@ $(MAKE) -s acpica
 	@ printf "\e[32mBuilding Kernel\e[0m\n"
 	@ $(MAKE) -s -C src/Kernel
 libc: FORCE
 	@ printf "\e[32mBuilding LibC\e[0m\n"
 	@ $(MAKE) -s -C src/libc
+acpica: FORCE
+	@ printf "\e[32mBuilding ACPICA\e[0m\n"
+	@ $(MAKE) -s -C src/acpica
 programs: FORCE
 	@ $(MAKE) -s libc
 	@ printf "\e[32mBuilding Init\e[0m\n"

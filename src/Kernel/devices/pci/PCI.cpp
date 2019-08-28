@@ -8,6 +8,9 @@
 
 #include "ktl/vector.h"
 
+#include "arch/APIC.h"
+#include "arch/IOAPIC.h"
+
 namespace PCI {
 
     struct Group {
@@ -47,9 +50,12 @@ namespace PCI {
         uint16 data;
     };
 
+    static ktl::vector<Group> g_Groups;
     static ktl::vector<Device> g_Devices;
 
     static uint8 g_VectCounter = ISRNumbers::PCIBase;
+
+    static uint8 g_PinEntries[255 * 4] = { 0 };
 
     static uint64 GetMemBase(const Group& group, uint32 bus, uint32 device, uint32 func) {
         return group.baseAddr + ((uint64)bus << 20) + ((uint64)device << 15) + ((uint64)func << 12);
@@ -134,7 +140,7 @@ namespace PCI {
             }
         }   
 
-        klog_info("PCIe", "Found device: class=%X:%X:%X, loc=%i:%i:%i:%i", dev.classCode, dev.subclassCode, dev.progIf, dev.group, dev.bus, dev.device, dev.function);
+        klog_info("PCIe", "Found device: class=%02X:%02X:%02X, loc=%i:%i:%i:%i", dev.classCode, dev.subclassCode, dev.progIf, dev.group, dev.bus, dev.device, dev.function);
         g_Devices.push_back(dev);
 
         return true;
@@ -157,14 +163,8 @@ namespace PCI {
                 CheckDevice(group, i, j);
     }
 
-    void Init(KernelHeader* header) {
-        auto rsdp = (ACPI::RSDPDescriptor*)header->rsdp;
-        auto xsdt = (ACPI::XSDT*)MemoryManager::PhysToKernelPtr((void*)rsdp->xsdtAddress);
-        auto mcfg = (ACPI::MCFG*)xsdt->FindTable(SIGNATURE('M', 'C', 'F', 'G'));
-        if(mcfg == nullptr) {
-            klog_fatal("PCIe", "PCIe not supported (ACPI MCFG not found)");
-            return;
-        }
+    void Init() {
+        auto mcfg = ACPI::GetMCFG();
 
         uint64 length = mcfg->GetEntryCount();
         for(uint64 g = 0; g < length; g++) {
@@ -173,6 +173,8 @@ namespace PCI {
             group.busStart = mcfg->entries[g].busStart;
             group.busEnd = mcfg->entries[g].busEnd;
             group.id = mcfg->entries[g].groupID;
+
+            g_Groups.push_back(group);
 
             CheckGroup(group);
         }
@@ -186,7 +188,11 @@ namespace PCI {
         return nullptr;
     }
 
-    void SetMSI(Device* dev, uint8 apicID, IDT::ISR handler) {
+    void SetPinEntry(uint8 dev, uint8 pin, uint8 gsi) {
+        g_PinEntries[dev * 4 + pin] = gsi;
+    }
+
+    static void SetMSI(Device* dev, uint8 apicID, IDT::ISR handler) {
         uint8 vect = g_VectCounter;
         g_VectCounter++;
 
@@ -215,6 +221,100 @@ namespace PCI {
         IDT::SetISR(vect, handler);
 
         klog_info("PCIe", "Allocated interrupt %i for device %i:%i:%i:%i", vect, dev->group, dev->bus, dev->device, dev->function);
+    }
+
+    void SetInterruptHandler(Device* dev, IDT::ISR handler) {
+        if(dev->msi != nullptr) {
+            SetMSI(dev, APIC::GetID(), handler);
+        } else {
+            uint8 pin = ReadConfigByte(dev->group, dev->bus, dev->device, dev->function, 0x3D);
+            uint8 gsi = g_PinEntries[dev->device * 4 + pin];
+
+            if(gsi == 0) {
+                klog_error("PCI", "Could not find GSI associated with device %04X:%02X:%02X:%02X", dev->group, dev->bus, dev->device, dev->function);
+                return;
+            }
+
+            IOAPIC::RegisterGSI(gsi, handler);
+        }
+    }
+
+    uint8 ReadConfigByte(uint16 groupID, uint8 bus, uint8 device, uint8 function, uint32 reg) {
+        for(const auto& g : g_Groups) {
+            if(g.id == groupID) {
+                uint8* addr = (uint8*)GetMemBase(g, bus, device, function) + reg;
+                return *addr;
+            }
+        }
+
+        return 0;
+    }
+    uint16 ReadConfigWord(uint16 groupID, uint8 bus, uint8 device, uint8 function, uint32 reg) {
+        for(const auto& g : g_Groups) {
+            if(g.id == groupID) {
+                uint16* addr = (uint16*)GetMemBase(g, bus, device, function) + reg;
+                return *addr;
+            }
+        }
+
+        return 0;
+    }
+    uint32 ReadConfigDWord(uint16 groupID, uint8 bus, uint8 device, uint8 function, uint32 reg) {
+        for(const auto& g : g_Groups) {
+            if(g.id == groupID) {
+                uint32* addr = (uint32*)GetMemBase(g, bus, device, function) + reg;
+                return *addr;
+            }
+        }
+
+        return 0;
+    }
+    uint64 ReadConfigQWord(uint16 groupID, uint8 bus, uint8 device, uint8 function, uint32 reg) {
+        for(const auto& g : g_Groups) {
+            if(g.id == groupID) {
+                uint64* addr = (uint64*)GetMemBase(g, bus, device, function) + reg;
+                return *addr;
+            }
+        }
+
+        return 0;
+    }
+
+    void WriteConfigByte(uint16 groupID, uint8 bus, uint8 device, uint8 function, uint32 reg, uint8 val) {
+        for(const auto& g : g_Groups) {
+            if(g.id == groupID) {
+                uint8* addr = (uint8*)GetMemBase(g, bus, device, function) + reg;
+                *addr = val;
+                break;
+            }
+        }
+    }
+    void WriteConfigWord(uint16 groupID, uint8 bus, uint8 device, uint8 function, uint32 reg, uint16 val) {
+        for(const auto& g : g_Groups) {
+            if(g.id == groupID) {
+                uint16* addr = (uint16*)GetMemBase(g, bus, device, function) + reg;
+                *addr = val;
+                break;
+            }
+        }
+    }
+    void WriteConfigDWord(uint16 groupID, uint8 bus, uint8 device, uint8 function, uint32 reg, uint32 val) {
+        for(const auto& g : g_Groups) {
+            if(g.id == groupID) {
+                uint32* addr = (uint32*)GetMemBase(g, bus, device, function) + reg;
+                *addr = val;
+                break;
+            }
+        }
+    }
+    void WriteConfigQWord(uint16 groupID, uint8 bus, uint8 device, uint8 function, uint32 reg, uint64 val) {
+        for(const auto& g : g_Groups) {
+            if(g.id == groupID) {
+                uint64* addr = (uint64*)GetMemBase(g, bus, device, function) + reg;
+                *addr = val;
+                break;
+            }
+        }
     }
 
 };

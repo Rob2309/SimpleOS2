@@ -59,22 +59,9 @@ namespace SMP {
 
     static uint64 g_NumCores;
     static CoreInfo g_Info[MaxCoreCount];
-
-    static uint8* g_TrampolineBuffer;
-    static uint64* g_PageBuffer;
     
-    void GatherInfo(KernelHeader* header) {
-        ACPI::RSDPDescriptor* rsdp = (ACPI::RSDPDescriptor*)header->rsdp;
-        ACPI::XSDT* xsdt = (ACPI::XSDT*)MemoryManager::PhysToKernelPtr((void*)rsdp->xsdtAddress);
-        klog_info("ACPI", "XSDT at 0x%x", xsdt);
-
-        ACPI::MADT* madt = (ACPI::MADT*)xsdt->FindTable(SIGNATURE('A', 'P', 'I', 'C'));
-        if(madt == nullptr) {
-            klog_fatal("ACPI", "MADT not found");
-            return;
-        }
-        else
-            klog_info("ACPI", "MADT at 0x%x", madt);
+    void GatherInfo() {
+        auto madt = ACPI::GetMADT();
 
         g_NumCores = 0;
 
@@ -96,16 +83,13 @@ namespace SMP {
                 g_NumCores++;
             }
         }
-
-        g_TrampolineBuffer = header->smpTrampolineBuffer;
-        g_PageBuffer = header->pageBuffer;
     }
 
-    void StartCores() {
+    void StartCores(uint8* trampolineBuffer, uint64* pageBuffer) {
         APIC::SetTimerEvent(ISR_Timer);
         
         // Set up the variables needed by the bootstrap code (startup.asm)
-        uint8* buffer = g_TrampolineBuffer;
+        uint8* buffer = trampolineBuffer;
         kmemcpy(buffer, (void*)&smp_Start, (uint64)&smp_End - (uint64)&smp_Start);
 
         uint32 addressOffset = (uint64)&smp_TrampolineBaseAddress - (uint64)&smp_Start;
@@ -115,7 +99,7 @@ namespace SMP {
         *(volatile uint64*)(buffer + entryOffset) = (uint64)&CoreEntry;
 
         uint64 pml4Offset = (uint64)&smp_PML4Address - (uint64)&smp_Start;
-        *(volatile uint64*)(buffer + pml4Offset) = (uint64)MemoryManager::KernelToPhysPtr(g_PageBuffer);
+        *(volatile uint64*)(buffer + pml4Offset) = (uint64)MemoryManager::KernelToPhysPtr(pageBuffer);
 
         uint64 stackOffset = (uint64)&smp_StackAddress - (uint64)&smp_Start;
 

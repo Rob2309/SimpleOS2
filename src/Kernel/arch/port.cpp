@@ -20,6 +20,22 @@ namespace Port
         return ret;
     }
 
+    void OutWord(uint16 port, uint16 val) {
+        __asm__ __volatile__ (
+            "outw %%ax, %%dx"
+            : : "a"(val), "d"(port)
+        );
+    }
+    uint16 InWord(uint16 port) {
+        uint16 ret = 0;
+        __asm__ __volatile__ (
+            "inw %%dx, %%ax"
+            : "=a" (ret)
+            : "d" (port)
+        );
+        return ret;
+    }
+
     void OutDWord(uint16 port, uint32 val) {
         __asm__ __volatile__ (
             "outl %%eax, %%dx"
