@@ -16,36 +16,52 @@ struct DevReg {
     uint64 index;
 };
 
-static StickyLock g_DevLock;
+static StickyLock g_Lock;
+
 static ktl::vector<DevReg> g_Devices;
 static VFS::MountPoint* g_MP = nullptr;
 
+static VFS::Directory* g_CurrentDir = nullptr;
+static VFS::Directory* g_NewDir = nullptr;
+
 void DevFS::RegisterCharDevice(const char* name, uint64 driverID, uint64 devID) {
-    g_DevLock.Spinlock();
+    g_Lock.Spinlock();
+
+    if(g_NewDir == nullptr)
+        g_NewDir = VFS::Directory::Create(10);
+
+    VFS::DirectoryEntry* entry;
+    VFS::Directory::AddEntry(&g_NewDir, &entry);
+
+    kstrcpy(entry->name, name);
+    entry->nodeID = g_Devices.size() + 1;
+
     g_Devices.push_back({ name, false, driverID, devID, g_Devices.size() });
-    g_DevLock.Unlock();
+
+    g_Lock.Unlock();
 }
 void DevFS::RegisterBlockDevice(const char* name, uint64 driverID, uint64 devID) {
-    g_DevLock.Spinlock();
+    g_Lock.Spinlock();
+
+    if(g_NewDir == nullptr)
+        g_NewDir = VFS::Directory::Create(10);
+
+    VFS::DirectoryEntry* entry;
+    VFS::Directory::AddEntry(&g_NewDir, &entry);
+
+    kstrcpy(entry->name, name);
+    entry->nodeID = g_Devices.size() + 1;
+
     g_Devices.push_back({ name, true, driverID, devID, g_Devices.size() });
-    g_DevLock.Unlock();
+
+    g_Lock.Unlock();
 }
 void DevFS::UnregisterDevice(uint64 driverID, uint64 devID) {
-    g_DevLock.Spinlock();
-
-    for(auto a = g_Devices.begin(); a != g_Devices.end(); ++a) {
-        if(a->driverID == driverID && a->devID == devID) {
-            g_Devices.erase(a);
-            g_DevLock.Unlock();
-            return;
-        }
-    }
-
-    g_DevLock.Unlock();
+    
 }
 
 DevFS::DevFS() {
-
+    g_CurrentDir = VFS::Directory::Create(10);
 }
 
 void DevFS::GetSuperBlock(VFS::SuperBlock* sb) {
@@ -57,6 +73,20 @@ void DevFS::PrepareUnmount() { }
 void DevFS::CreateNode(VFS::Node* node) { }
 void DevFS::DestroyNode(VFS::Node* node) { }
 
+void DevFS::UpdateDir(VFS::Node* node) {
+    g_Lock.Spinlock();
+
+    if(g_NewDir != nullptr) {
+        VFS::Directory::Destroy(g_CurrentDir);
+        g_CurrentDir = g_NewDir;
+        g_NewDir = nullptr;
+    }
+
+    node->infoFolder.cachedDir = g_CurrentDir;
+
+    g_Lock.Unlock();
+}
+
 void DevFS::ReadNode(uint64 id, VFS::Node* node) {
     if(id == 0xFFFF) {
         node->type = VFS::Node::TYPE_DIRECTORY;
@@ -66,18 +96,19 @@ void DevFS::ReadNode(uint64 id, VFS::Node* node) {
         node->id = 0xFFFF;
         node->linkCount = 1;
 
-        g_DevLock.Spinlock();
-        node->infoFolder.dir = VFS::Directory::Create(g_Devices.size());
-        for(const DevReg& dr : g_Devices) {
-            VFS::DirectoryEntry* entry;
-            VFS::Directory::AddEntry(&node->infoFolder.dir, &entry);
-
-            entry->nodeID = dr.index + 1;
-            kstrcpy(entry->name, dr.name);
+        g_Lock.Spinlock();
+        
+        if(g_NewDir != nullptr) {
+            VFS::Directory::Destroy(g_CurrentDir);
+            g_CurrentDir = g_NewDir;
+            g_NewDir = nullptr;
         }
-        g_DevLock.Unlock();
+
+        node->infoFolder.cachedDir = g_CurrentDir;
+
+        g_Lock.Unlock();
     } else {
-        g_DevLock.Spinlock();
+        g_Lock.Spinlock();
         const DevReg& dr = g_Devices[id - 1];
 
         node->type = dr.blockDev ? VFS::Node::TYPE_DEVICE_BLOCK : VFS::Node::TYPE_DEVICE_CHAR;
@@ -89,7 +120,7 @@ void DevFS::ReadNode(uint64 id, VFS::Node* node) {
         node->id = id;
         node->linkCount = 1;
 
-        g_DevLock.Unlock();
+        g_Lock.Unlock();
     }
 }
 

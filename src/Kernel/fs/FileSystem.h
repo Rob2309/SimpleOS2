@@ -42,6 +42,9 @@ namespace VFS {
          **/
         virtual void WriteNode(Node* node) = 0;
 
+        // Get uncachable dir entries
+        virtual void UpdateDir(Node* node) = 0;
+
         /**
          * Reads data from the given File node.
          * node will not be locked when given to this function.

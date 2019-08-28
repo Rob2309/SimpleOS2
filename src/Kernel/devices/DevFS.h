@@ -15,6 +15,8 @@ public:
     void SetMountPoint(VFS::MountPoint* mp) override;
     void PrepareUnmount() override;
 
+    void UpdateDir(VFS::Node* node) override;
+
     void CreateNode(VFS::Node* node) override;
     void DestroyNode(VFS::Node* node) override;
 

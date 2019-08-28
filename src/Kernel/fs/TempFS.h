@@ -12,6 +12,8 @@ public:
 
     void CreateNode(VFS::Node* node) override;
     void DestroyNode(VFS::Node* node) override;
+
+    void UpdateDir(VFS::Node* node) override;
     
     void ReadNode(uint64 id, VFS::Node* node) override;
     void WriteNode(VFS::Node* node) override;

@@ -160,27 +160,6 @@ namespace VFS {
         }
     }
 
-    void ReplaceDirEntries(MountPoint* mp, uint64 nodeID, Directory* newDir) {
-        mp->nodeCacheLock.Spinlock();
-        for(auto n : mp->nodeCache) {
-            if(n->id == nodeID) {
-                n->refCount++;
-                mp->nodeCacheLock.Unlock();
-
-                n->dirLock.Spinlock();
-                auto dir = n->infoFolder.dir;
-                n->infoFolder.dir = newDir;
-                n->dirLock.Unlock();
-                if(dir != nullptr)
-                    Directory::Destroy(dir);
-
-                ReleaseNode(n);
-                return;
-            }
-        }
-        mp->nodeCacheLock.Unlock();
-    }
-
     static bool PathWalk(const char** pathPtr, const char* entry) {
         const char* path = *pathPtr;
 
@@ -238,6 +217,11 @@ namespace VFS {
             return (node->permissions.otherPermissions & reqPerms) == reqPerms;
         }
     }
+    
+    static Directory* GetNodeDir(Node* node) {
+        node->mp->fs->UpdateDir(node);
+        return node->infoFolder.cachedDir;
+    }
 
     static int64 _AcquirePathRec(User* user, MountPoint* mp, const char*& pathBuffer, bool fileHasToExist, bool deleteMode, Node*& outNode, Node*& outParent) {
         auto currentNode = AcquireNode(mp, mp->sb.rootNode);
@@ -259,10 +243,11 @@ namespace VFS {
             }
 
             currentNode->dirLock.Spinlock();
+            auto dir = GetNodeDir(currentNode);
             Node* next = nullptr;
-            for(uint64 i = 0; i < currentNode->infoFolder.dir->numEntries; i++) {
-                if(PathWalk(&pathBuffer, currentNode->infoFolder.dir->entries[i].name)) {
-                    uint64 nid = currentNode->infoFolder.dir->entries[i].nodeID;
+            for(uint64 i = 0; i < dir->numEntries; i++) {
+                if(PathWalk(&pathBuffer, dir->entries[i].name)) {
+                    uint64 nid = dir->entries[i].nodeID;
                     currentNode->dirLock.Unlock();
                     next = AcquireNode(mp, nid);
 
@@ -420,8 +405,10 @@ namespace VFS {
         newNode->permissions = perms;
 
         parentNode->dirLock.Spinlock();
+        auto dir = GetNodeDir(parentNode);
         DirectoryEntry* newEntry;
-        Directory::AddEntry(&parentNode->infoFolder.dir, &newEntry);
+        Directory::AddEntry(&dir, &newEntry);
+        parentNode->infoFolder.cachedDir = dir;
         
         newEntry->nodeID = newNode->id;
         kstrcpy(newEntry->name, tmpPath);
@@ -477,14 +464,16 @@ namespace VFS {
         auto newNode = CreateNode(mp);
         newNode->linkCount.Write(1);
         newNode->type = Node::TYPE_DIRECTORY;
-        newNode->infoFolder.dir = Directory::Create(10);
+        newNode->infoFolder.cachedDir = Directory::Create(10);
         newNode->ownerGID = user->gid;
         newNode->ownerUID = user->uid;
         newNode->permissions = perms;
 
         parentNode->dirLock.Spinlock();
+        auto dir = GetNodeDir(parentNode);
         DirectoryEntry* newEntry;
-        Directory::AddEntry(&parentNode->infoFolder.dir, &newEntry);
+        Directory::AddEntry(&dir, &newEntry);
+        parentNode->infoFolder.cachedDir = dir;
         
         newEntry->nodeID = newNode->id;
         kstrcpy(newEntry->name, tmpPath);
@@ -549,8 +538,10 @@ namespace VFS {
         newNode->permissions = perms;
 
         parentNode->dirLock.Spinlock();
+        auto dir = GetNodeDir(parentNode);
         DirectoryEntry* newEntry;
-        Directory::AddEntry(&parentNode->infoFolder.dir, &newEntry);
+        Directory::AddEntry(&dir, &newEntry);
+        parentNode->infoFolder.cachedDir = dir;
         
         newEntry->nodeID = newNode->id;
         kstrcpy(newEntry->name, tmpPath);
@@ -646,8 +637,10 @@ namespace VFS {
         newNode->permissions = permissions;
 
         parentNode->dirLock.Spinlock();
+        auto dir = GetNodeDir(parentNode);
         DirectoryEntry* newEntry;
-        Directory::AddEntry(&parentNode->infoFolder.dir, &newEntry);
+        Directory::AddEntry(&dir, &newEntry);
+        parentNode->infoFolder.cachedDir = dir;
         
         newEntry->nodeID = newNode->id;
         kstrcpy(newEntry->name, tmpPath);
@@ -747,8 +740,10 @@ namespace VFS {
         linkFileNode->linkCount.Inc();
 
         parentNode->dirLock.Spinlock();
+        auto dir = GetNodeDir(parentNode);
         DirectoryEntry* newEntry;
-        Directory::AddEntry(&parentNode->infoFolder.dir, &newEntry);
+        Directory::AddEntry(&dir, &newEntry);
+        parentNode->infoFolder.cachedDir = dir;
 
         newEntry->nodeID = linkFileNode->id;
         kstrcpy(newEntry->name, tmpPath);
@@ -798,7 +793,8 @@ namespace VFS {
         }
         if(fileNode->type == Node::TYPE_DIRECTORY) {
             fileNode->dirLock.Spinlock();
-            if(fileNode->infoFolder.dir->numEntries != 0) {
+            auto dir = GetNodeDir(fileNode);
+            if(dir->numEntries != 0) {
                 fileNode->dirLock.Unlock();
                 ReleaseNode(fileNode);
                 ReleaseNode(parentNode);
@@ -811,9 +807,11 @@ namespace VFS {
         const char* fileName = GetFileName(cleanBuffer);
 
         parentNode->dirLock.Spinlock();
-        for(uint64 i = 0; i < parentNode->infoFolder.dir->numEntries; i++) {
-            if(kstrcmp(fileName, parentNode->infoFolder.dir->entries[i].name) == 0) {
-                Directory::RemoveEntry(&parentNode->infoFolder.dir, i);
+        auto dir = GetNodeDir(parentNode);
+        for(uint64 i = 0; i < dir->numEntries; i++) {
+            if(kstrcmp(fileName, dir->entries[i].name) == 0) {
+                Directory::RemoveEntry(&dir, i);
+                parentNode->infoFolder.cachedDir = dir;
                 parentNode->dirLock.Unlock();
                 fileNode->linkCount.Dec();
 
@@ -1143,10 +1141,12 @@ namespace VFS {
             fileNode->permissions = folderNode->permissions;
 
             folderNode->dirLock.Spinlock();
+            auto dir = GetNodeDir(folderNode);
             DirectoryEntry* newEntry;
-            Directory::AddEntry(&folderNode->infoFolder.dir, &newEntry);
+            Directory::AddEntry(&dir, &newEntry);
             newEntry->nodeID = fileNode->id;
             kstrcpy(newEntry->name, tmpPath);
+            folderNode->infoFolder.cachedDir = dir;
             folderNode->dirLock.Unlock();
         } else if(openMode & OpenMode_FailIfExist) {
             if(folderNode != nullptr)

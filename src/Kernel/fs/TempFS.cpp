@@ -73,7 +73,7 @@ void TempFS::DestroyNode(Node* node) {
 void TempFS::ReadNode(uint64 id, VFS::Node* node) {
     TestNode* refNode = (TestNode*)id;
 
-    node->infoFolder.dir = refNode->dir;
+    node->infoFolder.cachedDir = refNode->dir;
     node->mp = m_MP;
     node->id = id;
     node->linkCount = refNode->linkRefCount;
@@ -86,12 +86,16 @@ void TempFS::ReadNode(uint64 id, VFS::Node* node) {
 void TempFS::WriteNode(Node* node) {
     TestNode* refNode = (TestNode*)(node->id);
 
-    refNode->dir = node->infoFolder.dir;
+    refNode->dir = node->infoFolder.cachedDir;
     refNode->type = node->type;
     refNode->linkRefCount = node->linkCount.Read();
     refNode->gid = node->ownerGID;
     refNode->uid = node->ownerUID;
     refNode->perms = node->permissions;
+}
+
+void TempFS::UpdateDir(VFS::Node* node) {
+
 }
 
 uint64 TempFS::ReadNodeData(Node* node, uint64 pos, void* buffer, uint64 bufferSize) {

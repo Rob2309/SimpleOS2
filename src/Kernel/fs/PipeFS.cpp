@@ -41,6 +41,8 @@ namespace VFS {
         m_PipesLock.Unlock();
     }
 
+    void PipeFS::UpdateDir(Node* node) { }
+
     void PipeFS::ReadNode(uint64 id, Node* node) { }
     void PipeFS::WriteNode(Node* node) { }
 

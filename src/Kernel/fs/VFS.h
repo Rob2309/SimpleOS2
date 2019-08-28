@@ -19,8 +19,6 @@ namespace VFS {
      **/
     void Init(FileSystem* rootFS);
 
-    void ReplaceDirEntries(MountPoint* mp, uint64 nodeID, Directory* newDir);
-
     /**
      * Creates a regular file at the given path. 
      * All directories up to the given path have to exist.
