@@ -128,6 +128,9 @@ static void InitThread() {
         driver->AddDevice((char*)g_KernelHeader->ramdiskImage.buffer, 512, g_KernelHeader->ramdiskImage.numPages * 8);
     }
 
+    VConsoleDriver* vcon = (VConsoleDriver*)DeviceDriverRegistry::GetDriver("vconsole");
+    vcon->AddConsole(&g_TerminalInfo);
+
     kprintf("%C%s\n", 40, 200, 40, config_HelloMessage);
 
     klog_info("Init", "Mounting boot filesystem");
