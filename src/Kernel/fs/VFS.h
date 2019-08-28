@@ -67,6 +67,15 @@ namespace VFS {
      **/
     int64 ChangePermissions(User* user, const char* path, const Permissions& permissions);
 
+    struct NodeStats {
+        Node::Type type;
+        uint64 ownerGID;
+        uint64 ownerUID;
+        Permissions permissions;
+        uint64 size;
+    };
+    int64 Stat(User* user, const char* path, NodeStats& outStats);
+
     /**
      * Mount the given FileSystem at the given path.
      * MountPoint has to be an empty folder.

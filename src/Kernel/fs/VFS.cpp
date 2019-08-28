@@ -850,7 +850,6 @@ namespace VFS {
             return error;
         if(folderNode != nullptr)
             ReleaseNode(folderNode);
-            ReleaseMountPoint(mp);
         if(user->uid != 0 && user->uid != fileNode->ownerUID) {
             ReleaseNode(fileNode);
             ReleaseMountPoint(mp);
@@ -890,7 +889,6 @@ namespace VFS {
             return error;
         if(folderNode != nullptr)
             ReleaseNode(folderNode);
-            ReleaseMountPoint(mp);
         if(user->uid != 0 && user->uid != fileNode->ownerUID) {
             ReleaseNode(fileNode);
             ReleaseMountPoint(mp);
@@ -911,6 +909,36 @@ namespace VFS {
         ProcessInfo* pInfo = tInfo->process;
 
         return ChangePermissions(pInfo->owner, filePath, { ownerPerm, groupPerm, otherPerm });
+    }
+
+    int64 Stat(User* user, const char* path, NodeStats& outStats) {
+        char cleanBuffer[255];
+        if(!kpathcpy_usersafe(cleanBuffer, path))
+            return ErrorInvalidBuffer;
+        if(!CleanPath(cleanBuffer))
+            return ErrorInvalidPath;
+
+        MountPoint* mp;
+        char* tmpPath = cleanBuffer;
+        Node* fileNode;
+        Node* folderNode;
+        int64 error = AcquirePath(user, mp, tmpPath, true, false, fileNode, folderNode);
+        if(error != OK)
+            return error;
+        if(folderNode != nullptr)
+            ReleaseNode(folderNode);
+        
+        outStats.type = fileNode->type;
+        outStats.ownerGID = fileNode->ownerGID;
+        outStats.ownerUID = fileNode->ownerUID;
+        outStats.permissions = fileNode->permissions;
+        if(outStats.type == Node::TYPE_FILE)
+            outStats.size = fileNode->infoFile.fileSize.Read();
+
+        ReleaseNode(fileNode);
+        ReleaseMountPoint(mp);
+
+        return OK;
     }
 
     int64 Mount(User* user, const char* mountPoint, FileSystem* fs) {
