@@ -6,12 +6,16 @@ bin_dir := $(bin_dir)/Kernel
 
 includes := 
 
-compile_flags := -g -fPIC -ffreestanding -fno-stack-protector -fno-exceptions -mno-sse
-link_flags := -g -fPIC -nostdlib -shared -e main -static -lgcc -T linker.ld
+compile_flags := -pie -fPIE -ffreestanding -fno-stack-protector -fno-exceptions -mno-sse -fno-rtti
+link_flags := -pie -fPIE -nostdlib -Wl,--no-dynamic-linker -e main -lgcc -T linker.ld
 
 ifeq ($(config),Debug)
-	compile_flags += -DDEBUG -O0
-	link_flags += -O0
+	compile_flags += -g -DDEBUG -O0
+	link_flags += -g -O0
+endif
+ifeq ($(config),ReleaseDbg)
+	compile_flags += -g -DRELEASE -O2
+	link_flags += -g -O2
 endif
 ifeq ($(config),Release)
 	compile_flags += -DRELEASE -O2

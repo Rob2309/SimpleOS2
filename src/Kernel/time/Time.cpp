@@ -62,7 +62,7 @@ namespace Time {
             return false;
         }
 
-        CPU::CPUID(0x80000001, 0, eax, ebx, ecx, edx);
+        /*CPU::CPUID(0x80000001, 0, eax, ebx, ecx, edx);
         if((edx & (1 << 27)) == 0) {
             klog_fatal("Time", "RDTSCP instruction not supported");
             return false;
@@ -72,7 +72,7 @@ namespace Time {
         if((edx & (1 << 8)) == 0) {
             klog_fatal("Time", "TSC is not invariant");
             return false;
-        }
+        }*/
 
         CalibrateTSC();
 

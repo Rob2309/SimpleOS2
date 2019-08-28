@@ -42,6 +42,9 @@ runvbox: FORCE
 debug: FORCE
 	@ $(MAKE) -s disk
 	@ printf "\e[32mDebugging SimpleOS2 in Qemu/GDB\e[0m\n"
+	@ mkdir -p $(build_dir)/dbgSession
+	@ rm -f $(build_dir)/dbgSession/Kernel.sys.dbg
+	@ cp $(bin_dir)/Kernel/Kernel.sys.dbg $(build_dir)/dbgSession/Kernel.sys.dbg
 	@ $(QEMU_X64) -gdb tcp::26000 -m 1024 -machine q35 -cpu qemu64 -net none -drive if=pflash,unit=0,format=raw,file=dep/ovmf/x64/OVMF_CODE.fd,readonly=on -drive if=pflash,unit=1,format=raw,file=dep/ovmf/x64/OVMF_VARS.fd,readonly=on -drive file=$(bin_dir)/SimpleOS2.img,if=ide -S & \
 	  gdb --command=debug.cmd
 
