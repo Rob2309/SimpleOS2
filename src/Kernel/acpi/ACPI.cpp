@@ -43,6 +43,8 @@ namespace ACPI {
     static void FreeBuffer(const ACPI_BUFFER& buffer);
     static void AcpiEventHandler(UINT32 eventType, ACPI_HANDLE dev, UINT32 eventNumber, void* arg);
 
+    extern "C" void AcpiJobThread();
+
     bool StartSystem() {
         ACPI_STATUS err;
         err = AcpiInitializeSubsystem();
@@ -94,6 +96,8 @@ namespace ACPI {
         arg.Integer.Value = 1;
         auto ret = RunAcpi(nullptr, "\\_PIC", &arg, 1);
         FreeBuffer(ret);
+
+        Scheduler::CreateKernelThread((uint64)&AcpiJobThread);
 
         klog_info("ACPI", "Entered ACPI mode");
 

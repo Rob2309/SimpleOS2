@@ -14,6 +14,7 @@ extern "C" {
 #include "locks/StickyLock.h"
 #include "arch/port.h"
 #include "devices/pci/PCI.h"
+#include "arch/APIC.h"
 #include "arch/IOAPIC.h"
 
 extern "C" {
@@ -72,18 +73,48 @@ extern "C" {
         return Scheduler::ThreadGetTID();
     }
 
-    static Atomic<uint64> g_NumACPICAThreads;
+    struct Job {
+        void (*func)(void*);
+        void* arg;
+    };
 
-    static void AcpiThread(void (*func)(void*), void* arg) {
-        func(arg);
-        g_NumACPICAThreads.Dec();
-        Scheduler::ThreadExit(0);
+    static Atomic<uint64> g_NumRunningJobs;
+    static StickyLock g_JobLock;
+    static uint64 g_JobPushIndex;
+    static uint64 g_JobPopIndex;
+    static Job g_JobQueue[128];
+
+    void AcpiJobThread() {
+        klog_info("ACPI", "Job thread starting...");
+
+        while(true) {
+            g_JobLock.Spinlock_Raw();
+            if(g_JobPopIndex < g_JobPushIndex) {
+                auto job = g_JobQueue[g_JobPopIndex];
+                g_JobPopIndex++;
+                g_JobLock.Unlock_Raw();
+
+                job.func(job.arg);
+                
+                klog_info("ACPI", "Finished Job");
+                g_NumRunningJobs.Dec();
+            } else {
+                g_JobLock.Unlock_Raw();
+                Scheduler::ThreadYield();
+            }
+        }
     }
 
     ACPI_STATUS AcpiOsExecute(ACPI_EXECUTE_TYPE type, ACPI_OSD_EXEC_CALLBACK func, void* arg) {
-        g_NumACPICAThreads.Inc();
-        uint64 tid = Scheduler::CreateKernelThread((uint64)&AcpiThread, (uint64)func, (uint64)arg);
-        klog_info("ACPICA", "Created kernel thread with tid %i", tid);
+        g_NumRunningJobs.Inc();
+        
+        g_JobLock.Spinlock_Raw();
+        g_JobQueue[g_JobPushIndex % 128] = { func, arg };
+        g_JobPushIndex++;
+        g_JobLock.Unlock_Raw();
+
+        klog_info("ACPI", "Pushed Job");
+
         return AE_OK;
     }
 
@@ -106,7 +137,7 @@ extern "C" {
     }
 
     void AcpiOsWaitEventsComplete() {
-        while(g_NumACPICAThreads.Read() > 0)
+        while(g_NumRunningJobs.Read() > 0)
             Scheduler::ThreadYield();
     }
 
@@ -164,6 +195,7 @@ extern "C" {
     static void* g_AcpiISRArg;
 
     static void AcpiISR(IDT::Registers* regs) {
+        APIC::SignalEOI();
         if(g_AcpiISRFunc == nullptr)
             return;
         g_AcpiISRFunc(g_AcpiISRArg);
