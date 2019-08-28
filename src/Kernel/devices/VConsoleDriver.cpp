@@ -39,6 +39,13 @@ uint64 VConsoleDriver::Write(uint64 subID, const void* buffer, uint64 bufferSize
         char c = str[i];
         if(c == '\n') {
             Terminal::NewLine(tInfo);
+        } else if(c == '\b') {
+            Terminal::RemoveChar(tInfo);
+        } else if(c == '\t') {
+            Terminal::PutChar(tInfo, ' ');
+            Terminal::PutChar(tInfo, ' ');
+            Terminal::PutChar(tInfo, ' ');
+            Terminal::PutChar(tInfo, ' ');
         } else {
             Terminal::PutChar(tInfo, c);
         }

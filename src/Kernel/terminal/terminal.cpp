@@ -66,6 +66,8 @@ namespace Terminal {
                 Fill(tInfo->vBuffer, 0, g_Margin, g_Margin + (tInfo->screenCharsPerCol - 1) * Font::g_CharHeight, tInfo->screenCharsPerRow * Font::g_CharWidth, Font::g_CharHeight, tInfo->screenScanlineWidth);
             }
         }
+
+        RenderChar(tInfo, '_', tInfo->cursorX, tInfo->cursorY, 0xFFFFFFFF);
     }
 
     void SetCursor(TerminalInfo* tInfo, int x, int y)
@@ -85,8 +87,25 @@ namespace Terminal {
         RenderChar(tInfo, c, tInfo->cursorX, tInfo->cursorY, color);
         AdvanceCursor(tInfo);
     }
+    void RemoveChar(TerminalInfo* tInfo) {
+        RenderChar(tInfo, ' ', tInfo->cursorX, tInfo->cursorY, 0x00);
+
+        tInfo->cursorX--;
+        if(tInfo->cursorX < 0) {
+            if(tInfo->cursorY > 0) {
+                tInfo->cursorX = tInfo->screenCharsPerRow - 1;
+                tInfo->cursorY--;
+            } else {
+                tInfo->cursorX = 0;
+                return;
+            }
+        }
+
+        RenderChar(tInfo, '_', tInfo->cursorX, tInfo->cursorY, 0xFFFFFFFF);
+    }
     void NewLine(TerminalInfo* tInfo)
     {
+        RenderChar(tInfo, ' ', tInfo->cursorX, tInfo->cursorY, 0);
         tInfo->cursorX = tInfo->screenCharsPerRow - 1;
         AdvanceCursor(tInfo);
     }

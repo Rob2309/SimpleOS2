@@ -27,6 +27,7 @@ namespace Terminal {
      * Automatically advances the Cursor.
      **/
     void PutChar(TerminalInfo* tInfo, char c, uint32 color = 0xFFFFFFFF);
+    void RemoveChar(TerminalInfo* tInfo);
     /**
      * Move the cursor to the beginning of the next line
      **/
