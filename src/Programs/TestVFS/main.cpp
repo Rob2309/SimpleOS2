@@ -67,24 +67,18 @@ static void Test3() {
     }
 
     puts("Creating /usr/test.txt\n");
-    if(create_file("/usr/test.txt") == 0) {
-        puts("/usr still exists...\n");
+    if(create_file("/usr/test.txt") < 0) {
+        puts("Failed...\n");
         exit(1);
     }
 
     puts("Test3 successful\n");
 }
 
-// Test4: create /usr, try to create /usr2/test.txt
+// Test4: create /usr2 -> /usr, try to create /usr2/test.txt
 static void Test4() {
-    puts("Creating /usr\n");
-    if(create_folder("/usr") < 0) {
-        puts("Failed...\n");
-        exit(1);
-    }
-
-    puts("Creating /usr2/test.txt\n");
-    if(create_file("/usr2/test.txt") < 0) {
+    puts("Creating /usr2 -> /usr\n");
+    if(create_symlink("/usr2", "/usr") < 0) {
         puts("Failed...\n");
         exit(1);
     }
