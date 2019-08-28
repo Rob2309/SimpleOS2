@@ -6,6 +6,10 @@
 
 struct FILE;
 
+#define stdinfd 0
+#define stdoutfd 1
+#define stderrfd 2
+
 extern FILE* stdout;
 extern FILE* stderr;
 extern FILE* stdin;

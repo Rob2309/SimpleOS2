@@ -18,7 +18,7 @@ int main()
         exit(1);
     }
 
-    int64 err = copyfd(1, tty);
+    int64 err = copyfd(stdoutfd, tty);
     if(err < 0) {
         print("Failed to replace stdout\n");
         exit(1);
@@ -26,8 +26,22 @@ int main()
 
     puts("Hello World from Init process\n");
 
-    puts("Executing VFS test\n");
-    exec("/boot/TestVFS.elf");
+    int64 fd = open("/dev/keyboard", open_mode_read);
+    if(fd < 0) {
+        puts("Failed to open /dev/keyboard\n");
+        exit(1);
+    }
+
+    while(true) {
+        char c[2] = { 0, 0 };
+        int64 count = read(fd, c, 1);
+        if(count == 1) {
+            puts(c);
+        }
+    }
+
+    /*puts("Executing VFS test\n");
+    exec("/boot/TestVFS.elf");*/
 
     return 0;
 }

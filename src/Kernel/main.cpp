@@ -39,8 +39,6 @@
 
 #include "acpi/ACPI.h"
 
-#include "devices/ps2/PS2.h"
-
 extern "C" {
     #include "acpica/acpi.h"
 }
@@ -93,8 +91,6 @@ Terminal::TerminalInfo g_TerminalInfo;
 static void InitThread() {
     ACPI::StartSystem();
     PCI::Init();
-
-    PS2::Init();
 
     ACPI::Handle rootBridge = ACPI::GetPCIRootBridge();
 
