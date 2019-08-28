@@ -31,17 +31,14 @@ int main()
         puts("Failed to open /dev/keyboard\n");
         exit(1);
     }
-
-    while(true) {
-        char c[2] = { 0, 0 };
-        int64 count = read(fd, c, 1);
-        if(count == 1) {
-            puts(c);
-        }
+    err = copyfd(stdinfd, fd);
+    if(err < 0) {
+        puts("Failed to replace stdin\n");
+        exit(1);
     }
 
-    /*puts("Executing VFS test\n");
-    exec("/boot/TestVFS.elf");*/
+    puts("Starting shell\n");
+    exec("/boot/Shell.elf");
 
     return 0;
 }
