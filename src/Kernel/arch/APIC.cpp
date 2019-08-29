@@ -135,13 +135,13 @@ namespace APIC
 
     void SendInitIPI(uint8 coreID) {
         constexpr uint32 cmd = (0b101 << 8) | (1 << 14);
-        *(volatile uint32*)(g_APICBase + RegCommandHi) = (uint32)coreID << 24;
+        *(volatile uint32*)(g_APICBase + RegCommandHi) = ((uint32)coreID & 0xF) << 24;
         *(volatile uint32*)(g_APICBase + RegCommandLow) = cmd;
     }
 
     void SendStartupIPI(uint8 coreID, uint64 startPage) {
         uint32 cmd = (0b110 << 8) | (startPage >> 12);
-        *(volatile uint32*)(g_APICBase + RegCommandHi) = (uint32)coreID << 24;
+        *(volatile uint32*)(g_APICBase + RegCommandHi) = ((uint32)coreID & 0xF) << 24;
         *(volatile uint32*)(g_APICBase + RegCommandLow) = cmd;
     }
 
@@ -151,7 +151,7 @@ namespace APIC
 
         switch(targetMode) {
         case IPI_TARGET_CORE:
-            high = targetID << 24;
+            high = ((uint32)targetID & 0xF) << 24;
             low = vector;
             break;
         case IPI_TARGET_SELF:
@@ -176,7 +176,7 @@ namespace APIC
 
     uint64 GetID() {
         uint64 res = (*(volatile uint32*)(g_APICBase + RegID)) >> 24;
-        return res;
+        return res & 0xF;
     }
 
 }

@@ -32,7 +32,7 @@ int main()
         copyfd(0, stdinRead);
         copyfd(1, stdoutWrite);
 
-        exec("/boot/TestVFS.elf");
+        //exec("/boot/TestVFS.elf");
         thread_exit(1);
     }
 
