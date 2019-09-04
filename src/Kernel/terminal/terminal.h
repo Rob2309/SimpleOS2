@@ -14,9 +14,13 @@ namespace Terminal {
         int cursorX, cursorY;
         int screenCharsPerRow;
         int screenCharsPerCol;
+
+        uint32* bBuffer;
+        int bBufferLine;
     };
 
     void InitTerminalInfo(TerminalInfo* tInfo, volatile uint32* videoBuffer, int width, int height, int scanline, bool invertColors);
+    void EnableDoubleBuffering(TerminalInfo* tInfo);
 
     /**
      * Move the Cursor to the given Coordinates

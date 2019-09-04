@@ -5,10 +5,13 @@
 #include "ktl/FreeList.h"
 #include "locks/StickyLock.h"
 #include "arch/APIC.h"
+#include "arch/CPU.h"
 #include "multicore/SMP.h"
 
 #include "syscalls/SyscallDefine.h"
 #include "scheduler/Scheduler.h"
+
+#include "arch/MSR.h"
 
 #include "errno.h"
 
@@ -69,8 +72,15 @@ namespace MemoryManager {
         );
     }
 
-    void Init(KernelHeader* header)
+    bool Init(KernelHeader* header)
     {
+        uint64 eax, ebx, ecx, edx;
+        CPU::CPUID(0x1, 0, eax, ebx, ecx, edx);
+        if((edx & (1 << 16)) == 0) {
+            klog_fatal("Boot", "PAT not supported");
+            return false;
+        }
+
         g_FreeList = ktl::FreeList(header->physMapStart);
         g_HighMemBase = header->highMemoryBase;
         g_KernelPages = (uint64*)PhysToKernelPtr((void*)PML_GET_ADDR(header->pageBuffer[511]));
@@ -90,9 +100,14 @@ namespace MemoryManager {
         IDT::SetISR(ISRNumbers::IPIPagingSync, ISR_PageSync);
 
         klog_info("MemoryManager", "MemoryManager initialized");
+        return true;
     }
 
     void InitCore(uint64 coreID) {
+        uint64 pat = MSR::Read(0x277);
+        pat |= ((uint64)0x1 << 32); // Make PAT 4 write combining
+        MSR::Write(0x277, pat);
+
         volatile uint64* pml4 = (uint64*)PhysToKernelPtr(EarlyAllocatePages(1));
         for(int i = 0; i < 512; i++)
             pml4[i] = 0;
@@ -314,6 +329,26 @@ namespace MemoryManager {
         __asm__ __volatile__ (
             "invlpg (%0);"
             "wbinvd"
+            : : "r" (virt)
+        );
+    }
+    void EnableWriteCombineOnLargePage(void* virt) {
+        volatile uint64* myPML4 = g_CorePageTables[SMP::GetLogicalCoreID()];
+
+        uint64 pml4Index = GET_PML4_INDEX((uint64)virt);
+        uint64 pml3Index = GET_PML3_INDEX((uint64)virt);
+        uint64 pml2Index = GET_PML2_INDEX((uint64)virt);
+
+        uint64 pml4Entry = myPML4[pml4Index];
+        volatile uint64* pml3 = (uint64*)PhysToKernelPtr((void*)PML_GET_ADDR(pml4Entry));
+
+        uint64 pml3Entry = pml3[pml3Index];
+        volatile uint64* pml2 = (uint64*)PhysToKernelPtr((void*)PML_GET_ADDR(pml3Entry));
+
+        pml2[pml2Index] |= (1 << 12);
+
+        __asm__ __volatile__ (
+            "invlpg (%0)"
             : : "r" (virt)
         );
     }

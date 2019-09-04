@@ -7,10 +7,11 @@
 
 namespace MemoryManager {
 
-    void Init(KernelHeader* header);
+    bool Init(KernelHeader* header);
     void InitCore(uint64 coreID);
 
     void DisableChacheOnLargePage(void* virt);
+    void EnableWriteCombineOnLargePage(void* virt);
 
     /**
      * Does the same as AllocatePages, but can be called before the scheduler is initialized

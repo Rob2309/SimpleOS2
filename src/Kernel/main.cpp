@@ -145,6 +145,11 @@ static void InitThread() {
     Time::GetRTC(&dt);
     klog_info("Time", "UTC Time is %02i.%02i.20%02i %02i:%02i:%02i", dt.dayOfMonth, dt.month, dt.year, dt.hours, dt.minutes, dt.seconds);
 
+    while(true) {
+        kprintf("Alive...\n");
+        Scheduler::ThreadWait(500);
+    }
+
     Scheduler::ThreadExit(0);
 }
 
@@ -157,11 +162,10 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     kprintf("%CStarting SimpleOS2 Kernel\n", 40, 200, 40);
     klog_info("Boot", "Kernel at 0x%016X", info->kernelImage.buffer);
 
-    if(!Time::Init()) {
-        klog_fatal("Boot", "Boot failed...");
-        while(true);
-    }
-    MemoryManager::Init(info);
+    if(!Time::Init())
+        goto bootFailed;
+    if(!MemoryManager::Init(info))
+        goto bootFailed;
     ACPI::InitEarlyTables(info);
     APIC::Init();
     IOAPIC::Init();
@@ -174,11 +178,14 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     APIC::InitBootCore();
     SyscallHandler::Init();
     SyscallHandler::InitCore();
-    if(!SSE::InitBootCore()) {
-        klog_fatal("Boot", "Boot failed...");
-        while(true) ;
-    }
+    if(!SSE::InitBootCore())
+        goto bootFailed;
     Scheduler::Init(SMP::GetCoreCount());
+
+    Terminal::EnableDoubleBuffering(&g_TerminalInfo);
+
+    for(int p = 0; p < info->screenBufferPages; p++)
+        MemoryManager::EnableWriteCombineOnLargePage((char*)info->screenBuffer + p * 4096);
 
     SMP::StartCores(info->smpTrampolineBuffer, info->pageBuffer);
     MemoryManager::EarlyFreePages(MemoryManager::KernelToPhysPtr(info->smpTrampolineBuffer), info->smpTrampolineBufferPages);
@@ -188,7 +195,8 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     SMP::StartSchedulers();
     Scheduler::Start();
 
-    klog_fatal("Boot", "Something went really wrong (Scheduler did not start), halting...");
+bootFailed:
+    klog_fatal("Boot", "Boot failed...");
     while(true)
         __asm__ __volatile__ ("hlt");
 }
