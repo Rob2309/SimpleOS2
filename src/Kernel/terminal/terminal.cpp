@@ -141,8 +141,10 @@ namespace Terminal {
 
     void SetCursor(TerminalInfo* tInfo, int x, int y)
     {
+        RenderChar(tInfo, ' ', tInfo->cursorX, tInfo->cursorY, 0);
         tInfo->cursorX = x;
         tInfo->cursorY = y;
+        RenderChar(tInfo, '_', tInfo->cursorX, tInfo->cursorY, 0xFFFFFFFF);
     }
     void PutChar(TerminalInfo* tInfo, char c, uint32 color)
     {
@@ -155,6 +157,7 @@ namespace Terminal {
 
         RenderChar(tInfo, c, tInfo->cursorX, tInfo->cursorY, color);
         AdvanceCursor(tInfo);
+        RenderChar(tInfo, '_', tInfo->cursorX, tInfo->cursorY, 0xFFFFFFFF);
     }
     void RemoveChar(TerminalInfo* tInfo) {
         RenderChar(tInfo, ' ', tInfo->cursorX, tInfo->cursorY, 0x00);
@@ -177,6 +180,7 @@ namespace Terminal {
         RenderChar(tInfo, ' ', tInfo->cursorX, tInfo->cursorY, 0);
         tInfo->cursorX = tInfo->screenCharsPerRow - 1;
         AdvanceCursor(tInfo);
+        RenderChar(tInfo, '_', tInfo->cursorX, tInfo->cursorY, 0xFFFFFFFF);
     }
 
     void Clear(TerminalInfo* tInfo)

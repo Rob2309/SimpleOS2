@@ -89,10 +89,8 @@ static KernelHeader* g_KernelHeader;
 Terminal::TerminalInfo g_TerminalInfo;
 
 static void InitThread() {
-    //ACPI::StartSystem();
+    ACPI::StartSystem();
     PCI::Init();
-
-    //ACPI::Handle rootBridge = ACPI::GetPCIRootBridge();
 
     klog_info("Boot", "Init KernelThread starting");
 
@@ -147,13 +145,6 @@ static void InitThread() {
     Time::DateTime dt;
     Time::GetRTC(&dt);
     klog_info("Time", "UTC Time is %02i.%02i.20%02i %02i:%02i:%02i", dt.dayOfMonth, dt.month, dt.year, dt.hours, dt.minutes, dt.seconds);
-
-    Scheduler::ThreadMoveToCPU(2);
-
-    while(true) {
-        kprintf("Alive...\n");
-        Scheduler::ThreadWait(2000);
-    }
 
     Scheduler::ThreadExit(0);
 }
