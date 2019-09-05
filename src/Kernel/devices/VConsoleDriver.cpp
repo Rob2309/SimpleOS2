@@ -34,6 +34,8 @@ uint64 VConsoleDriver::Write(uint64 subID, const void* buffer, uint64 bufferSize
 
     Terminal::TerminalInfo* tInfo = m_Consoles[subID];
 
+    Terminal::Begin();
+
     const char* str = (const char*)buffer;
     for(uint64 i = 0; i < bufferSize; i++) {
         char c = str[i];
@@ -50,6 +52,8 @@ uint64 VConsoleDriver::Write(uint64 subID, const void* buffer, uint64 bufferSize
             Terminal::PutChar(tInfo, c);
         }
     }
+
+    Terminal::End();
 
     return bufferSize;
 }

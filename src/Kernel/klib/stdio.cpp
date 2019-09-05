@@ -356,7 +356,9 @@ void kprintf(const char* format, ...)
 
 void kvprintf(const char* format, __builtin_va_list arg) {
     g_PrintLock.Spinlock_Cli();
+    Terminal::Begin();
     _kvprintf(format, arg);
+    Terminal::End();
     g_PrintLock.Unlock_Cli();
 }
 
@@ -370,7 +372,9 @@ void kprintf_isr(const char* format, ...) {
 }
 void kvprintf_isr(const char* format, __builtin_va_list arg) {
     g_PrintLock.Spinlock_Raw();
+    Terminal::Begin_isr();
     _kvprintf(format, arg);
+    Terminal::End_isr();
     g_PrintLock.Unlock_Raw();
 }
 

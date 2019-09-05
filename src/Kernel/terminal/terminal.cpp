@@ -3,9 +3,12 @@
 #include "terminalfont.h"
 #include "klib/memory.h"
 #include "memory/MemoryManager.h"
+#include "locks/StickyLock.h"
 
 namespace Terminal {
     constexpr int g_Margin = 25;
+
+    static StickyLock g_Lock;
 
     void InitTerminalInfo(TerminalInfo* tInfo, volatile uint32* videoBuffer, int width, int height, int scanline, bool invertColors)
     {
@@ -179,5 +182,18 @@ namespace Terminal {
     void Clear(TerminalInfo* tInfo)
     {
         Fill(tInfo->vBuffer, 0, g_Margin, g_Margin, tInfo->screenCharsPerRow * Font::g_CharWidth, tInfo->screenCharsPerCol * Font::g_CharHeight, tInfo->screenScanlineWidth);
+    }
+
+    void Begin() {
+        g_Lock.Spinlock_Cli();
+    }
+    void Begin_isr() {
+        g_Lock.Spinlock_Raw();
+    }
+    void End() {
+        g_Lock.Unlock_Cli();
+    }
+    void End_isr() {
+        g_Lock.Unlock_Raw();
     }
 }

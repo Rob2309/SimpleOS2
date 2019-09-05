@@ -41,4 +41,9 @@ namespace Terminal {
      * Clear the screen
      **/
     void Clear(TerminalInfo* tInfo);
+
+    void Begin();
+    void Begin_isr();
+    void End();
+    void End_isr();
 }
