@@ -192,7 +192,6 @@ extern "C" {
     static void* g_AcpiISRArg;
 
     static void AcpiISR(IDT::Registers* regs) {
-        APIC::SignalEOI();
         if(g_AcpiISRFunc == nullptr)
             return;
         g_AcpiISRFunc(g_AcpiISRArg);

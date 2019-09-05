@@ -37,14 +37,13 @@ namespace APIC
     // This function will be called when the APIC timer fires an interrupt
     static void ISR_Timer(IDT::Registers* regs)
     {
-        SignalEOI();
         if(g_TimerEvent != nullptr)
             g_TimerEvent(regs);
     }
     // This function will be called when the APIC detects any error
     static void ISR_Error(IDT::Registers* regs)
     {
-        SignalEOI();
+        
     }
     // This function will be called when the APIC fires a Spurious interrupt, should just be ignored
     static void ISR_Spurious(IDT::Registers* regs)
@@ -88,7 +87,7 @@ namespace APIC
         klog_info_isr("APIC", "APIC Base: 0x%16X", g_APICBase);
 
         IDT::SetISR(ISRNumbers::APICError, ISR_Error);
-        IDT::SetISR(ISRNumbers::APICSpurious, ISR_Spurious);
+        IDT::SetInternalISR(ISRNumbers::APICSpurious, ISR_Spurious);
         IDT::SetISR(ISRNumbers::APICTimer, ISR_Timer);
     }
     void InitBootCore()

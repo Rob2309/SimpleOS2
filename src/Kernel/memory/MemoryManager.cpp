@@ -64,7 +64,6 @@ namespace MemoryManager {
     static uint64 g_PageSyncFinishCount;
 
     static void ISR_PageSync(IDT::Registers* regs) {
-        APIC::SignalEOI();
         InvalidatePage(g_PageSyncPage);
         __asm__ __volatile (
             "lock incq (%0)"

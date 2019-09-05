@@ -115,38 +115,38 @@ namespace IDT {
         #define ISRSTUBE(vectno) SetIDTEntry(vectno, ISRSTUB_##vectno, GDT::KernelCode, 0x8E);
         #include "ISR.inc"
 
-        SetISR(0, ISR_Exceptions);
-        SetISR(1, ISR_Exceptions);
-        SetISR(2, ISR_Exceptions);
-        SetISR(3, ISR_Exceptions);
-        SetISR(4, ISR_Exceptions);
-        SetISR(5, ISR_Exceptions);
-        SetISR(6, ISR_Exceptions);
-        SetISR(7, ISR_Exceptions);
-        SetISR(8, ISR_Exceptions);
-        SetISR(9, ISR_Exceptions);
-        SetISR(10, ISR_Exceptions);
-        SetISR(11, ISR_Exceptions);
-        SetISR(12, ISR_Exceptions);
-        SetISR(13, ISR_Exceptions);
-        SetISR(14, ISR_Exceptions);
-        SetISR(15, ISR_Exceptions);
-        SetISR(16, ISR_Exceptions);
-        SetISR(17, ISR_Exceptions);
-        SetISR(18, ISR_Exceptions);
-        SetISR(19, ISR_Exceptions);
-        SetISR(20, ISR_Exceptions);
-        SetISR(21, ISR_Exceptions);
-        SetISR(22, ISR_Exceptions);
-        SetISR(23, ISR_Exceptions);
-        SetISR(24, ISR_Exceptions);
-        SetISR(25, ISR_Exceptions);
-        SetISR(26, ISR_Exceptions);
-        SetISR(27, ISR_Exceptions);
-        SetISR(28, ISR_Exceptions);
-        SetISR(29, ISR_Exceptions);
-        SetISR(30, ISR_Exceptions);
-        SetISR(31, ISR_Exceptions);
+        SetInternalISR(0, ISR_Exceptions);
+        SetInternalISR(1, ISR_Exceptions);
+        SetInternalISR(2, ISR_Exceptions);
+        SetInternalISR(3, ISR_Exceptions);
+        SetInternalISR(4, ISR_Exceptions);
+        SetInternalISR(5, ISR_Exceptions);
+        SetInternalISR(6, ISR_Exceptions);
+        SetInternalISR(7, ISR_Exceptions);
+        SetInternalISR(8, ISR_Exceptions);
+        SetInternalISR(9, ISR_Exceptions);
+        SetInternalISR(10, ISR_Exceptions);
+        SetInternalISR(11, ISR_Exceptions);
+        SetInternalISR(12, ISR_Exceptions);
+        SetInternalISR(13, ISR_Exceptions);
+        SetInternalISR(14, ISR_Exceptions);
+        SetInternalISR(15, ISR_Exceptions);
+        SetInternalISR(16, ISR_Exceptions);
+        SetInternalISR(17, ISR_Exceptions);
+        SetInternalISR(18, ISR_Exceptions);
+        SetInternalISR(19, ISR_Exceptions);
+        SetInternalISR(20, ISR_Exceptions);
+        SetInternalISR(21, ISR_Exceptions);
+        SetInternalISR(22, ISR_Exceptions);
+        SetInternalISR(23, ISR_Exceptions);
+        SetInternalISR(24, ISR_Exceptions);
+        SetInternalISR(25, ISR_Exceptions);
+        SetInternalISR(26, ISR_Exceptions);
+        SetInternalISR(27, ISR_Exceptions);
+        SetInternalISR(28, ISR_Exceptions);
+        SetInternalISR(29, ISR_Exceptions);
+        SetInternalISR(30, ISR_Exceptions);
+        SetInternalISR(31, ISR_Exceptions);
     }
 
     void InitCore(uint64 coreID) {
@@ -164,9 +164,23 @@ namespace IDT {
         );
     }
 
-    void SetISR(uint8 index, ISR isr)
+    void SetInternalISR(uint8 index, ISR isr)
     {
         g_Handlers[index] = isr;
+    }
+
+    static ISR g_APICHandlers[256] = { 0 };
+
+    static void APICISRHandler(IDT::Registers* regs) {
+        APIC::SignalEOI();
+
+        if(g_APICHandlers[regs->intNumber] != nullptr)
+            g_APICHandlers[regs->intNumber](regs);
+    }
+
+    void SetISR(uint8 index, ISR isr) {
+        SetInternalISR(index, APICISRHandler);
+        g_APICHandlers[index] = isr;
     }
 
     void EnableInterrupts()

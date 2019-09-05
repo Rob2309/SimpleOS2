@@ -90,8 +90,6 @@ namespace Scheduler {
     static void SetupKillHandler(ThreadInfo* tInfo, uint64 exitCode);
 
     static void KillEvent(IDT::Registers* regs) {
-        APIC::SignalEOI();
-
         uint64 coreID = SMP::GetLogicalCoreID();
 
         ProcessInfo* pInfo = g_KillProcess;
