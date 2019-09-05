@@ -72,10 +72,10 @@ namespace SMP {
                 ACPI::MADTEntryLAPIC* lapic = (ACPI::MADTEntryLAPIC*)(entry);
                 
                 if(!lapic->processorEnabled) {
-                    klog_info("SMP", "LAPIC: Logical=%i, Proc=%i, ID=%i, Flags=%X [DISABLED]", g_NumCores, lapic->processorID, lapic->lapicID, lapic->processorEnabled);
+                    klog_info_isr("SMP", "LAPIC: Logical=%i, Proc=%i, ID=%i, Flags=%X [DISABLED]", g_NumCores, lapic->processorID, lapic->lapicID, lapic->processorEnabled);
                     continue;
                 } else {
-                    klog_info("SMP", "LAPIC: Logical=%i, Proc=%i, ID=%i, Flags=%X", g_NumCores, lapic->processorID, lapic->lapicID, lapic->processorEnabled);
+                    klog_info_isr("SMP", "LAPIC: Logical=%i, Proc=%i, ID=%i, Flags=%X", g_NumCores, lapic->processorID, lapic->lapicID, lapic->processorEnabled);
                 }
 
                 g_Info[g_NumCores].apicID = lapic->lapicID;
@@ -109,7 +109,7 @@ namespace SMP {
             if(g_Info[i].apicID == bootAPIC)
                 continue;
 
-            klog_info("SMP", "Starting logical Core %i", i);
+            klog_info_isr("SMP", "Starting logical Core %i", i);
 
             *(volatile uint64*)(buffer + stackOffset) = (uint64)MemoryManager::PhysToKernelPtr(MemoryManager::EarlyAllocatePages(3)) + 3 * 4096;
 
@@ -123,7 +123,7 @@ namespace SMP {
             APIC::SendStartupIPI(g_Info[i].apicID, (uint64)MemoryManager::KernelToPhysPtr(buffer));
 
             while(!started) ;
-            klog_info("SMP", "Logical Core %i started...", i);
+            klog_info_isr("SMP", "Logical Core %i started...", i);
         }
     }
 

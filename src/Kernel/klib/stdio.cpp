@@ -276,19 +276,7 @@ static void PrintHexUIntUpper(int64 val, const Format& fmt, uint32 color) {
     PrintUInt64Base(val, s_Digits, 16, fmt, color);
 }
 
-void kprintf(const char* format, ...)
-{
-    __builtin_va_list arg;
-    __builtin_va_start(arg, format);
-
-    kvprintf(format, arg);
-
-    __builtin_va_end(arg);
-}
-
-void kvprintf(const char* format, __builtin_va_list arg) {
-    g_PrintLock.Spinlock_Raw();
-
+static void _kvprintf(const char* format, __builtin_va_list arg) {
     uint32 color = g_TerminalColor;
 
     uint32 i = 0;
@@ -354,7 +342,35 @@ void kvprintf(const char* format, __builtin_va_list arg) {
             i++;
         }
     }
+}
 
+void kprintf(const char* format, ...)
+{
+    __builtin_va_list arg;
+    __builtin_va_start(arg, format);
+
+    kvprintf(format, arg);
+
+    __builtin_va_end(arg);
+}
+
+void kvprintf(const char* format, __builtin_va_list arg) {
+    g_PrintLock.Spinlock_Cli();
+    _kvprintf(format, arg);
+    g_PrintLock.Unlock_Cli();
+}
+
+void kprintf_isr(const char* format, ...) {
+    __builtin_va_list arg;
+    __builtin_va_start(arg, format);
+
+    kvprintf_isr(format, arg);
+
+    __builtin_va_end(arg);
+}
+void kvprintf_isr(const char* format, __builtin_va_list arg) {
+    g_PrintLock.Spinlock_Raw();
+    _kvprintf(format, arg);
     g_PrintLock.Unlock_Raw();
 }
 

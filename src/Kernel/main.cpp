@@ -89,10 +89,10 @@ static KernelHeader* g_KernelHeader;
 Terminal::TerminalInfo g_TerminalInfo;
 
 static void InitThread() {
-    ACPI::StartSystem();
+    //ACPI::StartSystem();
     PCI::Init();
 
-    ACPI::Handle rootBridge = ACPI::GetPCIRootBridge();
+    //ACPI::Handle rootBridge = ACPI::GetPCIRootBridge();
 
     klog_info("Boot", "Init KernelThread starting");
 
@@ -148,6 +148,13 @@ static void InitThread() {
     Time::GetRTC(&dt);
     klog_info("Time", "UTC Time is %02i.%02i.20%02i %02i:%02i:%02i", dt.dayOfMonth, dt.month, dt.year, dt.hours, dt.minutes, dt.seconds);
 
+    Scheduler::ThreadMoveToCPU(2);
+
+    while(true) {
+        kprintf("Alive...\n");
+        Scheduler::ThreadWait(2000);
+    }
+
     Scheduler::ThreadExit(0);
 }
 
@@ -157,11 +164,11 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     Terminal::InitTerminalInfo(&g_TerminalInfo, info->screenBuffer, info->screenWidth, info->screenHeight, info->screenScanlineWidth, info->screenColorsInverted);
     Terminal::Clear(&g_TerminalInfo);
 
-    kprintf("%CStarting SimpleOS2 Kernel\n", 40, 200, 40);
-    klog_info("Boot", "Kernel at 0x%016X", info->kernelImage.buffer);
+    kprintf_isr("%CStarting SimpleOS2 Kernel\n", 40, 200, 40);
+    klog_info_isr("Boot", "Kernel at 0x%016X", info->kernelImage.buffer);
 
     if(!Time::Init()) {
-        klog_fatal("Boot", "Boot failed...");
+        klog_fatal_isr("Boot", "Boot failed...");
         while(true);
     }
     MemoryManager::Init(info);
@@ -178,7 +185,7 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     SyscallHandler::Init();
     SyscallHandler::InitCore();
     if(!SSE::InitBootCore()) {
-        klog_fatal("Boot", "Boot failed...");
+        klog_fatal_isr("Boot", "Boot failed...");
         while(true) ;
     }
     Scheduler::Init(SMP::GetCoreCount());
@@ -191,7 +198,7 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     SMP::StartSchedulers();
     Scheduler::Start();
 
-    klog_fatal("Boot", "Something went really wrong (Scheduler did not start), halting...");
+    klog_fatal_isr("Boot", "Something went really wrong (Scheduler did not start), halting...");
     while(true)
         __asm__ __volatile__ ("hlt");
 }

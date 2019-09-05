@@ -80,7 +80,7 @@ namespace MemoryManager {
             availableMemory += a.size;
         }
 
-        klog_info("MemoryManager", "Available memory: %i MB", availableMemory / 1024 / 1024);
+        klog_info_isr("MemoryManager", "Available memory: %i MB", availableMemory / 1024 / 1024);
 
         volatile uint64* heapPML3 = (volatile uint64*)PhysToKernelPtr(EarlyAllocatePages(1));
         for(int i = 0; i < 512; i++)
@@ -89,7 +89,7 @@ namespace MemoryManager {
 
         IDT::SetISR(ISRNumbers::IPIPagingSync, ISR_PageSync);
 
-        klog_info("MemoryManager", "MemoryManager initialized");
+        klog_info_isr("MemoryManager", "MemoryManager initialized");
     }
 
     void InitCore(uint64 coreID) {

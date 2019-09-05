@@ -29,10 +29,10 @@ namespace IOAPIC {
             if(entry->entryType == ACPI::MADTEntryHeader::TYPE_IOAPIC) {
                 auto ioapic = (ACPI::MADTEntryIOAPIC*)entry;
                 g_MemBase = (uint64)MemoryManager::PhysToKernelPtr((void*)(uint64)ioapic->ioApicAddr);
-                klog_info("IOAPIC", "Found IOAPIC at 0x%016X (gsiBase=%i)", g_MemBase, ioapic->gsiBase);
+                klog_info_isr("IOAPIC", "Found IOAPIC at 0x%016X (gsiBase=%i)", g_MemBase, ioapic->gsiBase);
             } else if(entry->entryType == ACPI::MADTEntryHeader::TYPE_ISO) {
                 auto iso = (ACPI::MADTEntryISO*)entry;
-                klog_info("IOAPIC", "ISO gsi=%i bus=%i irq=%i", iso->gsi, iso->bus, iso->irq);
+                klog_info_isr("IOAPIC", "ISO gsi=%i bus=%i irq=%i", iso->gsi, iso->bus, iso->irq);
                 g_GSIMapping[iso->irq] = iso->gsi;
             }
         }

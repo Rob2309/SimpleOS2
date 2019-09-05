@@ -51,7 +51,7 @@ namespace PS2 {
             return;
 
         g_BufferLock.Spinlock_Raw();
-        g_Buffer[g_WriteIndex++] = c;
+        g_Buffer[g_WriteIndex++ % sizeof(g_Buffer)] = c;
         g_BufferLock.Unlock_Raw();
     }
 
@@ -71,7 +71,7 @@ namespace PS2 {
             rem = bufferSize;
 
         for(uint64 i = 0; i < rem; i++) {
-            ((char*)buffer)[i] = g_Buffer[(g_ReadIndex + i) % 1024];
+            ((char*)buffer)[i] = g_Buffer[(g_ReadIndex + i) % sizeof(g_Buffer)];
         }
 
         g_ReadIndex += rem;

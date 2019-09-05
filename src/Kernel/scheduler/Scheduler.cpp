@@ -165,6 +165,8 @@ namespace Scheduler {
         tInfo->userGSBase = 0;
         tInfo->registers = regs;
         tInfo->unkillable = true;
+        tInfo->cliCount = 0;
+        tInfo->stickyCount = 0;
         
         g_CPUData[coreID].threadList.push_back(tInfo);
         uint64 ret = tInfo->tid;
@@ -189,6 +191,8 @@ namespace Scheduler {
         tInfo->registers = *regs;
         tInfo->unkillable = false;
         tInfo->killPending = false;
+        tInfo->cliCount = 0;
+        tInfo->stickyCount = 0;
 
         pInfo->numThreads = 1;
         
@@ -223,6 +227,8 @@ namespace Scheduler {
         tInfo->registers = regs;
         tInfo->unkillable = true;
         tInfo->killPending = false;
+        tInfo->cliCount = 0;
+        tInfo->stickyCount = 0;
         
         g_CPUData[coreID].threadListLock.Spinlock_Cli();
         g_CPUData[coreID].threadList.push_back(tInfo);
@@ -261,6 +267,8 @@ namespace Scheduler {
         tInfo->blockEvent.type = ThreadBlockEvent::TYPE_NONE;
         tInfo->userGSBase = 0;
         tInfo->registers = *regs;
+        tInfo->cliCount = 0;
+        tInfo->stickyCount = 0;
         kmemcpy(tInfo->fpuState, g_CPUData[coreID].currentThread->fpuState, SSE::GetFPUBlockSize());
 
         pInfo->numThreads = 1;
@@ -802,7 +810,6 @@ namespace Scheduler {
             while(g_KillCount < SMP::GetCoreCount()) ;
             g_KillLock.Unlock();
         } else {
-            // TODO: Kernel panic (KernelThread has requested to kill itself)
             klog_fatal("PANIC", "KernelThread has requested to kill itself (TID=%i)", Scheduler::ThreadGetTID());
             while(true) 
                 asm("hlt");
