@@ -37,8 +37,14 @@ namespace IDT {
 
     static ISR g_Handlers[256] = { 0 };
 
-    extern "C" void ISRCommonHandler(Registers* regs)
+    extern "C" void ISRCommonHandler(Registers* regs, int nestCount)
     {
+        if(nestCount != 1) {
+            klog_fatal_isr("PANIC", "Nested interrupt occured");
+            while(true)
+                __asm__ __volatile__("hlt");
+        }
+
         if(g_Handlers[regs->intNumber] == nullptr)
             klog_error_isr("IDT", "INVALID INTERRUPT: %i", regs->intNumber);
         else
