@@ -130,7 +130,9 @@ namespace SMP {
 
             klog_info_isr("SMP", "Starting logical Core %i", i);
 
-            *(volatile uint64*)(buffer + stackOffset) = (uint64)MemoryManager::PhysToKernelPtr(MemoryManager::EarlyAllocatePages(3)) + 3 * 4096;
+            uint8* stack = (uint8*)MemoryManager::PhysToKernelPtr(MemoryManager::EarlyAllocatePages(3));
+            kmemset(stack, 0, 3 * 4096);
+            *(volatile uint64*)(buffer + stackOffset) = (uint64)stack + 3 * 4096;
 
             alive = false;
             started = false;
