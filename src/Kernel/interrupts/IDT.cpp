@@ -151,6 +151,7 @@ namespace IDT {
 
     void InitCore(uint64 coreID) {
         uint8* interruptBuffer = (uint8*)MemoryManager::PhysToKernelPtr(MemoryManager::EarlyAllocatePages(4));
+        kmemset(interruptBuffer, 0, 4 * 4096);
         GDT::SetIST1(coreID, interruptBuffer + 4 * 4096);
 
         DisableInterrupts();

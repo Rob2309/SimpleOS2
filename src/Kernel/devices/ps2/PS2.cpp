@@ -48,9 +48,9 @@ namespace PS2 {
         if(c == '\0')
             return;
 
-        //g_BufferLock.Spinlock_Raw();
+        g_BufferLock.Spinlock_Raw();
         g_Buffer[g_WriteIndex++ % sizeof(g_Buffer)] = c;
-        //g_BufferLock.Unlock_Raw();
+        g_BufferLock.Unlock_Raw();
     }
 
     PS2Driver::PS2Driver()
@@ -62,7 +62,11 @@ namespace PS2 {
     }
 
     uint64 PS2Driver::Read(uint64 subID, void* buffer, uint64 bufferSize) {
-        //g_BufferLock.Spinlock_Cli();
+        g_BufferLock.Spinlock_Cli();
+
+        if(g_ReadIndex > g_WriteIndex) {
+            klog_error("PS2", "Buffer underflow");
+        }
 
         uint64 rem = g_WriteIndex - g_ReadIndex;
         if(rem > bufferSize)
@@ -73,7 +77,7 @@ namespace PS2 {
         }
 
         g_ReadIndex += rem;
-        //g_BufferLock.Unlock_Cli();
+        g_BufferLock.Unlock_Cli();
         return rem;
     }
 

@@ -19,12 +19,10 @@ void StickyLock::Unlock() {
 
 void StickyLock::Spinlock_Cli() {
     Scheduler::ThreadDisableInterrupts();
-    Scheduler::ThreadSetSticky();
     while(!TryLock()) ;
 }
 void StickyLock::Unlock_Cli() {
     DoUnlock();
-    Scheduler::ThreadUnsetSticky();
     Scheduler::ThreadEnableInterrupts();
 }
 
