@@ -39,6 +39,16 @@ public:
         return *this;
     }
 
+    bool DecAndCheckZero() {
+        bool res = false;
+        __asm__ __volatile__ (
+            "lock decq (%1);"
+            "cmovzq $1, %0"
+            : "+r"(res) : "r"(&m_Value)
+        );
+        return res;
+    }
+
     Atomic& operator=(uint64 val) { return Write(val); }
     Atomic& operator++() { return Inc(); }
     Atomic& operator--() { return Dec(); }
