@@ -218,7 +218,7 @@ namespace PCI {
             msi32->data = vect;
         }
 
-        IDT::SetISR(vect, handler);
+        IDT::SetInternalISR(vect, handler);
 
         klog_info("PCIe", "Allocated interrupt %i for device %i:%i:%i:%i", vect, dev->group, dev->bus, dev->device, dev->function);
     }

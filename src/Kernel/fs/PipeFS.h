@@ -24,6 +24,8 @@ namespace VFS {
         void CreateNode(Node* node) override;
         void DestroyNode(Node* node) override;
 
+        void UpdateDir(Node* node) override;
+
         void ReadNode(uint64 id, Node* node) override;
         void WriteNode(Node* node) override;
 

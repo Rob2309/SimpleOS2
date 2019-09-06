@@ -23,13 +23,13 @@ namespace ACPI {
         
         auto mcfg = reinterpret_cast<MCFG*>(xsdt->FindTable(SIGNATURE('M', 'C', 'F', 'G')));
         if(mcfg == nullptr) {
-            klog_fatal("ACPI", "Could not retrieve MCFG table");
+            klog_fatal_isr("ACPI", "Could not retrieve MCFG table");
             while(true);
         }
 
         auto madt = reinterpret_cast<MADT*>(xsdt->FindTable(SIGNATURE('A', 'P', 'I', 'C')));
         if(madt == nullptr) {
-            klog_fatal("ACPI", "Could not retrieve MADT table");
+            klog_fatal_isr("ACPI", "Could not retrieve MADT table");
             while(true);
         }
 
@@ -97,7 +97,8 @@ namespace ACPI {
         auto ret = RunAcpi(nullptr, "\\_PIC", &arg, 1);
         FreeBuffer(ret);
 
-        Scheduler::CreateKernelThread((uint64)&AcpiJobThread);
+        auto tid = Scheduler::CreateKernelThread((uint64)&AcpiJobThread);
+        klog_info("ACPI", "Created Job Thread with TID %i", tid);
 
         klog_info("ACPI", "Entered ACPI mode");
 
@@ -133,15 +134,20 @@ namespace ACPI {
         return entry;
     }
 
+    static void ShutdownJob(void* arg) {
+        klog_warning("ACPI", "Power button pressed, shutting down in 3 seconds...");
+
+        Scheduler::ThreadWait(3000);
+
+        AcpiEnterSleepStatePrep(ACPI_STATE_S5);
+        IDT::DisableInterrupts();
+        AcpiEnterSleepState(ACPI_STATE_S5);
+    }
+
     static void AcpiEventHandler(UINT32 eventType, ACPI_HANDLE dev, UINT32 eventNumber, void* arg) {
         if(eventType == ACPI_EVENT_TYPE_FIXED && eventNumber == ACPI_EVENT_POWER_BUTTON) {
-            klog_warning("ACPI", "Power button pressed, shutting down in 3 seconds...");
-
-            AcpiOsStall(3000000);
-
-            AcpiEnterSleepStatePrep(ACPI_STATE_S5);
-            IDT::DisableInterrupts();
-            AcpiEnterSleepState(ACPI_STATE_S5);
+            AcpiOsExecute(OSL_GPE_HANDLER, ShutdownJob, nullptr);
+            AcpiClearEvent(ACPI_EVENT_POWER_BUTTON);
         }
     }
 

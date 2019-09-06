@@ -50,7 +50,7 @@ namespace Time {
         }
 
         ticksPerMS /= 5;
-        klog_info("Time", "TSC runs at %i kHz", ticksPerMS);
+        klog_info_isr("Time", "TSC runs at %i kHz", ticksPerMS);
         g_TSCTicksPerMilli = ticksPerMS;
     }
 

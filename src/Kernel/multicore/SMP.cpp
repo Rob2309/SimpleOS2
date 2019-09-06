@@ -10,6 +10,7 @@
 #include "syscalls/SyscallHandler.h"
 #include "scheduler/Scheduler.h"
 #include "arch/SSE.h"
+#include "arch/port.h"
 
 namespace SMP {
 
@@ -20,17 +21,15 @@ namespace SMP {
     extern "C" int smp_DestinationAddress;
     extern "C" int smp_StackAddress;
 
-    static volatile bool wait = true;
+    static volatile bool alive = false;
     static volatile bool started = false;
     static volatile bool startScheduler = false;
     static volatile uint64 startCount = 0;
 
-    static void ISR_Timer(IDT::Registers* regs) {
-        wait = false;
-    }
-
     // This function will be called by every secondary CPU core that gets started by StartCores()
     static void CoreEntry() {
+        alive = true;
+
         uint64 logicalID = SMP::GetLogicalCoreID();
 
         GDT::InitCore(logicalID);
@@ -58,12 +57,14 @@ namespace SMP {
     };
 
     static uint64 g_NumCores;
+    static uint64 g_NumRunningCores;
     static CoreInfo g_Info[MaxCoreCount];
     
     void GatherInfo() {
         auto madt = ACPI::GetMADT();
 
         g_NumCores = 0;
+        g_NumRunningCores = 1;
 
         uint64 pos = 0;
         ACPI::MADTEntryHeader* entry;
@@ -72,10 +73,10 @@ namespace SMP {
                 ACPI::MADTEntryLAPIC* lapic = (ACPI::MADTEntryLAPIC*)(entry);
                 
                 if(!lapic->processorEnabled) {
-                    klog_info("SMP", "LAPIC: Logical=%i, Proc=%i, ID=%i, Flags=%X [DISABLED]", g_NumCores, lapic->processorID, lapic->lapicID, lapic->processorEnabled);
+                    klog_info_isr("SMP", "LAPIC: Logical=%i, Proc=%i, ID=%i, Flags=%X [DISABLED]", g_NumCores, lapic->processorID, lapic->lapicID, lapic->processorEnabled);
                     continue;
                 } else {
-                    klog_info("SMP", "LAPIC: Logical=%i, Proc=%i, ID=%i, Flags=%X", g_NumCores, lapic->processorID, lapic->lapicID, lapic->processorEnabled);
+                    klog_info_isr("SMP", "LAPIC: Logical=%i, Proc=%i, ID=%i, Flags=%X", g_NumCores, lapic->processorID, lapic->lapicID, lapic->processorEnabled);
                 }
 
                 g_Info[g_NumCores].apicID = lapic->lapicID;
@@ -85,9 +86,27 @@ namespace SMP {
         }
     }
 
+    static void Wait(uint16 ms) {
+        uint16 count = ms * 1193;
+
+        Port::OutByte(0x43, 0x30);
+        Port::OutByte(0x40, count & 0xFF);
+        Port::OutByte(0x40, (ms >> 8) & 0xFF);
+
+        while(true) {
+            Port::OutByte(0x43, 0xE2);
+            uint8 status = Port::InByte(0x40);
+            if(status & 0x80)
+                break;
+        }
+    }
+
+    static void WaitSecond() {
+        for(int i = 0; i < 100; i++)
+            Wait(10);
+    }
+
     void StartCores(uint8* trampolineBuffer, uint64* pageBuffer) {
-        APIC::SetTimerEvent(ISR_Timer);
-        
         // Set up the variables needed by the bootstrap code (startup.asm)
         uint8* buffer = trampolineBuffer;
         kmemcpy(buffer, (void*)&smp_Start, (uint64)&smp_End - (uint64)&smp_Start);
@@ -109,28 +128,41 @@ namespace SMP {
             if(g_Info[i].apicID == bootAPIC)
                 continue;
 
-            klog_info("SMP", "Starting logical Core %i", i);
+            klog_info_isr("SMP", "Starting logical Core %i", i);
 
-            *(volatile uint64*)(buffer + stackOffset) = (uint64)MemoryManager::PhysToKernelPtr(MemoryManager::EarlyAllocatePages(3)) + 3 * 4096;
+            uint8* stack = (uint8*)MemoryManager::PhysToKernelPtr(MemoryManager::EarlyAllocatePages(3));
+            kmemset(stack, 0, 3 * 4096);
+            *(volatile uint64*)(buffer + stackOffset) = (uint64)stack + 3 * 4096;
 
-            wait = true;
+            alive = false;
             started = false;
+
             APIC::SendInitIPI(g_Info[i].apicID);
-            APIC::StartTimerOneshot(10);
-            IDT::EnableInterrupts();
-            while(wait) ;
-            IDT::DisableInterrupts();
+            Wait(10);
             APIC::SendStartupIPI(g_Info[i].apicID, (uint64)MemoryManager::KernelToPhysPtr(buffer));
 
-            while(!started) ;
-            klog_info("SMP", "Logical Core %i started...", i);
+            Wait(1);
+
+            if(!alive) {
+                APIC::SendStartupIPI(g_Info[i].apicID, (uint64)MemoryManager::KernelToPhysPtr(buffer));
+                WaitSecond();
+                if(!alive) {
+                    klog_error_isr("SMP", "Core %i failed to start...", i);
+                    continue;
+                }
+            }
+
+            while(!started) ;   
+
+            g_NumRunningCores++;
+            klog_info_isr("SMP", "Logical Core %i started...", i);
         }
     }
 
     void StartSchedulers() {
         startScheduler = true;
 
-        while(startCount < g_NumCores - 1) ;
+        while(startCount < g_NumRunningCores - 1) ;
     }
 
     uint64 GetCoreCount() {

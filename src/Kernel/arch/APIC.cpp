@@ -37,14 +37,13 @@ namespace APIC
     // This function will be called when the APIC timer fires an interrupt
     static void ISR_Timer(IDT::Registers* regs)
     {
-        SignalEOI();
         if(g_TimerEvent != nullptr)
             g_TimerEvent(regs);
     }
     // This function will be called when the APIC detects any error
     static void ISR_Error(IDT::Registers* regs)
     {
-        SignalEOI();
+        
     }
     // This function will be called when the APIC fires a Spurious interrupt, should just be ignored
     static void ISR_Spurious(IDT::Registers* regs)
@@ -73,7 +72,7 @@ namespace APIC
         uint32 apicTimerRemaining = *(volatile uint32*)(g_APICBase + RegTimerCurrentCount);
         uint32 elapsed = 0xFFFFFFFF - apicTimerRemaining;
         g_TimerTicksPerMS = elapsed / 33;
-        klog_info("APIC", "APIC Timer runs at %i kHz", g_TimerTicksPerMS);
+        klog_info_isr("APIC", "APIC Timer runs at %i kHz", g_TimerTicksPerMS);
     }
 
     void SetTimerEvent(TimerEvent evt)
@@ -85,10 +84,10 @@ namespace APIC
         uint64 lapicBase = MSR::Read(MSR::RegLAPICBase);    // Physical address of LAPIC memory space
 
         g_APICBase = (uint64)MemoryManager::PhysToKernelPtr((void*)(lapicBase & 0xFFFFFFFFFFFFF000));
-        klog_info("APIC", "APIC Base: 0x%16X", g_APICBase);
+        klog_info_isr("APIC", "APIC Base: 0x%16X", g_APICBase);
 
         IDT::SetISR(ISRNumbers::APICError, ISR_Error);
-        IDT::SetISR(ISRNumbers::APICSpurious, ISR_Spurious);
+        IDT::SetInternalISR(ISRNumbers::APICSpurious, ISR_Spurious);
         IDT::SetISR(ISRNumbers::APICTimer, ISR_Timer);
     }
     void InitBootCore()
@@ -135,13 +134,13 @@ namespace APIC
 
     void SendInitIPI(uint8 coreID) {
         constexpr uint32 cmd = (0b101 << 8) | (1 << 14);
-        *(volatile uint32*)(g_APICBase + RegCommandHi) = (uint32)coreID << 24;
+        *(volatile uint32*)(g_APICBase + RegCommandHi) = ((uint32)coreID & 0xF) << 24;
         *(volatile uint32*)(g_APICBase + RegCommandLow) = cmd;
     }
 
     void SendStartupIPI(uint8 coreID, uint64 startPage) {
         uint32 cmd = (0b110 << 8) | (startPage >> 12);
-        *(volatile uint32*)(g_APICBase + RegCommandHi) = (uint32)coreID << 24;
+        *(volatile uint32*)(g_APICBase + RegCommandHi) = ((uint32)coreID & 0xF) << 24;
         *(volatile uint32*)(g_APICBase + RegCommandLow) = cmd;
     }
 
@@ -151,7 +150,7 @@ namespace APIC
 
         switch(targetMode) {
         case IPI_TARGET_CORE:
-            high = targetID << 24;
+            high = ((uint32)targetID & 0xF) << 24;
             low = vector;
             break;
         case IPI_TARGET_SELF:
@@ -176,7 +175,7 @@ namespace APIC
 
     uint64 GetID() {
         uint64 res = (*(volatile uint32*)(g_APICBase + RegID)) >> 24;
-        return res;
+        return res & 0xF;
     }
 
 }

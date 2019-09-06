@@ -22,6 +22,7 @@ namespace IDT {
     /**
      * Sets the function to be called when the given interrupt is fired
      **/
+    void SetInternalISR(uint8 index, ISR isr);
     void SetISR(uint8 index, ISR isr);
 
     /**

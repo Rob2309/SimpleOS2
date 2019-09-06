@@ -38,7 +38,7 @@ namespace VFS {
 
         union {
             struct {
-                Directory* dir;
+                Directory* cachedDir;
             } infoFolder;
             struct {
                 Atomic<uint64> fileSize;

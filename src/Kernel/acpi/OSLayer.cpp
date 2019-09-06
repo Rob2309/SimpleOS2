@@ -80,26 +80,25 @@ extern "C" {
 
     static Atomic<uint64> g_NumRunningJobs;
     static StickyLock g_JobLock;
-    static uint64 g_JobPushIndex;
-    static uint64 g_JobPopIndex;
+    static uint64 g_JobPushIndex = 0;
+    static uint64 g_JobPopIndex = 0;
     static Job g_JobQueue[128];
 
     void AcpiJobThread() {
         klog_info("ACPI", "Job thread starting...");
 
         while(true) {
-            g_JobLock.Spinlock_Raw();
+            g_JobLock.Spinlock_Cli();
             if(g_JobPopIndex < g_JobPushIndex) {
-                auto job = g_JobQueue[g_JobPopIndex];
+                auto job = g_JobQueue[g_JobPopIndex % 128];
                 g_JobPopIndex++;
-                g_JobLock.Unlock_Raw();
+                g_JobLock.Unlock_Cli();
 
                 job.func(job.arg);
                 
-                klog_info("ACPI", "Finished Job");
                 g_NumRunningJobs.Dec();
             } else {
-                g_JobLock.Unlock_Raw();
+                g_JobLock.Unlock_Cli();
                 Scheduler::ThreadYield();
             }
         }
@@ -112,8 +111,6 @@ extern "C" {
         g_JobQueue[g_JobPushIndex % 128] = { func, arg };
         g_JobPushIndex++;
         g_JobLock.Unlock_Raw();
-
-        klog_info("ACPI", "Pushed Job");
 
         return AE_OK;
     }
@@ -195,7 +192,6 @@ extern "C" {
     static void* g_AcpiISRArg;
 
     static void AcpiISR(IDT::Registers* regs) {
-        APIC::SignalEOI();
         if(g_AcpiISRFunc == nullptr)
             return;
         g_AcpiISRFunc(g_AcpiISRArg);

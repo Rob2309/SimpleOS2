@@ -12,29 +12,33 @@
 
 int main()
 {
+    int64 tty = open("/dev/tty0", open_mode_write);
+    if(tty < 0) {
+        print("Failed to open /dev/tty0\n");
+        exit(1);
+    }
+
+    int64 err = copyfd(stdoutfd, tty);
+    if(err < 0) {
+        print("Failed to replace stdout\n");
+        exit(1);
+    }
+
     puts("Hello World from Init process\n");
 
-    int64 stdinRead, stdinWrite, stdoutRead, stdoutWrite;
-    pipe(&stdinRead, &stdinWrite);
-    pipe(&stdoutRead, &stdoutWrite);
-
-    if(fork()) {
-        close(stdinRead);
-        close(stdoutWrite);
-
-        while(true) {
-            char buffer[128];
-            int64 len = read(stdoutRead, buffer, sizeof(buffer)-1);
-            buffer[len] = 0;
-            print(buffer);
-        }
-    } else {
-        copyfd(0, stdinRead);
-        copyfd(1, stdoutWrite);
-
-        exec("/boot/TestVFS.elf");
-        thread_exit(1);
+    int64 fd = open("/dev/keyboard", open_mode_read);
+    if(fd < 0) {
+        puts("Failed to open /dev/keyboard\n");
+        exit(1);
     }
+    err = copyfd(stdinfd, fd);
+    if(err < 0) {
+        puts("Failed to replace stdin\n");
+        exit(1);
+    }
+
+    puts("Starting shell\n");
+    exec("/boot/Shell.elf");
 
     return 0;
 }

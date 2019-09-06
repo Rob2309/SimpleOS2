@@ -79,7 +79,7 @@ namespace Ext2 {
                 pos += ext2Entry.entrySize;
             }
 
-            node->infoFolder.dir = dir;
+            node->infoFolder.cachedDir = dir;
         }
         if(node->type == Node::TYPE_FILE)
             node->infoFile.fileSize = inode->size;
@@ -94,6 +94,10 @@ namespace Ext2 {
         node->fsData = inode;
     }
     void Ext2Driver::WriteNode(Node* node) {
+    }
+
+    void Ext2Driver::UpdateDir(VFS::Node* node) {
+        
     }
 
     uint64 Ext2Driver::ReadNodeData(Node* node, uint64 pos, void* buffer, uint64 bufferSize) {

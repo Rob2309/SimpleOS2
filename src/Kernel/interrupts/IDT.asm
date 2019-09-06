@@ -54,7 +54,16 @@ ISRCommon:
     ; The stack will be 16-Byte aligned at this point (important for gcc x64 ABI)
 
     mov rdi, rsp                    ; rdi is the first function argument, thus has to hold the address of the IDT::Registers struct (see IDT.h)
+
+    sub rsp, 8
+    inc QWORD [rsp]
+
+    mov rsi, [rsp]
+
     call ISRCommonHandler wrt ..plt ; call the C interrupt handler
+
+    dec QWORD [rsp]
+    add rsp, 8
 
     pop rax         ; restore old data selectors
     mov ds, ax

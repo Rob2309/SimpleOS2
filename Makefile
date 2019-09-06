@@ -74,6 +74,8 @@ programs: FORCE
 	@ $(MAKE) -s libc
 	@ printf "\e[32mBuilding Init\e[0m\n"
 	@ $(MAKE) -s -C src/Programs/Init
+	@ printf "\e[32mBuilding Shell\e[0m\n"
+	@ $(MAKE) -s -C src/Programs/Shell
 	@ printf "\e[32mBuilding TestVFS\e[0m\n"
 	@ $(MAKE) -s -C src/Programs/TestVFS
 rdbuilder: FORCE

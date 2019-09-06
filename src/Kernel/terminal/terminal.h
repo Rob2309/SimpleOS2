@@ -14,9 +14,13 @@ namespace Terminal {
         int cursorX, cursorY;
         int screenCharsPerRow;
         int screenCharsPerCol;
+
+        uint32* bBuffer;
+        int bBufferLine;
     };
 
     void InitTerminalInfo(TerminalInfo* tInfo, volatile uint32* videoBuffer, int width, int height, int scanline, bool invertColors);
+    void EnableDoubleBuffering(TerminalInfo* tInfo);
 
     /**
      * Move the Cursor to the given Coordinates
@@ -27,6 +31,7 @@ namespace Terminal {
      * Automatically advances the Cursor.
      **/
     void PutChar(TerminalInfo* tInfo, char c, uint32 color = 0xFFFFFFFF);
+    void RemoveChar(TerminalInfo* tInfo);
     /**
      * Move the cursor to the beginning of the next line
      **/
@@ -36,4 +41,9 @@ namespace Terminal {
      * Clear the screen
      **/
     void Clear(TerminalInfo* tInfo);
+
+    void Begin();
+    void Begin_isr();
+    void End();
+    void End_isr();
 }

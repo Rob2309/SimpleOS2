@@ -45,6 +45,9 @@
         "utility": "cpp",
         "condition_variable": "cpp",
         "mutex": "cpp",
-        "thread": "cpp"
+        "thread": "cpp",
+        "atomic": "cpp",
+        "string": "cpp",
+        "memory_resource": "cpp"
     }
 }

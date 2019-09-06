@@ -15,31 +15,31 @@ namespace SSE {
         CPU::CPUID(0x1, 0x0, eax, ebx, ecx, edx);
 
         if(!(edx & (1 << 25))) {    // no SSE1
-            klog_fatal("SSE", "SSE1 not supported");
+            klog_fatal_isr("SSE", "SSE1 not supported");
             return false;
         }
         if(!(edx & (1 << 26))) {    // no SSE2
-            klog_fatal("SSE", "SSE2 not supported");
+            klog_fatal_isr("SSE", "SSE2 not supported");
             return false;
         }
         if(!(edx & (1 << 24))) {    // no FXSAVE / FXRSTOR
-            klog_fatal("SSE", "FXSAVE/FXRSTOR not supported");
+            klog_fatal_isr("SSE", "FXSAVE/FXRSTOR not supported");
             return false;
         }
 
         bool xsave = false;
 
         if(ecx & (1 << 26)) {    // XSAVE / XRSTOR supported
-            klog_info("SSE", "XSAVE/XRSTOR supported");
+            klog_info_isr("SSE", "XSAVE/XRSTOR supported");
             xsave = true;
         }
 
         CPU::CPUID(0xD, 0x0, eax, ebx, ecx, edx);
         if(xsave && (eax & (1 << 2))) {
-            klog_info("SSE", "Extended SSE supported");
+            klog_info_isr("SSE", "Extended SSE supported");
             g_ExtendedSSE = true;
         } else {
-            klog_warning("SSE", "Extended SSE not supported");
+            klog_warning_isr("SSE", "Extended SSE not supported");
         }
 
         return true;
@@ -90,8 +90,8 @@ namespace SSE {
         mxcsr |= (1 << 7);
         __asm__ __volatile__ ("ldmxcsr (%0)" : : "r"(&mxcsr) );
 
-        klog_info("SSE", "SSE initialized");
-        klog_info("SSE", "FPU Block size: %i bytes", g_FPUBlockSize);
+        klog_info_isr("SSE", "SSE initialized");
+        klog_info_isr("SSE", "FPU Block size: %i bytes", g_FPUBlockSize);
 
         return true;
     }
