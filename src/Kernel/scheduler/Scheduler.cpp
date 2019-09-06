@@ -503,11 +503,7 @@ namespace Scheduler {
         g_CPUData[coreID].deadThreads.push_back(tInfo);
         g_CPUData[coreID].threadListLock.Unlock_Cli();
         
-        IDT::Registers regs;
-        ThreadDisableInterrupts();
-        ThreadInfo* next = FindNextThread();
-        SetContext(next, &regs);
-        ReturnToThread(&regs);
+        ThreadYield();
     }
     SYSCALL_DEFINE1(syscall_exit, uint64 code) {
         ThreadExit(code);
@@ -734,14 +730,17 @@ namespace Scheduler {
     {
         uint64 coreID = SMP::GetLogicalCoreID();
 
-        g_CPUData[coreID].currentThread->process->mainLock.Spinlock();
+        IDT::DisableInterrupts();
+
+        g_CPUData[coreID].currentThread->process->mainLock.Spinlock_Raw();
         uint64 oldPML4Entry = g_CPUData[coreID].currentThread->process->pml4Entry;
         g_CPUData[coreID].currentThread->process->pml4Entry = pml4Entry;
-        g_CPUData[coreID].currentThread->process->mainLock.Unlock();
+        g_CPUData[coreID].currentThread->cliCount = 0;
+        g_CPUData[coreID].currentThread->stickyCount = 0;
+        g_CPUData[coreID].currentThread->process->mainLock.Unlock_Raw();
 
         MemoryManager::FreeProcessMap(oldPML4Entry);
 
-        ThreadDisableInterrupts();
         SaveThreadInfo(regs);
         SetContext(g_CPUData[coreID].currentThread, regs);
         ReturnToThread(regs);

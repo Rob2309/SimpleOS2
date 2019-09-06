@@ -31,7 +31,7 @@ ReturnToThread:
         pop rax
 
         add rsp, 16
-        o64 a64 iret
+        iretq
 
 GLOBAL ContextSwitchAndReturn
 ContextSwitchAndReturn:
@@ -45,6 +45,10 @@ ContextSwitchAndReturn:
         mov r10, rsp            ; save return rsp
         add r10, 8
         mov [rdi + 21 * 8], r10
+
+        pushfq                  ; save flags
+        pop rax
+        mov [rdi + 20 * 8], rax
 
         mov [rdi + 1 * 8], r15
         mov [rdi + 2 * 8], r14
@@ -77,4 +81,4 @@ ContextSwitchAndReturn:
         pop rax
 
         add rsp, 16
-        o64 a64 iret
+        iretq
