@@ -38,7 +38,7 @@ namespace Scheduler {
      * Performs basic initialization of the Scheduler.
      * Has to be called before any Core calls the Start() function
      */
-    void Init(uint64 numCores);
+    void Init();
     /**
      * This function is called by the Kernel to start normal Scheduling procedures. It never returns.
      **/

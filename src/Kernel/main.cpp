@@ -37,6 +37,8 @@
 #include "init/Init.h"
 #include "init/InitInvoke.h"
 
+#include "percpu/PerCPUInit.h"
+
 #include "acpi/ACPI.h"
 
 extern "C" {
@@ -158,14 +160,15 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     kprintf_isr("%CStarting SimpleOS2 Kernel\n", 40, 200, 40);
     klog_info_isr("Boot", "Kernel at 0x%016X", info->kernelImage.buffer);
 
-    if(!Time::Init())
-        goto bootFailed;
     if(!MemoryManager::Init(info))
         goto bootFailed;
     ACPI::InitEarlyTables(info);
+    SMP::GatherInfo();
+    PerCPU::Init(SMP::GetCoreCount());
+    if(!Time::Init())
+        goto bootFailed;
     APIC::Init();
     IOAPIC::Init();
-    SMP::GatherInfo();
     MemoryManager::InitCore(SMP::GetLogicalCoreID());
     GDT::Init(SMP::GetCoreCount());
     GDT::InitCore(SMP::GetLogicalCoreID());
@@ -176,7 +179,7 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     SyscallHandler::InitCore();
     if(!SSE::InitBootCore())
         goto bootFailed;
-    Scheduler::Init(SMP::GetCoreCount());
+    Scheduler::Init();
 
     Terminal::EnableDoubleBuffering(&g_TerminalInfo);
 

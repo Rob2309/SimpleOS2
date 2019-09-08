@@ -15,6 +15,8 @@
 
 #include "errno.h"
 
+#include "percpu/PerCPU.h"
+
 #define PML_GET_NX(entry)           ((entry) & 0x8000000000000000)
 #define PML_GET_ADDR(entry)         ((entry) & 0x000FFFFFFFFFF000)
 
@@ -55,7 +57,8 @@ namespace MemoryManager {
 
     static uint64 g_HighMemBase;
 
-    static volatile uint64* g_CorePageTables[SMP::MaxCoreCount];
+    //static volatile uint64* g_CorePageTables[SMP::MaxCoreCount];
+    DECLARE_PER_CPU(volatile uint64*, g_CorePageTables);
     static volatile uint64* g_KernelPages;
     static volatile uint64* g_KernelVPages;
 
@@ -110,7 +113,7 @@ namespace MemoryManager {
         volatile uint64* pml4 = (uint64*)PhysToKernelPtr(EarlyAllocatePages(1));
         for(int i = 0; i < 512; i++)
             pml4[i] = 0;
-        g_CorePageTables[coreID] = pml4;
+        g_CorePageTables.Get() = pml4;
 
         pml4[511] = PML_SET_ADDR((uint64)KernelToPhysPtr((uint64*)g_KernelPages)) | PML_SET_P(1) | PML_SET_RW(1);
         pml4[510] = PML_SET_ADDR((uint64)KernelToPhysPtr((uint64*)g_KernelVPages)) | PML_SET_P(1) | PML_SET_RW(1);
@@ -219,7 +222,7 @@ namespace MemoryManager {
     }
     uint64 ForkProcessMap()
     {
-        volatile uint64* myPML4 = g_CorePageTables[SMP::GetLogicalCoreID()];
+        volatile uint64* myPML4 = g_CorePageTables.Get();
 
         uint64 newPML4Entry = CreateProcessMap();
 
@@ -260,7 +263,7 @@ namespace MemoryManager {
 
     void SwitchProcessMap(uint64 pml4Entry)
     {
-        volatile uint64* myPML4 = g_CorePageTables[SMP::GetLogicalCoreID()];
+        volatile uint64* myPML4 = g_CorePageTables.Get();
 
         myPML4[0] = pml4Entry;
 
@@ -272,7 +275,7 @@ namespace MemoryManager {
 
     void MapKernelPage(void* phys, void* virt)
     {
-        volatile uint64* myPML4 = g_CorePageTables[SMP::GetLogicalCoreID()];
+        volatile uint64* myPML4 = g_CorePageTables.Get();
 
         uint64 pml4Index = GET_PML4_INDEX((uint64)virt);
         uint64 pml3Index = GET_PML3_INDEX((uint64)virt);
@@ -311,7 +314,7 @@ namespace MemoryManager {
         g_Lock.Unlock();
     }
     void DisableChacheOnLargePage(void* virt) {
-        volatile uint64* myPML4 = g_CorePageTables[SMP::GetLogicalCoreID()];
+        volatile uint64* myPML4 = g_CorePageTables.Get();
 
         uint64 pml4Index = GET_PML4_INDEX((uint64)virt);
         uint64 pml3Index = GET_PML3_INDEX((uint64)virt);
@@ -332,7 +335,7 @@ namespace MemoryManager {
         );
     }
     void EnableWriteCombineOnLargePage(void* virt) {
-        volatile uint64* myPML4 = g_CorePageTables[SMP::GetLogicalCoreID()];
+        volatile uint64* myPML4 = g_CorePageTables.Get();
 
         uint64 pml4Index = GET_PML4_INDEX((uint64)virt);
         uint64 pml3Index = GET_PML3_INDEX((uint64)virt);
@@ -438,7 +441,7 @@ namespace MemoryManager {
         return PhysToKernelPtr(phys);
     }
     void MapProcessPage(void* virt) {
-        volatile uint64* myPML4 = g_CorePageTables[SMP::GetLogicalCoreID()];
+        volatile uint64* myPML4 = g_CorePageTables.Get();
         MapProcessPage(myPML4[0], virt, true);
     }
     SYSCALL_DEFINE2(syscall_alloc, char* base, uint64 numPages) {
@@ -481,7 +484,7 @@ namespace MemoryManager {
         g_PageSyncLock.Unlock();
     }
     void UnmapProcessPage(void* virt) {
-        volatile uint64* myPML4 = g_CorePageTables[SMP::GetLogicalCoreID()];
+        volatile uint64* myPML4 = g_CorePageTables.Get();
         UnmapProcessPage(myPML4[0], virt);
     }
     SYSCALL_DEFINE2(syscall_free, char* base, uint64 numPages) {
@@ -498,7 +501,7 @@ namespace MemoryManager {
 
     void* UserToKernelPtr(const void* virt)
     {
-        volatile uint64* myPML4 = g_CorePageTables[SMP::GetLogicalCoreID()];
+        volatile uint64* myPML4 = g_CorePageTables.Get();
         uint64 pml4Entry = myPML4[0];
 
         uint64 pml3Index = GET_PML3_INDEX((uint64)virt);
