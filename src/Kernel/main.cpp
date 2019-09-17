@@ -165,11 +165,14 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     ACPI::InitEarlyTables(info);
     SMP::GatherInfo();
     PerCPU::Init(SMP::GetCoreCount());
+    MemoryManager::InitCore();
+
+    Scheduler::MakeMeIdleThread();
+
     if(!Time::Init())
         goto bootFailed;
     APIC::Init();
     IOAPIC::Init();
-    MemoryManager::InitCore(SMP::GetLogicalCoreID());
     GDT::Init(SMP::GetCoreCount());
     GDT::InitCore(SMP::GetLogicalCoreID());
     IDT::Init();

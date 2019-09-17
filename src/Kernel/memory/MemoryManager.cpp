@@ -105,7 +105,7 @@ namespace MemoryManager {
         return true;
     }
 
-    void InitCore(uint64 coreID) {
+    void InitCore() {
         uint64 pat = MSR::Read(0x277);
         pat |= ((uint64)0x1 << 32); // Make PAT 4 write combining
         MSR::Write(0x277, pat);

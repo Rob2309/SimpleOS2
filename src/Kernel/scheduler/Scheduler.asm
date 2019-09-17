@@ -6,8 +6,8 @@ IdleThread:
         hlt
         jmp .loop
 
-GLOBAL ReturnToThread
-ReturnToThread:
+GLOBAL GoToThread
+GoToThread:
         mov rsp, rdi
 
         pop rax
@@ -33,8 +33,8 @@ ReturnToThread:
         add rsp, 16
         iretq
 
-GLOBAL ContextSwitchAndReturn
-ContextSwitchAndReturn:
+GLOBAL SwitchThread
+SwitchThread:
         mov rax, [rsp]          ; save return address
         mov [rdi + 18 * 8], rax
 

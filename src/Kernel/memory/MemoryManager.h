@@ -8,7 +8,7 @@
 namespace MemoryManager {
 
     bool Init(KernelHeader* header);
-    void InitCore(uint64 coreID);
+    void InitCore();
 
     void DisableChacheOnLargePage(void* virt);
     void EnableWriteCombineOnLargePage(void* virt);
