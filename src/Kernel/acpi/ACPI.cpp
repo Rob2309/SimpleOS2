@@ -43,7 +43,7 @@ namespace ACPI {
     static void FreeBuffer(const ACPI_BUFFER& buffer);
     static void AcpiEventHandler(UINT32 eventType, ACPI_HANDLE dev, UINT32 eventNumber, void* arg);
 
-    extern "C" void AcpiJobThread();
+    extern "C" int64 AcpiJobThread(uint64, uint64);
 
     bool StartSystem() {
         ACPI_STATUS err;
@@ -97,7 +97,7 @@ namespace ACPI {
         auto ret = RunAcpi(nullptr, "\\_PIC", &arg, 1);
         FreeBuffer(ret);
 
-        auto tid = Scheduler::CreateKernelThread((uint64)&AcpiJobThread);
+        auto tid = Scheduler::CreateKernelThread(AcpiJobThread);
         klog_info("ACPI", "Created Job Thread with TID %i", tid);
 
         klog_info("ACPI", "Entered ACPI mode");
@@ -137,7 +137,7 @@ namespace ACPI {
     static void ShutdownJob(void* arg) {
         klog_warning("ACPI", "Power button pressed, shutting down in 3 seconds...");
 
-        Scheduler::ThreadWait(3000);
+        Scheduler::ThreadSleep(3000);
 
         AcpiEnterSleepStatePrep(ACPI_STATE_S5);
         IDT::DisableInterrupts();

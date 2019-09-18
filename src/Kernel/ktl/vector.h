@@ -65,6 +65,13 @@ namespace ktl {
             new(&m_Data[m_Size]) T(t);
             m_Size++;
         }
+
+        T& back() {
+            return m_Data[m_Size - 1];
+        }
+        const T& back() const {
+            return m_Data[m_Size - 1];
+        }
         
         void erase(const Iterator& it)
         {
@@ -75,7 +82,7 @@ namespace ktl {
             }
         }
 
-        void insert(const Iterator& at, const T& t) {
+        Iterator insert(const Iterator& at, const T& t) {
             if(m_Capacity < m_Size + 1) {
                 MakeCapacity(m_Size + 1);
             }
@@ -87,6 +94,8 @@ namespace ktl {
 
             new(&m_Data[at.m_Pos]) T(t);
             m_Size++;
+
+            return Iterator(m_Data, at.m_Pos);
         }
 
         T& operator[] (uint64 index) {

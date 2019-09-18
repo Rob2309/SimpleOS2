@@ -2,6 +2,10 @@
 
 #include "types.h"
 #include "interrupts/IDT.h"
+#include "ktl/vector.h"
+#include "user/User.h"
+#include "atomic/Atomics.h"
+#include "locks/StickyLock.h"
 
 constexpr uint64 KernelStackPages = 3;
 constexpr uint64 KernelStackSize = KernelStackPages * 4096;
@@ -10,12 +14,16 @@ constexpr uint64 UserStackSize = UserStackPages * 4096;
 
 struct ThreadInfo;
 
-struct ThreadBlockEvent {
+struct ThreadState {
     enum {
-        TYPE_NONE,
-        TYPE_WAIT,
-        TYPE_QUEUE_LOCK,
-        TYPE_TRANSFER,
+        STATE_READY,
+
+        STATE_WAIT,
+        STATE_QUEUE_LOCK,
+        STATE_JOIN,
+
+        STATE_EXITED,
+        STATE_DEAD,
     } type;
 
     union {
@@ -23,8 +31,8 @@ struct ThreadBlockEvent {
             uint64 remainingTicks;
         } wait;
         struct {
-            uint64 coreID;
-        } transfer;
+            ThreadInfo* joinThread;
+        } join;
     };
 };
 
@@ -45,34 +53,23 @@ struct ThreadFileDescriptors {
     ktl::vector<ThreadFileDescriptor> fds;
 };
 
-struct ThreadGroup {
-    ThreadInfo* owner;
-    
-};
-
 struct ThreadInfo {
     ThreadInfo* next;
     ThreadInfo* prev;
 
-    ThreadInfo* parent;
-
-    Atomic<uint64> refCount;
+    ktl::vector<ThreadInfo*> joinThreads;   // threads this thread is supposed to free
 
     uint64 tid;
     
-    uint64 coreID;
-    
-    bool exited;
     int64 exitCode;
+    bool killPending;                       // Set this flag to inform a thread that it should kill itself
     
     ThreadMemSpace* memSpace;
     ThreadFileDescriptors* fds;
 
-    ktl::vector<ThreadInfo*> children; // may only be modified by the thread itself
-
     User* user;
 
-    ThreadBlockEvent blockEvent;
+    ThreadState state;
     
     uint64 kernelStack;
     uint64 userGSBase;
@@ -81,14 +78,10 @@ struct ThreadInfo {
     uint64 stickyCount;
     uint64 cliCount;
 
-    bool unkillable;
-    bool killPending;
-    uint64 killCode;
-
     uint64 pageFaultRip;
 
     IDT::Registers registers;
 
     bool hasFPUBlock;
-    char fpuState[] __attribute__((aligned(64)));   // buffer used to save and restore the SSE and FPU state of the thread
+    char* fpuBuffer;   // buffer used to save and restore the SSE and FPU state of the thread
 };

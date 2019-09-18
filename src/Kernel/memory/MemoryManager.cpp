@@ -449,7 +449,7 @@ namespace MemoryManager {
             return ErrorInvalidBuffer;
         for(uint64 i = 0; i < numPages; i++) {
             if(!MemoryManager::IsUserPtr(base + i * 4096))
-                Scheduler::ThreadKillProcess("InvalidUserPointer");
+                Scheduler::ThreadExit(1);
 
             MemoryManager::MapProcessPage(base + i * 4096);
         }
@@ -492,7 +492,7 @@ namespace MemoryManager {
             return ErrorInvalidBuffer;
         for(uint64 i = 0; i < numPages; i++) {
             if(!MemoryManager::IsUserPtr(base + i * 4096))
-                Scheduler::ThreadKillProcess("InvalidUserPointer");
+                Scheduler::ThreadExit(1);
 
             MemoryManager::UnmapProcessPage(base + i * 4096);
         }

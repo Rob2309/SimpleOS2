@@ -390,7 +390,7 @@ void kprintf_setcolor(uint8 r, uint8 g, uint8 b)
 
 SYSCALL_DEFINE1(syscall_print, const char* msg) {
     if(!MemoryManager::IsUserPtr(msg))
-        Scheduler::ThreadKillProcess("InvalidUserPointer");
+        Scheduler::ThreadExit(1);
     kprintf(msg);
     return 0;
 }

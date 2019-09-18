@@ -60,10 +60,10 @@ namespace GDT
 
     void Init(uint64 coreCount)
     {
-        klog_info_isr("GDT", "Reserving space for GDT");
+        klog_info("GDT", "Reserving space for GDT");
         
-        g_GDT = (GDTEntry*)MemoryManager::PhysToKernelPtr(MemoryManager::EarlyAllocatePages(((5 + coreCount * 2) * sizeof(GDTEntry) + 4095) / 4096));
-        g_TSS = (TSS*)MemoryManager::PhysToKernelPtr(MemoryManager::EarlyAllocatePages((coreCount * sizeof(TSS) + 4095) / 4096));
+        g_GDT = (GDTEntry*)MemoryManager::PhysToKernelPtr(MemoryManager::AllocatePages(((5 + coreCount * 2) * sizeof(GDTEntry) + 4095) / 4096));
+        g_TSS = (TSS*)MemoryManager::PhysToKernelPtr(MemoryManager::AllocatePages((coreCount * sizeof(TSS) + 4095) / 4096));
 
         // null descriptor
         kmemset((void*)&g_GDT[0], 0, sizeof(GDTEntry));

@@ -40,11 +40,11 @@ public:
     }
 
     bool DecAndCheckZero() {
-        bool res = false;
+        uint64 res = 0;
         __asm__ __volatile__ (
             "lock decq (%1);"
-            "cmovzq $1, %0"
-            : "+r"(res) : "r"(&m_Value)
+            "cmovzq %2, %0"
+            : "+r"(res) : "r"(&m_Value), "r"((uint64)1)
         );
         return res;
     }

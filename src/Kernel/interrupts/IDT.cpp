@@ -3,9 +3,9 @@
 #include "types.h"
 #include "klib/stdio.h"
 #include "arch/GDT.h"
-#include "scheduler/Process.h"
 #include "memory/MemoryManager.h"
 #include "arch/APIC.h"
+#include "klib/memory.h"
 
 #define ISRSTUB(vectno) extern "C" void ISRSTUB_##vectno();
 #define ISRSTUBE(vectno) extern "C" void ISRSTUB_##vectno();
@@ -65,20 +65,20 @@ namespace IDT {
     {
         switch (regs->intNumber)
         {
-        case ISRNumbers::ExceptionDiv0: Scheduler::ThreadKillProcessFromInterrupt(regs, "DivideByZero"); return; break;
+        case ISRNumbers::ExceptionDiv0: Scheduler::ThreadSetupPageFaultHandler(regs); return; break;
         case ISRNumbers::ExceptionDebug: klog_error_isr("IDT", "Debug trap"); break;
         case ISRNumbers::ExceptionNMI: klog_error_isr("IDT", "Non maskable interrupt"); break;
         case ISRNumbers::ExceptionBreakpoint: klog_error_isr("IDT", "Breakpoint"); break;
         case ISRNumbers::ExceptionOverflow: klog_error_isr("IDT", "Overflow"); break;
         case ISRNumbers::ExceptionBoundRangeExceeded: klog_error_isr("IDT", "Bound Range exceeded"); break;
-        case ISRNumbers::ExceptionInvalidOpcode: Scheduler::ThreadKillProcessFromInterrupt(regs, "InvalidOpcode"); return; break;
+        case ISRNumbers::ExceptionInvalidOpcode: Scheduler::ThreadSetupPageFaultHandler(regs); return; break;
         case ISRNumbers::ExceptionDeviceUnavailable: klog_error_isr("IDT", "Device unavailable"); break;
         case ISRNumbers::ExceptionDoubleFault: klog_error_isr("IDT", "Double fault"); break;
         case ISRNumbers::ExceptionCoprocesssorSegmentOverrun: klog_error_isr("IDT", "Coprocessor error"); break;
         case ISRNumbers::ExceptionInvalidTSS: klog_error_isr("IDT", "Invalid TSS"); break;
         case ISRNumbers::ExceptionSegmentNotPresent: klog_error_isr("IDT", "Segment not present"); break;
         case ISRNumbers::ExceptionStackSegmentNotPresent: klog_error_isr("IDT", "Stack segment not present"); break;
-        case ISRNumbers::ExceptionGPFault: Scheduler::ThreadKillProcessFromInterrupt(regs, "GeneralProtectionFault"); return; break;
+        case ISRNumbers::ExceptionGPFault: Scheduler::ThreadSetupPageFaultHandler(regs); return; break;
         case ISRNumbers::ExceptionPageFault: Scheduler::ThreadSetupPageFaultHandler(regs); return; break;
         case ISRNumbers::ExceptionFPException: klog_error_isr("IDT", "Floating point exception"); break;
         case ISRNumbers::ExceptionAlignmentCheck: klog_error_isr("IDT", "Alignment check"); break;
@@ -150,7 +150,7 @@ namespace IDT {
     }
 
     void InitCore(uint64 coreID) {
-        uint8* interruptBuffer = (uint8*)MemoryManager::PhysToKernelPtr(MemoryManager::EarlyAllocatePages(4));
+        uint8* interruptBuffer = (uint8*)MemoryManager::PhysToKernelPtr(MemoryManager::AllocatePages(4));
         kmemset(interruptBuffer, 0, 4 * 4096);
         GDT::SetIST1(coreID, interruptBuffer + 4 * 4096);
 

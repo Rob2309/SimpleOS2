@@ -17,9 +17,21 @@ namespace Scheduler {
      **/
     uint64 CreateKernelThread(int64 (*func)(uint64, uint64), uint64 arg1 = 0, uint64 arg2 = 0);
 
+    int64 CloneThread(bool shareMemSpace, bool shareFDs, IDT::Registers* regs);
+
+    int64 _Block();
+
+    /**
+     * Detaches a thread from the current thread
+     **/
     void ThreadDetach(uint64 tid);
 
-    bool ThreadGetChildInfo(uint64 tid, int64& exitCode);
+    /**
+     * Joins a thread.
+     * This function blocks until the specified thread is joined
+     * @returns false if the specified thread does not exist, true otherwise
+     **/
+    bool ThreadJoin(uint64 tid, int64& exitCode);
 
     /**
      * Suspends the currently active Thread and starts the next one.
@@ -31,7 +43,7 @@ namespace Scheduler {
 
     /**
      * Gives the processor to another thread.
-     * Can be called from a KernelThread
+     * Can be called from a KernelThread.
      **/
     void ThreadYield();
     /**
@@ -85,9 +97,6 @@ namespace Scheduler {
      */
     void ThreadExec(uint64 pml4Entry, IDT::Registers* regs);
 
-    void ThreadKillFromInterrupt(IDT::Registers* regs, const char* reason);
-    void ThreadKill(const char* reason);
-
     void ThreadSetSticky();
     void ThreadUnsetSticky();
 
@@ -106,11 +115,6 @@ namespace Scheduler {
      * Called by the page fault interrupt handler to let a thread know it caused a page fault.
      **/
     void ThreadSetupPageFaultHandler(IDT::Registers* regs);
-
-    /**
-     * Moves the calling thread to the given logical CPU
-     **/
-    void ThreadMoveToCPU(uint64 logicalCoreID);
 
     ThreadInfo* GetCurrentThreadInfo();
 
