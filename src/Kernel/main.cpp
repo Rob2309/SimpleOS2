@@ -194,8 +194,8 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     for(int p = 0; p < info->screenBufferPages; p++)
         MemoryManager::EnableWriteCombineOnLargePage((char*)info->screenBuffer + p * 4096);
 
-    //SMP::StartCores(info->smpTrampolineBuffer, info->pageBuffer);
-    //MemoryManager::EarlyFreePages(MemoryManager::KernelToPhysPtr(info->smpTrampolineBuffer), info->smpTrampolineBufferPages);
+    SMP::StartCores(info->smpTrampolineBuffer, info->pageBuffer);
+    MemoryManager::FreePages(MemoryManager::KernelToPhysPtr(info->smpTrampolineBuffer), info->smpTrampolineBufferPages);
 
     Scheduler::CreateInitKernelThread(InitThread);
 

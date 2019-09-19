@@ -42,15 +42,16 @@ namespace SMP {
         
         started = true;
 
-        IDT::DisableInterrupts();
         __asm__ __volatile__ (
             "lock incq (%0)"
             : : "r"(&startCount)
         );
         
+        Scheduler::ThreadUnsetSticky();
         Scheduler::ThreadEnableInterrupts();
 
-        while(true);
+        while(true)
+            __asm__ __volatile__("hlt");
     }
 
     struct CoreInfo {
