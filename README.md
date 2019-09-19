@@ -8,18 +8,26 @@ This is a very simple x86_64 OS I am creating for learning purposes.
 - Terminal that can print 32-Bit colored text (no input functionality yet)
 - Interrupt handling
 - APIC Timer support
+- IOAPIC support
 - User mode processes
+- Kernel Threads
 - Multitasking & Multithreading
 - System calls via syscall instruction (e.g. fork & exec)
-- Linux-like virtual file system (with basic mounting support)
+- Linux-like virtual file system (with mount support)
+- FileSystem driver API
 - Character- and BlockDevice driver API
 - Multi-Core support
 - Usermode SSE & FPU support
+- Basic shell that can run programs with command line arguments
+- Basic ACPI support using ACPICA (currently only shutdown supported)
+- Basic readonly Ext2 driver (used for ramdisk)
+- Subset of standard c library supported
 
 ## Planned features:
 - HDD support (SATA)
-- Multi Core support
-- USB support (maybe)
+- USB support (madness)
+- IP Stack
+- Full C library support
 
 ## Specs
 This OS should basically run on any x86_64 machine that supports UEFI. If you find a machine that does not work with SimpleOS2, please contact me.
@@ -32,6 +40,7 @@ This OS should basically run on any x86_64 machine that supports UEFI. If you fi
 - NASM
 - mtools
 - debugfs
+- parted
 ### Build commands
 - ``make depcheck``:            check if all dependencies are installed
 - ``make partition``:           build a raw partition image that contains the OS
