@@ -167,6 +167,28 @@ static void BuiltinLS(int argc, char** argv) {
     free(entries);
 }
 
+static void BuiltinMkdir(int argc, char** argv) {
+    if(argc < 2) {
+        puts("Usage: mkdir <folder>\n");
+        return;
+    }
+
+    int64 error = create_folder(argv[1]);
+    if(error != 0)
+        puts("Failed to create folder\n");
+}
+
+static void BuiltinRM(int argc, char** argv) {
+    if(argc < 2) {
+        puts("Usage: rm <path>\n");
+        return;
+    }
+
+    int64 error = delete_file(argv[1]);
+    if(error != 0)
+        puts("Failed to delete path\n");
+}
+
 static void InvokeCommand() {
     int argc = 0;
     char* argv[100];
@@ -189,6 +211,10 @@ static void InvokeCommand() {
         BuiltinPut(argc, argv);
     } else if(strcmp(argv[0], "ls") == 0) {
         BuiltinLS(argc, argv);
+    } else if(strcmp(argv[0], "mkdir") == 0) {
+        BuiltinMkdir(argc, argv);
+    } else if(strcmp(argv[0], "rm") == 0) {
+        BuiltinRM(argc, argv);
     } else {
         exec(argv[0], argc, argv);
         puts("Command not found\n");
