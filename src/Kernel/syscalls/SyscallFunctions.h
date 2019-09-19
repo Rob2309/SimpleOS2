@@ -4,7 +4,6 @@
 
 // This file contains all system calls defined by the kernel
 
-constexpr uint64 syscall_getpid = 0;
 constexpr uint64 syscall_gettid = 1;
 constexpr uint64 syscall_wait = 2;
 constexpr uint64 syscall_exit = 3;
@@ -12,6 +11,8 @@ constexpr uint64 syscall_fork = 4;
 constexpr uint64 syscall_exec = 5;
 constexpr uint64 syscall_thread_create = 6;
 constexpr uint64 syscall_print = 7;
+constexpr uint64 syscall_detach = 8;
+constexpr uint64 syscall_join = 9;
 
 constexpr uint64 syscall_create_file = 50;
 constexpr uint64 syscall_create_folder = 51;

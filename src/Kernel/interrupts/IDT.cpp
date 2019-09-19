@@ -154,7 +154,7 @@ namespace IDT {
         kmemset(interruptBuffer, 0, 4 * 4096);
         GDT::SetIST1(coreID, interruptBuffer + 4 * 4096);
 
-        DisableInterrupts();
+        Scheduler::ThreadDisableInterrupts();
 
         __asm__ __volatile__ (
             ".intel_syntax noprefix;"
@@ -163,6 +163,8 @@ namespace IDT {
             :
             : "r" (&g_IDTDesc)
         );
+
+        Scheduler::ThreadEnableInterrupts();
     }
 
     void SetInternalISR(uint8 index, ISR isr)

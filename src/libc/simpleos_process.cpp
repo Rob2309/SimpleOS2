@@ -2,9 +2,6 @@
 
 #include "syscall.h"
 
-uint64 getpid() {
-    return syscall_invoke(syscall_getpid);
-}
 uint64 gettid() {
     return syscall_invoke(syscall_gettid);
 }
@@ -32,4 +29,11 @@ void exec(const char* path) {
 
 void setfsbase(uint64 val) {
     syscall_invoke(syscall_setfs, val);
+}
+
+int64 detach(int64 tid) {
+    return syscall_invoke(syscall_detach, tid);
+}
+int64 join(int64 tid) {
+    return syscall_invoke(syscall_join, tid);
 }

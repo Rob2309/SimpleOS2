@@ -44,7 +44,7 @@ namespace Scheduler {
     static ThreadInfo* g_InitThread = nullptr;
 
     static void TimerEvent(IDT::Registers* regs) {
-
+        Tick(regs);
     }
 
     static ThreadInfo* FindNextThread() {
@@ -82,6 +82,7 @@ namespace Scheduler {
 
             if(tInfo->state.type == ThreadState::READY) {
                 cpuData.activeList.erase(a);
+                cpuData.activeList.push_back(*a);
                 return tInfo;
             }
         }
@@ -119,8 +120,6 @@ namespace Scheduler {
     }
 
     void MakeMeIdleThread() {
-        APIC::SetTimerEvent(TimerEvent);
-
         auto& cpuData = g_CPUData.Get();
 
         cpuData.idleThreadMemSpace.refCount = 1;
@@ -182,6 +181,8 @@ namespace Scheduler {
     }
 
     void CreateInitKernelThread(int64 (*func)(uint64, uint64)) {
+        APIC::SetTimerEvent(TimerEvent);
+
         auto tInfo = _CreateKernelThread(func);
         g_InitThread = tInfo;
     }
@@ -221,7 +222,7 @@ namespace Scheduler {
             tInfo->fds->lock.Spinlock();
             for(const auto& fd : tInfo->fds->fds) {
                 if(fd.sysDesc != 0) {
-                    fds->fds.push_back({ fd });
+                    fds->fds.push_back( fd );
                     VFS::AddRef(fd.sysDesc);
                 }
             }
@@ -253,6 +254,18 @@ namespace Scheduler {
         cpuData.activeListLock.Unlock_Cli();
 
         return newT->tid;
+    }
+    SYSCALL_DEFINE3(syscall_thread_create, uint64 entry, uint64 stack, uint64 arg) {
+        IDT::Registers regs;
+        regs.rip = entry;
+        regs.userrsp = stack;
+        regs.rdi = arg;
+        regs.cs = GDT::UserCode;
+        regs.ds = GDT::UserData;
+        regs.ss = GDT::UserData;
+
+        int64 res = CloneThread(true, true, true, &regs);
+        return res;
     }
 
     int64 ThreadBlock(ThreadState::Type type, uint64 arg) {
@@ -302,6 +315,9 @@ namespace Scheduler {
 
         return OK;
     }
+    SYSCALL_DEFINE1(syscall_detach, int64 tid) {
+        return ThreadDetach(tid);
+    }
 
     int64 ThreadJoin(int64 tid, int64& exitCode) {
         auto mainThread = g_CPUData.Get().currentThread->mainThread;
@@ -336,9 +352,19 @@ namespace Scheduler {
 
         return OK;
     }
+    SYSCALL_DEFINE1(syscall_join, int64 tid) {
+        int64 exitCode;
+        int64 err = ThreadJoin(tid, exitCode);
+        if(err != OK)
+            return err;
+        return exitCode;
+    }
 
     void Tick(IDT::Registers* regs) {
         auto& cpuData = g_CPUData.Get();
+
+        if(cpuData.currentThread->stickyCount != 0)
+            return;
 
         cpuData.activeListLock.Spinlock_Raw();
         auto next = FindNextThread();
@@ -372,6 +398,9 @@ namespace Scheduler {
 
     int64 ThreadSleep(uint64 ms) {
         return ThreadBlock(ThreadState::WAIT, ms);
+    }
+    SYSCALL_DEFINE1(syscall_wait, uint64 ms) {
+        return ThreadSleep(ms);
     }
 
     void ThreadExit(uint64 code) {
@@ -413,10 +442,16 @@ namespace Scheduler {
 
         ThreadYield();
     }
+    SYSCALL_DEFINE1(syscall_exit, uint64 code) {
+        ThreadExit(code);
+    }
 
     int64 ThreadGetTID() {
         auto tInfo = g_CPUData.Get().currentThread;
         return tInfo->tid;
+    }
+    SYSCALL_DEFINE0(syscall_gettid) {
+        return ThreadGetTID();
     }
 
     uint64 ThreadGetUID() {
@@ -518,6 +553,9 @@ namespace Scheduler {
             return OK;
         }
     }
+    SYSCALL_DEFINE2(syscall_copyfd, int64 oldFD, int64 newFD) {
+        return ThreadReplaceFileDescriptor(oldFD, newFD);
+    }
 
     int64 ThreadCloseFileDescriptor(int64 desc) {
         auto tInfo = g_CPUData.Get().currentThread;
@@ -563,6 +601,10 @@ namespace Scheduler {
     void ThreadSetFS(uint64 val) {
         g_CPUData.Get().currentThread->userFSBase = val;
     }
+    SYSCALL_DEFINE1(syscall_setfs, uint64 val) {
+        ThreadSetFS(val);
+        MSR::Write(MSR::RegFSBase, val);
+    }
     void ThreadSetGS(uint64 val) {
         g_CPUData.Get().currentThread->userGSBase = val;
     }
@@ -591,15 +633,19 @@ namespace Scheduler {
 
         tInfo->registers = *regs;
         tInfo->registers.rflags = CPU::FLAGS_IF;
+
+        LoadThreadState(tInfo);
         GoToThread(&tInfo->registers);
     }
 
     void ThreadSetSticky() {
-        g_CPUData.Get().currentThread->stickyCount++;
+        auto tInfo = g_CPUData.Get().currentThread;
+        tInfo->stickyCount++;
     }
 
     void ThreadUnsetSticky() {
-        g_CPUData.Get().currentThread->stickyCount--;
+        auto tInfo = g_CPUData.Get().currentThread;
+        tInfo->stickyCount--;
     }
 
     void ThreadDisableInterrupts() {
@@ -607,7 +653,8 @@ namespace Scheduler {
         IDT::DisableInterrupts();
     }
     void ThreadEnableInterrupts() {
-        if(g_CPUData.Get().currentThread->cliCount-- == 1)
+        g_CPUData.Get().currentThread->cliCount--;
+        if(g_CPUData.Get().currentThread->cliCount == 0)
             IDT::EnableInterrupts();
     }
 

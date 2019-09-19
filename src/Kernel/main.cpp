@@ -184,7 +184,6 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     if(!SSE::InitBootCore())
         goto bootFailed;
 
-    Scheduler::ThreadSetSticky();
     Scheduler::ThreadEnableInterrupts();
     APIC::StartTimer(10);
 
@@ -199,9 +198,9 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     Scheduler::CreateInitKernelThread(InitThread);
 
     Scheduler::ThreadUnsetSticky();
-    Scheduler::ThreadYield();
 
-    while(true) ;
+    while(true)
+        __asm__ __volatile__ ("hlt");
 
 bootFailed:
     klog_fatal("Boot", "Boot failed...");

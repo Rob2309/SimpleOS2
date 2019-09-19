@@ -2,7 +2,6 @@
 
 #include "types.h"
 
-uint64 getpid();
 uint64 gettid();
 
 void thread_waitms(uint64 ms);
@@ -15,3 +14,6 @@ uint64 fork();
 void exec(const char* path);
 
 void setfsbase(uint64 val);
+
+int64 detach(int64 tid);
+int64 join(int64 tid);
