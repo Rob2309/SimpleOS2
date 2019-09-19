@@ -15,10 +15,6 @@ namespace SMP {
      * Starts up the CPU cores into a waiting state
      **/
     void StartCores(uint8* trampolineBuffer, uint64* pageBuffer);
-    /**
-     * Starts the scheduler on every CPU core except the boot core.
-     **/
-    void StartSchedulers();
 
     /**
      * Returns the number of logical CPU cores available in the system.

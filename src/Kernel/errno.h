@@ -14,4 +14,8 @@ constexpr int64 ErrorFileExists = -11;
 constexpr int64 ErrorSeekOffsetOOB = -12;
 constexpr int64 ErrorEncounteredSymlink = -13;
 
+constexpr int64 ErrorThreadNotFound = -100;
+
+constexpr int64 ErrorInterrupted = -200;
+
 const char* ErrorToString(int64 error);

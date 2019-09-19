@@ -11,8 +11,6 @@
 #include "memory/MemoryManager.h"
 #include "klib/memory.h"
 
-#include "scheduler/Process.h"
-
 #include "fs/VFS.h"
 
 #include "exec/ExecHandler.h"
@@ -75,7 +73,7 @@ namespace SyscallHandler {
         childRegs.ds = GDT::UserData;
         childRegs.rax = 0;
 
-        return Scheduler::CloneProcess(&childRegs);
+        return Scheduler::CloneThread(false, false, false, &childRegs);
     }
     SYSCALL_DEFINE0(syscall_fork) {
         return DoFork(state);
@@ -83,18 +81,17 @@ namespace SyscallHandler {
 
     static uint64 DoExec(const char* filePath) {
         if(!MemoryManager::IsUserPtr(filePath))
-            Scheduler::ThreadKillProcess("InvalidUserPointer");
+            Scheduler::ThreadExit(1);
 
         ThreadInfo* tInfo = Scheduler::GetCurrentThreadInfo();
-        ProcessInfo* pInfo = tInfo->process;
 
         uint64 file;
-        int64 error = VFS::Open(pInfo->owner, filePath, VFS::OpenMode_Read, file);
+        int64 error = VFS::Open(tInfo->user, filePath, VFS::OpenMode_Read, file);
         if(error != OK)
             return error;
         
         VFS::NodeStats stats;
-        VFS::Stat(pInfo->owner, filePath, stats);
+        VFS::Stat(tInfo->user, filePath, stats);
 
         uint8* buffer = new uint8[stats.size];
         VFS::Read(file, buffer, stats.size);
@@ -105,11 +102,11 @@ namespace SyscallHandler {
         if(!ExecHandlerRegistry::Prepare(buffer, stats.size, pml4Entry, &regs)) {
             delete[] buffer;
             MemoryManager::FreeProcessMap(pml4Entry);
-            return 0;
+            return ErrorInvalidPath;
         }
 
         delete[] buffer;
-        Scheduler::ProcessExec(pml4Entry, &regs);
+        Scheduler::ThreadExec(pml4Entry, &regs);
     }
     SYSCALL_DEFINE1(syscall_exec, const char* path) {
         return DoExec(path);
@@ -117,16 +114,16 @@ namespace SyscallHandler {
 
     extern "C" uint64 SyscallDispatcher(uint64 func, uint64 arg1, uint64 arg2, uint64 arg3, uint64 arg4, SyscallState* state)
     {
-        Scheduler::ThreadSetUnkillable(true);
         uint64 res = 0;
 
         if(g_Functions[func] != nullptr) {
             res = g_Functions[func](arg1, arg2, arg3, arg4, state);
         } else {
-            Scheduler::ThreadKillProcess("Invalid syscall");
+            klog_error("Fault", "Thread %i called invalid syscall %i", Scheduler::ThreadGetTID(), func);
+            Scheduler::ThreadExit(1);
         }
 
-        Scheduler::ThreadSetUnkillable(false);
+        Scheduler::ThreadCheckFlags();
         return res;
     }
 

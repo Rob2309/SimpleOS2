@@ -4,45 +4,36 @@
 #include "interrupts/IDT.h"
 #include "user/User.h"
 
-struct ThreadInfo;
+#include "Thread.h"
 
 namespace Scheduler {
 
-    /**
-     * Used to create the very first thread of the system.
-     **/
-    uint64 CreateInitThread(void (*func)());
+    void MakeMeIdleThread();
 
-    /**
-     * Create a new userspace Thread and Process with the given Memory space
-     * @param pml4Entry the Paging Structure to user for the process
-     * @param regs the initial register values for the created Thread
-     * @returns the TID of the created Thread
-     **/
-    uint64 CreateUserThread(uint64 pml4Entry, IDT::Registers* regs, User* owner);
+    void CreateInitKernelThread(int64 (*func)(uint64, uint64));
+
     /**
      * Create a new Kernel Thread that is not associated with any Process
      * @param rip the Entry point of the Thread
      * @returns the TID of the created Thread
      **/
-    uint64 CreateKernelThread(uint64 rip, uint64 arg1 = 0, uint64 arg2 = 0);
-    /**
-     * Clones the currently active Process and its User Memory Space. All Open FileDescriptors will be cloned onto the new Process.
-     * The new Process will have a single Thread.
-     * @param regs the initial register values for the created Thread
-     * @returns the TID of the newly created Thread
-     **/
-    uint64 CloneProcess(IDT::Registers* regs);
+    int64 CreateKernelThread(int64 (*func)(uint64, uint64), uint64 arg1 = 0, uint64 arg2 = 0);
+
+    int64 CloneThread(bool subthread, bool shareMemSpace, bool shareFDs, IDT::Registers* regs);
+
+    int64 ThreadBlock(ThreadState::Type type, uint64 arg);
 
     /**
-     * Performs basic initialization of the Scheduler.
-     * Has to be called before any Core calls the Start() function
-     */
-    void Init(uint64 numCores);
-    /**
-     * This function is called by the Kernel to start normal Scheduling procedures. It never returns.
+     * Detaches a thread from the current thread
      **/
-    void Start();
+    int64 ThreadDetach(int64 tid);
+
+    /**
+     * Joins a thread.
+     * This function blocks until the specified thread is joined
+     * @returns false if the specified thread does not exist, true otherwise
+     **/
+    int64 ThreadJoin(int64 tid, int64& exitCode);
 
     /**
      * Suspends the currently active Thread and starts the next one.
@@ -54,35 +45,26 @@ namespace Scheduler {
 
     /**
      * Gives the processor to another thread.
-     * Can be called from a KernelThread
+     * Can be called from a KernelThread.
      **/
     void ThreadYield();
     /**
      * Suspends the active thread for *at least* [ms] milliseconds.
      * Can be called from a KernelThread
      **/
-    void ThreadWait(uint64 ms);
+    int64 ThreadSleep(uint64 ms);
 
     /**
      * Destroys the current Thread.
      * Can be called from a KernelThread
      **/
     void ThreadExit(uint64 code);
-    /**
-     * Creates a new Thread in the currently active process.
-     * Can *not* be called from a KernelThread, use CreateKernelThread instead
-     * @returns the TID of the newly created Thread
-     **/
-    uint64 ThreadCreateThread(uint64 entry, uint64 stack, uint64 arg);
+
     /**
      * Get the ThreadID of the currently active Thread
      **/
-    uint64 ThreadGetTID();
-    /**
-     * Get the ProcessID of the currently active Process.
-     * Returns 0 if the current Thread does not belong to a process (KernelThread)
-     **/
-    uint64 ThreadGetPID();
+    int64 ThreadGetTID();
+
     /**
      * Get the UID of the process owner
      **/
@@ -96,7 +78,7 @@ namespace Scheduler {
      **/
     const char* ThreadGetUserName();
 
-    int64 ProcessAddFileDescriptor(uint64 sysDescriptor);
+    int64 ThreadAddFileDescriptor(uint64 sysDescriptor);
     /**
      * Copies oldPDesc to newPDesc.
      * Attention:
@@ -105,9 +87,9 @@ namespace Scheduler {
      *      3. if oldPDesc and newPDesc refer to the same File descriptor, this function does nothing and returns OK
      *      4. if newPDesc is already open, this function closes newPDesc first
      **/
-    int64 ProcessReplaceFileDescriptor(int64 oldPDesc, int64 newPDesc);
-    int64 ProcessCloseFileDescriptor(int64 desc);
-    int64 ProcessGetSystemFileDescriptor(int64 pDesc, uint64& sysDesc);
+    int64 ThreadReplaceFileDescriptor(int64 oldPDesc, int64 newPDesc);
+    int64 ThreadCloseFileDescriptor(int64 desc);
+    int64 ThreadGetSystemFileDescriptor(int64 pDesc, uint64& sysDesc);
 
     void ThreadSetFS(uint64 val);
     void ThreadSetGS(uint64 val);
@@ -115,10 +97,7 @@ namespace Scheduler {
     /**
      * Replaces the Memory space of the current Process with the given pml4Entry
      */
-    void ProcessExec(uint64 pml4Entry, IDT::Registers* regs);
-
-    void ThreadKillProcessFromInterrupt(IDT::Registers* regs, const char* reason);
-    void ThreadKillProcess(const char* reason);
+    void ThreadExec(uint64 pml4Entry, IDT::Registers* regs);
 
     void ThreadSetSticky();
     void ThreadUnsetSticky();
@@ -126,7 +105,7 @@ namespace Scheduler {
     void ThreadDisableInterrupts();
     void ThreadEnableInterrupts();
 
-    void ThreadSetUnkillable(bool unkillable);
+    void ThreadCheckFlags();
 
     /**
      * If this function is called with a non zero value, the thread will not be killed when a page fault occurs.
@@ -137,12 +116,7 @@ namespace Scheduler {
     /**
      * Called by the page fault interrupt handler to let a thread know it caused a page fault.
      **/
-    void ThreadSetupPageFaultHandler(IDT::Registers* regs);
-
-    /**
-     * Moves the calling thread to the given logical CPU
-     **/
-    void ThreadMoveToCPU(uint64 logicalCoreID);
+    void ThreadSetupPageFaultHandler(IDT::Registers* regs, const char* msg);
 
     ThreadInfo* GetCurrentThreadInfo();
 

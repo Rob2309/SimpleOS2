@@ -37,6 +37,8 @@
 #include "init/Init.h"
 #include "init/InitInvoke.h"
 
+#include "percpu/PerCPUInit.h"
+
 #include "acpi/ACPI.h"
 
 extern "C" {
@@ -80,15 +82,14 @@ static uint64 SetupInitProcess() {
 
     delete[] buffer;
 
-    uint64 tid = Scheduler::CreateUserThread(pml4Entry, &regs, &g_RootUser);
-    klog_info("Init", "Created init process with TID %i", tid);
-    return tid;
+    klog_info("Init", "Executing init program");
+    Scheduler::ThreadExec(pml4Entry, &regs);
 }
 
 static KernelHeader* g_KernelHeader;
 Terminal::TerminalInfo g_TerminalInfo;
 
-static void InitThread() {
+static int64 InitThread(uint64, uint64) {
     ACPI::StartSystem();
     PCI::Init();
 
@@ -105,12 +106,12 @@ static void InitThread() {
     int64 error = VFS::CreateFolder(&g_RootUser, "/dev", { 1, 1, 1 });
     if(error < 0) {
         klog_fatal("Init", "Failed to create /dev folder (%s)", ErrorToString(error));
-        Scheduler::ThreadExit(1);
+        return 1;
     }
     error = VFS::Mount(&g_RootUser, "/dev", devFS);
     if(error < 0) {
         klog_fatal("Init", "Failed to mount DevFS to /dev (%s)", ErrorToString(error));
-        Scheduler::ThreadExit(1);
+        return 1;
     }
 
     CallInitFuncs(INIT_STAGE_DEVDRIVERS);
@@ -132,13 +133,15 @@ static void InitThread() {
     error = VFS::CreateFolder(&g_RootUser, "/boot", { 3, 1, 1 });
     if(error < 0) {
         klog_fatal("Init", "Failed to create /boot folder (%s)", ErrorToString(error));
-        Scheduler::ThreadExit(1);
+        return 1;
     }
     error = VFS::Mount(&g_RootUser, "/boot", config_BootFS_FSID, config_BootFS_DevFile);
     if(error < 0) {
         klog_fatal("Init", "Failed to mount boot filesystem: %s", ErrorToString(error));
-        Scheduler::ThreadExit(1);
+        return 1;
     }
+
+    Scheduler::GetCurrentThreadInfo()->user = &g_RootUser;
 
     uint64 tid = SetupInitProcess();
 
@@ -146,7 +149,7 @@ static void InitThread() {
     Time::GetRTC(&dt);
     klog_info("Time", "UTC Time is %02i.%02i.20%02i %02i:%02i:%02i", dt.dayOfMonth, dt.month, dt.year, dt.hours, dt.minutes, dt.seconds);
 
-    Scheduler::ThreadExit(0);
+    return 0;
 }
 
 extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
@@ -158,15 +161,19 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     kprintf_isr("%CStarting SimpleOS2 Kernel\n", 40, 200, 40);
     klog_info_isr("Boot", "Kernel at 0x%016X", info->kernelImage.buffer);
 
-    if(!Time::Init())
-        goto bootFailed;
     if(!MemoryManager::Init(info))
         goto bootFailed;
     ACPI::InitEarlyTables(info);
-    APIC::Init();
-    IOAPIC::Init();
     SMP::GatherInfo();
-    MemoryManager::InitCore(SMP::GetLogicalCoreID());
+    PerCPU::Init(SMP::GetCoreCount());
+    APIC::Init();
+    MemoryManager::InitCore();
+
+    Scheduler::MakeMeIdleThread();
+
+    if(!Time::Init())
+        goto bootFailed;
+    IOAPIC::Init();
     GDT::Init(SMP::GetCoreCount());
     GDT::InitCore(SMP::GetLogicalCoreID());
     IDT::Init();
@@ -176,23 +183,27 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     SyscallHandler::InitCore();
     if(!SSE::InitBootCore())
         goto bootFailed;
-    Scheduler::Init(SMP::GetCoreCount());
+
+    Scheduler::ThreadEnableInterrupts();
+    APIC::StartTimer(10);
 
     Terminal::EnableDoubleBuffering(&g_TerminalInfo);
 
     for(int p = 0; p < info->screenBufferPages; p++)
         MemoryManager::EnableWriteCombineOnLargePage((char*)info->screenBuffer + p * 4096);
 
-    SMP::StartCores(info->smpTrampolineBuffer, info->pageBuffer);
-    MemoryManager::EarlyFreePages(MemoryManager::KernelToPhysPtr(info->smpTrampolineBuffer), info->smpTrampolineBufferPages);
+    //SMP::StartCores(info->smpTrampolineBuffer, info->pageBuffer);
+    //MemoryManager::EarlyFreePages(MemoryManager::KernelToPhysPtr(info->smpTrampolineBuffer), info->smpTrampolineBufferPages);
 
-    Scheduler::CreateInitThread(InitThread);
+    Scheduler::CreateInitKernelThread(InitThread);
 
-    SMP::StartSchedulers();
-    Scheduler::Start();
+    Scheduler::ThreadUnsetSticky();
+
+    while(true)
+        __asm__ __volatile__ ("hlt");
 
 bootFailed:
-    klog_fatal_isr("Boot", "Boot failed...");
+    klog_fatal("Boot", "Boot failed...");
     while(true)
         __asm__ __volatile__ ("hlt");
 }

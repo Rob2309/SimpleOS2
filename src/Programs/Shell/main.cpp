@@ -19,9 +19,15 @@ static void HandleCommand() {
     if(g_CmdBufferIndex == 0)
         return;
 
-    exec(g_CmdBuffer);
+    int64 tid;
+    if(tid = fork()) {
+        join(tid);
+    } else {
+        exec(g_CmdBuffer);
 
-    puts("Command not found\n");
+        puts("Command not found\n");
+        thread_exit(1);
+    }
     
     for(int i = 0; i < 128; i++)
         g_CmdBuffer[i] = 0;

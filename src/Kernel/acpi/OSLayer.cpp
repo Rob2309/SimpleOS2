@@ -84,7 +84,7 @@ extern "C" {
     static uint64 g_JobPopIndex = 0;
     static Job g_JobQueue[128];
 
-    void AcpiJobThread() {
+    int64 AcpiJobThread(uint64, uint64) {
         klog_info("ACPI", "Job thread starting...");
 
         while(true) {
@@ -116,7 +116,7 @@ extern "C" {
     }
 
     void AcpiOsSleep(UINT64 millis) {
-        Scheduler::ThreadWait(millis);
+        Scheduler::ThreadSleep(millis);
     }
     void AcpiOsStall(UINT32 micros) {
         Scheduler::ThreadSetSticky();

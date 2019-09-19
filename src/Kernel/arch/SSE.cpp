@@ -90,8 +90,8 @@ namespace SSE {
         mxcsr |= (1 << 7);
         __asm__ __volatile__ ("ldmxcsr (%0)" : : "r"(&mxcsr) );
 
-        klog_info_isr("SSE", "SSE initialized");
-        klog_info_isr("SSE", "FPU Block size: %i bytes", g_FPUBlockSize);
+        klog_info("SSE", "SSE initialized");
+        klog_info("SSE", "FPU Block size: %i bytes", g_FPUBlockSize);
 
         return true;
     }

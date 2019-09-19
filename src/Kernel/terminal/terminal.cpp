@@ -30,7 +30,7 @@ namespace Terminal {
     }
 
     void EnableDoubleBuffering(TerminalInfo* tInfo) {
-        tInfo->bBuffer = (uint32*)MemoryManager::PhysToKernelPtr(MemoryManager::EarlyAllocatePages(NUM_PAGES(tInfo->screenScanlineWidth * tInfo->screenHeight * sizeof(uint32))));
+        tInfo->bBuffer = (uint32*)MemoryManager::PhysToKernelPtr(MemoryManager::AllocatePages(NUM_PAGES(tInfo->screenScanlineWidth * tInfo->screenHeight * sizeof(uint32))));
         kmemcpy(tInfo->bBuffer, tInfo->vBuffer, tInfo->screenScanlineWidth * tInfo->screenHeight * sizeof(uint32));
         tInfo->bBufferLine = 0;
     }

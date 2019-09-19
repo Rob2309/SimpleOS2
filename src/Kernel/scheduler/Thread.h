@@ -2,40 +2,70 @@
 
 #include "types.h"
 #include "interrupts/IDT.h"
+#include "ktl/vector.h"
+#include "user/User.h"
+#include "atomic/Atomics.h"
+#include "locks/StickyLock.h"
 
 constexpr uint64 KernelStackPages = 3;
 constexpr uint64 KernelStackSize = KernelStackPages * 4096;
 constexpr uint64 UserStackPages = 4;
 constexpr uint64 UserStackSize = UserStackPages * 4096;
 
-struct ThreadBlockEvent {
-    enum {
-        TYPE_NONE,
-        TYPE_WAIT,
-        TYPE_QUEUE_LOCK,
-        TYPE_TRANSFER,
+struct ThreadInfo;
+
+struct ThreadState {
+    enum Type {
+        READY,
+
+        WAIT,
+        QUEUE_LOCK,
+        JOIN,
+
+        FINISHED,
+        EXITED,
     } type;
 
-    union {
-        struct {
-            uint64 remainingTicks;
-        } wait;
-        struct {
-            uint64 coreID;
-        } transfer;
-    };
+    uint64 arg;
 };
 
-struct ProcessInfo;
+struct ThreadMemSpace {
+    Atomic<uint64> refCount;
+    uint64 pml4Entry;
+};
+
+struct ThreadFileDescriptor {
+    int64 id;
+    uint64 sysDesc;
+};
+
+struct ThreadFileDescriptors {
+    Atomic<uint64> refCount;
+
+    StickyLock lock;
+    ktl::vector<ThreadFileDescriptor> fds;
+};
 
 struct ThreadInfo {
     ThreadInfo* next;
     ThreadInfo* prev;
 
-    uint64 tid;
-    ProcessInfo* process;
+    ThreadInfo* mainThread;
 
-    ThreadBlockEvent blockEvent;
+    StickyLock joinThreadsLock;
+    ktl::vector<ThreadInfo*> joinThreads;
+
+    int64 tid;
+    
+    int64 exitCode;
+    bool killPending;                       // Set this flag to inform a thread that it should kill itself
+    
+    ThreadMemSpace* memSpace;
+    ThreadFileDescriptors* fds;
+
+    User* user;
+
+    ThreadState state;
     
     uint64 kernelStack;
     uint64 userGSBase;
@@ -44,13 +74,9 @@ struct ThreadInfo {
     uint64 stickyCount;
     uint64 cliCount;
 
-    bool unkillable;
-    bool killPending;
-    uint64 killCode;
-
-    uint64 pageFaultRip;
+    uint64 faultRip;
 
     IDT::Registers registers;
 
-    char fpuState[] __attribute__((aligned(64)));   // buffer used to save and restore the SSE and FPU state of the thread
+    char* fpuBuffer;   // buffer used to save and restore the SSE and FPU state of the thread
 };

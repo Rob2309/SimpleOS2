@@ -23,7 +23,6 @@ namespace SMP {
 
     static volatile bool alive = false;
     static volatile bool started = false;
-    static volatile bool startScheduler = false;
     static volatile uint64 startCount = 0;
 
     // This function will be called by every secondary CPU core that gets started by StartCores()
@@ -32,23 +31,26 @@ namespace SMP {
 
         uint64 logicalID = SMP::GetLogicalCoreID();
 
+        MemoryManager::InitCore();
+        Scheduler::MakeMeIdleThread();
+
         GDT::InitCore(logicalID);
         IDT::InitCore(logicalID);
         APIC::InitCore();
-        MemoryManager::InitCore(logicalID);
         SyscallHandler::InitCore();
         SSE::InitCore();
         
         started = true;
-        
-        while(!startScheduler) ;
 
         IDT::DisableInterrupts();
         __asm__ __volatile__ (
             "lock incq (%0)"
             : : "r"(&startCount)
         );
-        Scheduler::Start();
+        
+        Scheduler::ThreadEnableInterrupts();
+
+        while(true);
     }
 
     struct CoreInfo {
@@ -157,12 +159,6 @@ namespace SMP {
             g_NumRunningCores++;
             klog_info_isr("SMP", "Logical Core %i started...", i);
         }
-    }
-
-    void StartSchedulers() {
-        startScheduler = true;
-
-        while(startCount < g_NumRunningCores - 1) ;
     }
 
     uint64 GetCoreCount() {
