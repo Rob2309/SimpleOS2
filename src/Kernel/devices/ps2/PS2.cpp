@@ -20,9 +20,24 @@ namespace PS2 {
     static uint64 g_WriteIndex = 0;
     static bool g_LeftShift = false;
     static bool g_RightShift = false;
+    static bool g_E0Key = false;
 
     static void KeyHandler(IDT::Registers* regs) {
         uint8 scan = Port::InByte(REG_DATA);
+
+        if(g_E0Key) {
+            if(scan == 0x48) {
+                g_BufferLock.Spinlock_Raw();
+                g_Buffer[g_WriteIndex++ % sizeof(g_Buffer)] = '\1';
+                g_BufferLock.Unlock_Raw();
+            } else if(scan == 0x50) {
+                g_BufferLock.Spinlock_Raw();
+                g_Buffer[g_WriteIndex++ % sizeof(g_Buffer)] = '\2';
+                g_BufferLock.Unlock_Raw();      
+            }
+
+            g_E0Key = false;
+        }
 
         if(scan == 0x2A) {
             g_LeftShift = true;
@@ -41,6 +56,11 @@ namespace PS2 {
             return;
         }
 
+        if(scan == 0xE0) {
+            g_E0Key = true;
+            return;
+        } 
+        
         if(scan & 0x80)
             return;
 

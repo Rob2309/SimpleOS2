@@ -4,6 +4,10 @@
 #include <string.h>
 #include <stdlib.h>
 
+static char g_History[1024][128];
+static int g_HistoryMinIndex = 1024;
+static int g_HistoryIndex = 1024;
+
 static char g_CmdBuffer[128] = { 0 };
 static int g_CmdBufferIndex = 0;
 
@@ -176,7 +180,10 @@ static void BuiltinLS(int argc, char** argv) {
 
     for(int i = 0; i < numEntries; i++) {
         puts(entries[i].name);
-        puts("  ");
+        int p = strlen(entries[i].name);
+
+        for(int i = p; i < 20; i++)
+            puts(" ");
 
         switch(stats[i].type) {
         case NODE_FILE: puts("f "); break;
@@ -281,6 +288,12 @@ static void HandleCommand() {
     if(g_CmdBufferIndex == 0)
         return;
 
+    if(g_HistoryMinIndex == 1024 || strcmp(g_History[1023], g_CmdBuffer) != 0) {
+        memcpy(&g_History[g_HistoryMinIndex - 1], &g_History[g_HistoryMinIndex], 128 * (1024 - g_HistoryMinIndex));
+        strcpy(g_History[1023], g_CmdBuffer);
+        g_HistoryMinIndex--;
+    }
+
     if(strcmp(g_CmdBuffer, "exit") == 0) {
         exit(0);
     } else {
@@ -317,13 +330,37 @@ int main(int argc, char** argv) {
             if(count == 0)
                 continue;
 
-            if(c == '\b')
+            if(c == '\b') {
+                g_HistoryIndex = 1024;
                 HandleBackspace();
-            else if(c == '\n') {
+            } else if(c == '\n') {
+                g_HistoryIndex = 1024;
                 HandleCommand();
                 break;
-            }
-            else {
+            } else if(c == '\1') {
+                if(g_HistoryIndex > g_HistoryMinIndex) {
+                    for(int i = 0; i < strlen(g_CmdBuffer); i++)
+                        puts("\b");
+
+                    g_HistoryIndex--;
+                    strcpy(g_CmdBuffer, g_History[g_HistoryIndex]);
+                    g_CmdBufferIndex = strlen(g_CmdBuffer);
+
+                    puts(g_CmdBuffer);
+                }
+            } else if(c == '\2') {
+                if(g_HistoryIndex < 1023) {
+                    for(int i = 0; i < strlen(g_CmdBuffer); i++)
+                        puts("\b");
+
+                    g_HistoryIndex++;
+                    strcpy(g_CmdBuffer, g_History[g_HistoryIndex]);
+                    g_CmdBufferIndex = strlen(g_CmdBuffer);
+
+                    puts(g_CmdBuffer);
+                }
+            } else {
+                g_HistoryIndex = 1024;
                 g_CmdBuffer[g_CmdBufferIndex++] = c;
                 write(stdoutfd, &c, 1);
             }
