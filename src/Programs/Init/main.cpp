@@ -12,8 +12,6 @@
 
 int main()
 {
-    print("Hello World\n");
-
     int64 tty = open("/dev/tty0", open_mode_write);
     if(tty < 0) {
         print("Failed to open /dev/tty0\n");

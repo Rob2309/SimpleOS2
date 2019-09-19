@@ -15,25 +15,18 @@ constexpr uint64 UserStackSize = UserStackPages * 4096;
 struct ThreadInfo;
 
 struct ThreadState {
-    enum {
-        STATE_READY,
+    enum Type {
+        READY,
 
-        STATE_WAIT,
-        STATE_QUEUE_LOCK,
-        STATE_JOIN,
+        WAIT,
+        QUEUE_LOCK,
+        JOIN,
 
-        STATE_EXITED,
-        STATE_DEAD,
+        FINISHED,
+        EXITED,
     } type;
 
-    union {
-        struct {
-            uint64 remainingTicks;
-        } wait;
-        struct {
-            ThreadInfo* joinThread;
-        } join;
-    };
+    uint64 arg;
 };
 
 struct ThreadMemSpace {
@@ -57,9 +50,12 @@ struct ThreadInfo {
     ThreadInfo* next;
     ThreadInfo* prev;
 
-    ktl::vector<ThreadInfo*> joinThreads;   // threads this thread is supposed to free
+    ThreadInfo* mainThread;
 
-    uint64 tid;
+    StickyLock joinThreadsLock;
+    ktl::vector<ThreadInfo*> joinThreads;
+
+    int64 tid;
     
     int64 exitCode;
     bool killPending;                       // Set this flag to inform a thread that it should kill itself
@@ -78,10 +74,9 @@ struct ThreadInfo {
     uint64 stickyCount;
     uint64 cliCount;
 
-    uint64 pageFaultRip;
+    uint64 faultRip;
 
     IDT::Registers registers;
 
-    bool hasFPUBlock;
     char* fpuBuffer;   // buffer used to save and restore the SSE and FPU state of the thread
 };

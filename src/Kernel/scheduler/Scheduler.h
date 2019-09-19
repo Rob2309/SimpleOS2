@@ -4,34 +4,36 @@
 #include "interrupts/IDT.h"
 #include "user/User.h"
 
-struct ThreadInfo;
+#include "Thread.h"
 
 namespace Scheduler {
 
     void MakeMeIdleThread();
+
+    void CreateInitKernelThread(int64 (*func)(uint64, uint64));
 
     /**
      * Create a new Kernel Thread that is not associated with any Process
      * @param rip the Entry point of the Thread
      * @returns the TID of the created Thread
      **/
-    uint64 CreateKernelThread(int64 (*func)(uint64, uint64), uint64 arg1 = 0, uint64 arg2 = 0);
+    int64 CreateKernelThread(int64 (*func)(uint64, uint64), uint64 arg1 = 0, uint64 arg2 = 0);
 
-    int64 CloneThread(bool shareMemSpace, bool shareFDs, IDT::Registers* regs);
+    int64 CloneThread(bool subthread, bool shareMemSpace, bool shareFDs, IDT::Registers* regs);
 
-    int64 _Block();
+    int64 ThreadBlock(ThreadState::Type type, uint64 arg);
 
     /**
      * Detaches a thread from the current thread
      **/
-    void ThreadDetach(uint64 tid);
+    int64 ThreadDetach(int64 tid);
 
     /**
      * Joins a thread.
      * This function blocks until the specified thread is joined
      * @returns false if the specified thread does not exist, true otherwise
      **/
-    bool ThreadJoin(uint64 tid, int64& exitCode);
+    int64 ThreadJoin(int64 tid, int64& exitCode);
 
     /**
      * Suspends the currently active Thread and starts the next one.
@@ -50,7 +52,7 @@ namespace Scheduler {
      * Suspends the active thread for *at least* [ms] milliseconds.
      * Can be called from a KernelThread
      **/
-    void ThreadSleep(uint64 ms);
+    int64 ThreadSleep(uint64 ms);
 
     /**
      * Destroys the current Thread.
@@ -61,7 +63,7 @@ namespace Scheduler {
     /**
      * Get the ThreadID of the currently active Thread
      **/
-    uint64 ThreadGetTID();
+    int64 ThreadGetTID();
 
     /**
      * Get the UID of the process owner
@@ -103,7 +105,7 @@ namespace Scheduler {
     void ThreadDisableInterrupts();
     void ThreadEnableInterrupts();
 
-    void ThreadSetUnkillable(bool unkillable);
+    void ThreadCheckFlags();
 
     /**
      * If this function is called with a non zero value, the thread will not be killed when a page fault occurs.
@@ -114,7 +116,7 @@ namespace Scheduler {
     /**
      * Called by the page fault interrupt handler to let a thread know it caused a page fault.
      **/
-    void ThreadSetupPageFaultHandler(IDT::Registers* regs);
+    void ThreadSetupPageFaultHandler(IDT::Registers* regs, const char* msg);
 
     ThreadInfo* GetCurrentThreadInfo();
 

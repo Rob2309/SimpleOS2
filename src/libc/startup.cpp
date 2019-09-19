@@ -4,6 +4,8 @@
 #include "stdlib.h"
 #include "thread.h"
 
+#include "simpleos_raw.h"
+
 extern int main();
 
 extern "C" void __start(ELFProgramInfo* info) {

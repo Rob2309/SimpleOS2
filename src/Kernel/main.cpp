@@ -141,6 +141,8 @@ static int64 InitThread(uint64, uint64) {
         return 1;
     }
 
+    Scheduler::GetCurrentThreadInfo()->user = &g_RootUser;
+
     uint64 tid = SetupInitProcess();
 
     Time::DateTime dt;
@@ -194,7 +196,7 @@ extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
     //SMP::StartCores(info->smpTrampolineBuffer, info->pageBuffer);
     //MemoryManager::EarlyFreePages(MemoryManager::KernelToPhysPtr(info->smpTrampolineBuffer), info->smpTrampolineBufferPages);
 
-    Scheduler::CreateKernelThread(InitThread);
+    Scheduler::CreateInitKernelThread(InitThread);
 
     Scheduler::ThreadUnsetSticky();
     Scheduler::ThreadYield();

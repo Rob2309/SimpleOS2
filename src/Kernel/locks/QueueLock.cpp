@@ -17,17 +17,18 @@ void QueueLock::Lock() {
     } else {
         Scheduler::ThreadSetSticky();
 
-        ThreadInfo* tInfo = Scheduler::GetCurrentThreadInfo();
-        tInfo->state.type = ThreadState::STATE_QUEUE_LOCK;
+        auto tInfo = Scheduler::GetCurrentThreadInfo();
 
         QueueLockEntry entry;
         entry.thread = tInfo;
         m_Queue.push_back(&entry);
         m_Lock.Unlock();
 
-        if(Scheduler::_Block()) {
-            if(tInfo->killPending)
-                Scheduler::ThreadExit(1);
+        if(Scheduler::ThreadBlock(ThreadState::QUEUE_LOCK, 0)) {
+            m_Lock.Spinlock();
+            m_Queue.erase(&entry);
+            m_Lock.Unlock();
+            Scheduler::ThreadCheckFlags();
         }
 
         Scheduler::ThreadUnsetSticky();
@@ -42,8 +43,8 @@ void QueueLock::Unlock() {
     } else {
         QueueLockEntry* e = m_Queue.front();
         m_Queue.pop_front();
-        e->thread->state.type = ThreadState::STATE_READY;
         e->thread->registers.rax = 0;
+        e->thread->state.type = ThreadState::READY;
         m_Lock.Unlock();
     }
 }

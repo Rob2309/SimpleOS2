@@ -73,7 +73,7 @@ namespace SyscallHandler {
         childRegs.ds = GDT::UserData;
         childRegs.rax = 0;
 
-        return Scheduler::CloneThread(false, false, &childRegs);
+        return Scheduler::CloneThread(false, false, false, &childRegs);
     }
     SYSCALL_DEFINE0(syscall_fork) {
         return DoFork(state);
@@ -114,16 +114,16 @@ namespace SyscallHandler {
 
     extern "C" uint64 SyscallDispatcher(uint64 func, uint64 arg1, uint64 arg2, uint64 arg3, uint64 arg4, SyscallState* state)
     {
-        Scheduler::ThreadSetUnkillable(true);
         uint64 res = 0;
 
         if(g_Functions[func] != nullptr) {
             res = g_Functions[func](arg1, arg2, arg3, arg4, state);
         } else {
+            klog_error("Fault", "Thread %i called invalid syscall %i", Scheduler::ThreadGetTID(), func);
             Scheduler::ThreadExit(1);
         }
 
-        Scheduler::ThreadSetUnkillable(false);
+        Scheduler::ThreadCheckFlags();
         return res;
     }
 
