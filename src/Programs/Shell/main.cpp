@@ -38,6 +38,63 @@ static char* GetToken(char*& buf) {
     }
 }
 
+static void BuiltinEcho(int argc, char** argv) {
+    for(int i = 1; i < argc; i++) {
+        puts(argv[i]);
+        puts(" ");
+    }
+    puts("\n");
+}
+
+static void BuiltinCat(int argc, char** argv) {
+    if(argc != 2) {
+        puts("Usage: cat <file>\n");
+        return;
+    }
+
+    int64 fd = open(argv[1], open_mode_read);
+    if(fd < 0) {
+        puts("File not found\n");
+        return;
+    }
+
+    char buffer[128];
+    while(true) {
+        int64 count = read(fd, buffer, sizeof(buffer));
+        if(count <= 0)
+            break;
+
+        write(stdoutfd, buffer, count);
+    }
+
+    puts("\n");
+
+    close(fd);
+    exit(0);
+}
+
+static void BuiltinPut(int argc, char** argv) {
+    if(argc < 2) {
+        puts("Usage: put <file> ...\n");
+        return;
+    }
+
+    int64 fd = open(argv[1], open_mode_write | open_mode_create | open_mode_clear);
+    if(fd < 0) {
+        puts("Failed not found\n");
+        return;
+    }
+
+    for(int i = 2; i < argc; i++) {
+        int l = strlen(argv[i]);
+
+        write(fd, argv[i], l);
+        write(fd, " ", 1);
+    }
+
+    close(fd);
+}
+
 static void InvokeCommand() {
     int argc = 0;
     char* argv[100];
@@ -52,9 +109,18 @@ static void InvokeCommand() {
     if(argc == 0)
         return;
 
-    exec(argv[0], argc, argv);
+    if(strcmp(argv[0], "echo") == 0) {
+        BuiltinEcho(argc, argv);
+    } else if(strcmp(argv[0], "cat") == 0) {
+        BuiltinCat(argc, argv);
+    } else if(strcmp(argv[0], "put") == 0) {
+        BuiltinPut(argc, argv);
+    } else {
+        exec(argv[0], argc, argv);
+        puts("Command not found\n");
+    }
 
-    puts("Command not found\n");
+    exit(0);
 }
 
 static void HandleCommand() {
@@ -65,12 +131,6 @@ static void HandleCommand() {
 
     if(strcmp(g_CmdBuffer, "exit") == 0) {
         exit(0);
-    } else if(strcmp(g_CmdBuffer, "whoami") == 0) {
-        char buffer[128];
-        whoami(buffer);
-
-        puts(buffer);
-        puts("\n");
     } else {
         int64 tid;
         if(tid = fork()) {
