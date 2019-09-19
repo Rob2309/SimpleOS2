@@ -10,3 +10,5 @@ char* strcpy(char* dest, const char* src);
 char* strcat(char* dest, const char* src);
 
 int64 strlen(const char* str);
+
+int64 strcmp(const char* a, const char* b);

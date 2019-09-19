@@ -47,19 +47,19 @@ extern "C" {
 
 static User g_RootUser;
 
-static uint64 SetupInitProcess() {
+static int64 SetupInitProcess(uint64, uint64) {
     uint64 file;
     int64 error = VFS::Open(&g_RootUser, config_Init_Command, VFS::OpenMode_Read, file);
     if(error != OK) {
         klog_fatal("Init", "Failed to open %s (%s), aborting boot", config_Init_Command, ErrorToString(error));
-        return 0;
+        return 1;
     }
 
     VFS::NodeStats stats;
     error = VFS::Stat(&g_RootUser, config_Init_Command, stats);
     if(error != OK) {
         klog_fatal("Init", "Failed to stat %s (%s), aborting boot", config_Init_Command, ErrorToString(error));
-        return 0;
+        return 1;
     }
     
     uint8* buffer = new uint8[stats.size];
@@ -67,7 +67,7 @@ static uint64 SetupInitProcess() {
     if(error < 0) {
         klog_fatal("Init", "Failed to read %s (%s)", config_Init_Command, ErrorToString(error));
         delete[] buffer;
-        return 0;
+        return 1;
     }
     VFS::Close(file);
 
@@ -77,10 +77,12 @@ static uint64 SetupInitProcess() {
         klog_error("Init", "Failed to execute init process, aborting boot");
         MemoryManager::FreeProcessMap(pml4Entry);
         delete[] buffer;
-        return 0;
+        return 1;
     }
 
     delete[] buffer;
+
+    Scheduler::GetCurrentThreadInfo()->user = &g_RootUser;
 
     klog_info("Init", "Executing init program");
     Scheduler::ThreadExec(pml4Entry, &regs);
@@ -141,13 +143,13 @@ static int64 InitThread(uint64, uint64) {
         return 1;
     }
 
-    Scheduler::GetCurrentThreadInfo()->user = &g_RootUser;
-
-    uint64 tid = SetupInitProcess();
+    uint64 tid = Scheduler::CreateKernelThread(SetupInitProcess);
 
     Time::DateTime dt;
     Time::GetRTC(&dt);
     klog_info("Time", "UTC Time is %02i.%02i.20%02i %02i:%02i:%02i", dt.dayOfMonth, dt.month, dt.year, dt.hours, dt.minutes, dt.seconds);
+
+    while(true) ;
 
     return 0;
 }

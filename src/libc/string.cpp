@@ -49,3 +49,15 @@ int64 strlen(const char* str) {
         len++;
     return len;
 }
+
+int64 strcmp(const char* a, const char* b) {
+    while(*a == *b) {
+        if(*a == '\0')
+            return 0;
+
+        a++;
+        b++;
+    }
+
+    return *a - *b;
+}

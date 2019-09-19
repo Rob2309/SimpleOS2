@@ -1,6 +1,8 @@
 #include <simpleos_vfs.h>
 #include <simpleos_process.h>
 #include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
 
 static char g_CmdBuffer[128] = { 0 };
 static int g_CmdBufferIndex = 0;
@@ -18,6 +20,10 @@ static void HandleCommand() {
 
     if(g_CmdBufferIndex == 0)
         return;
+
+    if(strcmp(g_CmdBuffer, "exit") == 0) {
+        exit(0);
+    }
 
     int64 tid;
     if(tid = fork()) {
