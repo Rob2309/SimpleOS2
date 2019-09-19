@@ -14,6 +14,7 @@
 #include "syscalls/SyscallDefine.h"
 #include "time/Time.h"
 #include "percpu/PerCPU.h"
+#include "klib/string.h"
 
 namespace Scheduler {
 
@@ -484,6 +485,13 @@ namespace Scheduler {
             return tInfo->user->name;
         else
             return "--Kernel--";
+    }
+    SYSCALL_DEFINE1(syscall_whoami, char* buffer) {
+        const char* uname = ThreadGetUserName();
+
+        int l = kstrlen(uname) + 1;
+        if(!kmemcpy_usersafe(buffer, uname, l))
+            ThreadExit(1);
     }
 
     static ThreadFileDescriptor* FindFreeFD(ThreadInfo* tInfo) {

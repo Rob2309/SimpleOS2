@@ -17,3 +17,5 @@ void setfsbase(uint64 val);
 
 int64 detach(int64 tid);
 int64 join(int64 tid);
+
+void whoami(char* buffer);

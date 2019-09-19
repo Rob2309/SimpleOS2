@@ -23,16 +23,22 @@ static void HandleCommand() {
 
     if(strcmp(g_CmdBuffer, "exit") == 0) {
         exit(0);
-    }
+    } else if(strcmp(g_CmdBuffer, "whoami") == 0) {
+        char buffer[128];
+        whoami(buffer);
 
-    int64 tid;
-    if(tid = fork()) {
-        join(tid);
+        puts(buffer);
+        puts("\n");
     } else {
-        exec(g_CmdBuffer);
+        int64 tid;
+        if(tid = fork()) {
+            join(tid);
+        } else {
+            exec(g_CmdBuffer);
 
-        puts("Command not found\n");
-        exit(1);
+            puts("Command not found\n");
+            exit(1);
+        }
     }
     
     for(int i = 0; i < 128; i++)

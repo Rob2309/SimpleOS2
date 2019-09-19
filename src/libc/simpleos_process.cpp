@@ -37,3 +37,7 @@ int64 detach(int64 tid) {
 int64 join(int64 tid) {
     return syscall_invoke(syscall_join, tid);
 }
+
+void whoami(char* buffer) {
+    syscall_invoke(syscall_whoami, (uint64)buffer);
+}
