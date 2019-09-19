@@ -22,10 +22,21 @@ static char* GetToken(char*& buf) {
     if(*buf == '\0')
         return nullptr;
 
+    bool quotedMode = false;
+    if(*buf == '"') {
+        buf++;
+        quotedMode = true;
+    }
+
     char* res = buf;
 
     while(true) {
-        if(*buf == ' ') {
+        if(*buf == ' ' && !quotedMode) {
+            *buf = '\0';
+            buf++;
+            return res;
+        }
+        if(*buf == '"' && quotedMode) {
             *buf = '\0';
             buf++;
             return res;
