@@ -23,8 +23,8 @@ int64 thread_movecore(uint64 coreID) {
 uint64 fork() {
     return syscall_invoke(syscall_fork);
 }
-void exec(const char* path) {
-    syscall_invoke(syscall_exec, (uint64)path);
+void exec(const char* path, int argc, const char* const* argv) {
+    syscall_invoke(syscall_exec, (uint64)path, (uint64)argc, (uint64)argv);
 }
 
 void setfsbase(uint64 val) {

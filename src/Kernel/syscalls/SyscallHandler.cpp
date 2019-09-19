@@ -80,61 +80,60 @@ namespace SyscallHandler {
         return DoFork(state);
     }
 
-    static uint64 DoExec(const char* cmdLine) {
-        if(!MemoryManager::IsUserPtr(cmdLine))
+    static uint64 DoExec(const char* command, int argc, const char* const* argv) {
+        if(!MemoryManager::IsUserPtr(command) || !MemoryManager::IsUserPtr(argv))
             Scheduler::ThreadExit(1);
-
-        char cmdBuffer[256];
-        if(!kpathcpy_usersafe(cmdBuffer, cmdLine))
-            Scheduler::ThreadExit(1);
-        int l = kstrlen(cmdBuffer);
 
         ThreadInfo* tInfo = Scheduler::GetCurrentThreadInfo();
 
-        char* filePath = cmdBuffer;
-        char* arg = nullptr;
-        for(int i = 0; i < l; i++) {
-            if(filePath[i] == ' ') {
-                filePath[i] = '\0';
-                arg = &filePath[i+1];
-                break;
-            }
-        }
-
-        int argc = 1;
-        char* argv[] = { nullptr, nullptr };
-        argv[0] = filePath;
-
-        if(arg != nullptr) {
-            argv[1] = arg;
-            argc = 2;
-        }
-
         uint64 file;
-        int64 error = VFS::Open(tInfo->user, filePath, VFS::OpenMode_Read, file);
+        int64 error = VFS::Open(tInfo->user, command, VFS::OpenMode_Read, file);
         if(error != OK)
             return error;
         
         VFS::NodeStats stats;
-        VFS::Stat(tInfo->user, filePath, stats);
+        error = VFS::Stat(tInfo->user, command, stats);
+        if(error != OK) {
+            VFS::Close(file);
+            return error;
+        }
 
         uint8* buffer = new uint8[stats.size];
         VFS::Read(file, buffer, stats.size);
         VFS::Close(file);
 
+        char** argPtrBuffer = new char*[argc];
+        if(!kmemcpy_usersafe(argPtrBuffer, argv, argc * sizeof(char*))) {
+            delete[] buffer;
+            delete[] argPtrBuffer;
+            Scheduler::ThreadExit(1);
+        }
+
+        for(int i = 0; i < argc; i++) {
+            char* a = new char[256];
+            if(!kpathcpy_usersafe(a, argv[i]))
+                Scheduler::ThreadExit(1);
+
+            argPtrBuffer[i] = a;
+        }
+
         uint64 pml4Entry = MemoryManager::CreateProcessMap();
         IDT::Registers regs;
-        if(!ExecHandlerRegistry::Prepare(buffer, stats.size, pml4Entry, &regs, argc, argv)) {
+        if(!ExecHandlerRegistry::Prepare(buffer, stats.size, pml4Entry, &regs, argc, argPtrBuffer)) {
             delete[] buffer;
             MemoryManager::FreeProcessMap(pml4Entry);
             return ErrorInvalidPath;
         }
 
         delete[] buffer;
+        for(int i = 0; i < argc; i++)
+            delete[] (argPtrBuffer[i]);
+        delete[] argPtrBuffer;
+
         Scheduler::ThreadExec(pml4Entry, &regs);
     }
-    SYSCALL_DEFINE1(syscall_exec, const char* path) {
-        return DoExec(path);
+    SYSCALL_DEFINE3(syscall_exec, const char* path, int argc, const char* const* argv) {
+        return DoExec(path, argc, argv);
     }
 
     extern "C" uint64 SyscallDispatcher(uint64 func, uint64 arg1, uint64 arg2, uint64 arg3, uint64 arg4, SyscallState* state)

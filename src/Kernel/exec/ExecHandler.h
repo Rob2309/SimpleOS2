@@ -5,7 +5,7 @@
 
 class ExecHandler {
 public:
-    virtual bool CheckAndPrepare(uint8* buffer, uint64 bufferSize, uint64 pml4Entry, IDT::Registers* regs, int argc, char** argv) = 0;
+    virtual bool CheckAndPrepare(uint8* buffer, uint64 bufferSize, uint64 pml4Entry, IDT::Registers* regs, int argc, const char* const* argv) = 0;
 
 public:
     ExecHandler* next;
@@ -17,5 +17,5 @@ public:
     static void RegisterHandler(ExecHandler* handler);
     static void UnregisterHandler(ExecHandler* handler);
 
-    static bool Prepare(uint8* buffer, uint64 bufferSize, uint64 pml4Entry, IDT::Registers* regs, int argc, char** argv);
+    static bool Prepare(uint8* buffer, uint64 bufferSize, uint64 pml4Entry, IDT::Registers* regs, int argc, const char* const* argv);
 };

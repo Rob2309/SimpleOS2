@@ -15,6 +15,48 @@ static void HandleBackspace() {
     }
 }
 
+static char* GetToken(char*& buf) {
+    while(*buf == ' ')
+        buf++;
+
+    if(*buf == '\0')
+        return nullptr;
+
+    char* res = buf;
+
+    while(true) {
+        if(*buf == ' ') {
+            *buf = '\0';
+            buf++;
+            return res;
+        }
+        if(*buf == '\0') {
+            return res;
+        }
+
+        buf++;
+    }
+}
+
+static void InvokeCommand() {
+    int argc = 0;
+    char* argv[100];
+
+    char* buf = g_CmdBuffer;
+    char* arg;
+    while((arg = GetToken(buf)) != nullptr) {
+        argv[argc] = arg;
+        argc++;
+    }
+
+    if(argc == 0)
+        return;
+
+    exec(argv[0], argc, argv);
+
+    puts("Command not found\n");
+}
+
 static void HandleCommand() {
     puts("\n");
 
@@ -34,10 +76,8 @@ static void HandleCommand() {
         if(tid = fork()) {
             join(tid);
         } else {
-            exec(g_CmdBuffer);
-
-            puts("Command not found\n");
-            exit(1);
+            InvokeCommand();
+            exit(0);
         }
     }
     
@@ -47,6 +87,14 @@ static void HandleCommand() {
 }
 
 int main(int argc, char** argv) {
+
+    if(argc >= 3 && strcmp(argv[1], "-c") == 0) {
+        exec(argv[2], argc - 2, &argv[2]);
+
+        puts("Command not found: ");
+        puts(argv[2]);
+        exit(1);
+    }
 
     while(true) {
         puts("Test Shell > ");

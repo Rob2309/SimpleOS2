@@ -38,7 +38,7 @@ int main(int argc, char** argv)
     }
 
     puts("Starting shell\n");
-    exec("/boot/Shell.elf");
+    exec("/boot/Shell.elf", 0, nullptr);
 
     return 0;
 }

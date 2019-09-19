@@ -17,7 +17,7 @@ static void Init() {
 }
 REGISTER_INIT_FUNC(Init, INIT_STAGE_EXECHANDLERS);
 
-bool ELFExecHandler::CheckAndPrepare(uint8* buffer, uint64 bufferSize, uint64 pml4Entry, IDT::Registers* regs, int argc, char** argv)
+bool ELFExecHandler::CheckAndPrepare(uint8* buffer, uint64 bufferSize, uint64 pml4Entry, IDT::Registers* regs, int argc, const char* const* argv)
 {
     constexpr uint64 stackBase = 0x1000;
 
@@ -73,21 +73,26 @@ bool ELFExecHandler::CheckAndPrepare(uint8* buffer, uint64 bufferSize, uint64 pm
     for(int i = 0; i < 16; i++)
         MemoryManager::MapProcessPage(pml4Entry, (void*)((uint64)physStack + i * 4096), (void*)(stackBase + i * 4096), false);
 
-    int argSize = 0;
-    char* virtStack = (char*)MemoryManager::PhysToKernelPtr(physStack) + 16 * 4096;
+    char** userArgv = new char*[argc];
 
-    for(int i = argc-1; i >= 0; i--) {
+    char* virtStack = (char*)MemoryManager::PhysToKernelPtr(physStack) + 16 * 4096;
+    int argSize = 0;
+
+    for(int i = argc - 1; i >= 0; i--) {
         int l = kstrlen(argv[i]) + 1;
         virtStack -= l;
         argSize += l;
         kmemcpy(virtStack, argv[i], l);
-        argv[i] = (char*)stackBase + 16 * 4096 - argSize;
+        userArgv[i] = (char*)stackBase + 16 * 4096 - argSize;
     }
-    for(int i = argc-1; i >= 0; i--) {
+
+    for(int i = argc - 1; i >= 0; i--) {
         virtStack -= sizeof(char*);
         argSize += sizeof(char*);
-        *(char**)virtStack = argv[i];
+        *(char**)virtStack = userArgv[i];
     }
+
+    delete[] userArgv;
 
     progInfo.argc = argc;
     progInfo.argv = (char**)(stackBase + 16 * 4096 - argSize);

@@ -2,8 +2,11 @@
 #include <stdio.h>
 
 int main(int argc, char** argv) {
-    if(argc > 1)
-        puts(argv[1]);
+    for(int i = 1; i < argc; i++) {
+        puts(argv[i]);
+        puts(" ");
+    }
+
     puts("\n");
     return 0;
 }
