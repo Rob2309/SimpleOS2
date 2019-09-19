@@ -4,6 +4,7 @@
 #include "arch/GDT.h"
 #include "klib/stdio.h"
 #include "terminal/terminal.h"
+#include "klib/string.h"
 
 #include "SyscallFunctions.h"
 #include "interrupts/IDT.h"
@@ -79,11 +80,35 @@ namespace SyscallHandler {
         return DoFork(state);
     }
 
-    static uint64 DoExec(const char* filePath) {
-        if(!MemoryManager::IsUserPtr(filePath))
+    static uint64 DoExec(const char* cmdLine) {
+        if(!MemoryManager::IsUserPtr(cmdLine))
             Scheduler::ThreadExit(1);
 
+        char cmdBuffer[256];
+        if(!kpathcpy_usersafe(cmdBuffer, cmdLine))
+            Scheduler::ThreadExit(1);
+        int l = kstrlen(cmdBuffer);
+
         ThreadInfo* tInfo = Scheduler::GetCurrentThreadInfo();
+
+        char* filePath = cmdBuffer;
+        char* arg = nullptr;
+        for(int i = 0; i < l; i++) {
+            if(filePath[i] == ' ') {
+                filePath[i] = '\0';
+                arg = &filePath[i+1];
+                break;
+            }
+        }
+
+        int argc = 1;
+        char* argv[] = { nullptr, nullptr };
+        argv[0] = filePath;
+
+        if(arg != nullptr) {
+            argv[1] = arg;
+            argc = 2;
+        }
 
         uint64 file;
         int64 error = VFS::Open(tInfo->user, filePath, VFS::OpenMode_Read, file);
@@ -99,7 +124,7 @@ namespace SyscallHandler {
 
         uint64 pml4Entry = MemoryManager::CreateProcessMap();
         IDT::Registers regs;
-        if(!ExecHandlerRegistry::Prepare(buffer, stats.size, pml4Entry, &regs)) {
+        if(!ExecHandlerRegistry::Prepare(buffer, stats.size, pml4Entry, &regs, argc, argv)) {
             delete[] buffer;
             MemoryManager::FreeProcessMap(pml4Entry);
             return ErrorInvalidPath;

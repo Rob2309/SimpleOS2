@@ -34,7 +34,7 @@ static void HandleCommand() {
     g_CmdBufferIndex = 0;
 }
 
-int main() {
+int main(int argc, char** argv) {
 
     while(true) {
         puts("Test Shell > ");

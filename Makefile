@@ -78,6 +78,10 @@ programs: FORCE
 	@ $(MAKE) -s -C src/Programs/Shell
 	@ printf "\e[32mBuilding TestVFS\e[0m\n"
 	@ $(MAKE) -s -C src/Programs/TestVFS
+	@ printf "\e[32mBuilding Echo\e[0m\n"
+	@ $(MAKE) -s -C src/Programs/Echo
+	@ printf "\e[32mBuilding Cat\e[0m\n"
+	@ $(MAKE) -s -C src/Programs/Cat
 rdbuilder: FORCE
 	@ printf "\e[32mBuilding initrd tool\e[0m\n"
 	@ $(MAKE) -s -C src/RamdiskBuilder

@@ -73,7 +73,7 @@ static uint64 SetupInitProcess() {
 
     uint64 pml4Entry = MemoryManager::CreateProcessMap();
     IDT::Registers regs;
-    if(!ExecHandlerRegistry::Prepare(buffer, stats.size, pml4Entry, &regs)) {
+    if(!ExecHandlerRegistry::Prepare(buffer, stats.size, pml4Entry, &regs, 0, nullptr)) {
         klog_error("Init", "Failed to execute init process, aborting boot");
         MemoryManager::FreeProcessMap(pml4Entry);
         delete[] buffer;

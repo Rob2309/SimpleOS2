@@ -6,7 +6,7 @@
 
 #include "simpleos_raw.h"
 
-extern int main();
+extern int main(int argc, char** argv);
 
 extern "C" void __start(ELFProgramInfo* info) {
     g_ProgInfo = info;
@@ -26,6 +26,6 @@ extern "C" void __start(ELFProgramInfo* info) {
         setfsbase((uint64)thread);
     }
 
-    int res = main();
+    int res = main(g_ProgInfo->argc, g_ProgInfo->argv);
     exit(res);
 };

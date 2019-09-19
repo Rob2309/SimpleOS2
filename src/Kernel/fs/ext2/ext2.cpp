@@ -106,6 +106,7 @@ namespace Ext2 {
         INode* inode = (INode*)node->fsData;
 
         uint64 rem = inode->size - pos;
+        int64 res = 0;
         if(rem > bufferSize)
             rem = bufferSize;
         if(rem == 0) // eof
@@ -141,12 +142,13 @@ namespace Ext2 {
             realBuffer += leftInBlock;
             rem -= leftInBlock;
             pos += leftInBlock;
+            res += leftInBlock;
         }
 
         if(indirectBufferLoaded)
             delete[] indirectBuffer;
 
-        return rem;
+        return res;
     }
     uint64 Ext2Driver::WriteNodeData(Node* node, uint64 pos, const void* buffer, uint64 bufferSize) {
         return 0;

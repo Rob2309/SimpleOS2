@@ -255,7 +255,7 @@ static void Test11() {
     puts("Test 11 successful\n");
 }
 
-int main()
+int main(int argc, char** argv)
 {
     Test1();
     Test2();

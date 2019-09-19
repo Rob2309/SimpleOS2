@@ -13,4 +13,6 @@ struct ELFThread {
 struct ELFProgramInfo {
     char* masterTLSAddress;
     uint64 masterTLSSize;
+    int argc;
+    char** argv;
 };

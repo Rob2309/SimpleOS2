@@ -10,7 +10,7 @@
 #define CHECK_ERROR(cond, msg) \
     if(!(cond)) { print(msg "\n"); thread_exit(1); }
 
-int main()
+int main(int argc, char** argv)
 {
     int64 tty = open("/dev/tty0", open_mode_write);
     if(tty < 0) {

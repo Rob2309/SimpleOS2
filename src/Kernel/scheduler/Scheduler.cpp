@@ -59,7 +59,7 @@ namespace Scheduler {
 
             if(tInfo->state.type == ThreadState::FINISHED) {
                 tInfo->state.type = ThreadState::EXITED;
-                klog_info_isr("Scheduler", "Thread %i has exited", tInfo->tid);
+                klog_info_isr("Scheduler", "Thread %i has exited with code %i", tInfo->tid, tInfo->exitCode);
             } else if(tInfo->killPending) {
                 tInfo->state.type = ThreadState::READY;
                 tInfo->registers.rax = 1;

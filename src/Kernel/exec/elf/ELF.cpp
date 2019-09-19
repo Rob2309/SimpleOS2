@@ -4,6 +4,7 @@
 #include "memory/MemoryManager.h"
 #include "klib/memory.h"
 #include "arch/GDT.h"
+#include "klib/string.h"
 
 #include "klib/stdio.h"
 
@@ -16,7 +17,7 @@ static void Init() {
 }
 REGISTER_INIT_FUNC(Init, INIT_STAGE_EXECHANDLERS);
 
-bool ELFExecHandler::CheckAndPrepare(uint8* buffer, uint64 bufferSize, uint64 pml4Entry, IDT::Registers* regs)
+bool ELFExecHandler::CheckAndPrepare(uint8* buffer, uint64 bufferSize, uint64 pml4Entry, IDT::Registers* regs, int argc, char** argv)
 {
     constexpr uint64 stackBase = 0x1000;
 
@@ -72,7 +73,24 @@ bool ELFExecHandler::CheckAndPrepare(uint8* buffer, uint64 bufferSize, uint64 pm
     for(int i = 0; i < 16; i++)
         MemoryManager::MapProcessPage(pml4Entry, (void*)((uint64)physStack + i * 4096), (void*)(stackBase + i * 4096), false);
 
+    int argSize = 0;
     char* virtStack = (char*)MemoryManager::PhysToKernelPtr(physStack) + 16 * 4096;
+
+    for(int i = argc-1; i >= 0; i--) {
+        int l = kstrlen(argv[i]) + 1;
+        virtStack -= l;
+        argSize += l;
+        kmemcpy(virtStack, argv[i], l);
+        argv[i] = (char*)stackBase + 16 * 4096 - argSize;
+    }
+    for(int i = argc-1; i >= 0; i--) {
+        virtStack -= sizeof(char*);
+        argSize += sizeof(char*);
+        *(char**)virtStack = argv[i];
+    }
+
+    progInfo.argc = argc;
+    progInfo.argv = (char**)(stackBase + 16 * 4096 - argSize);
     kmemcpy(virtStack - sizeof(ELFProgramInfo), &progInfo, sizeof(ELFProgramInfo));
 
     kmemset(regs, 0, sizeof(IDT::Registers));
@@ -81,8 +99,8 @@ bool ELFExecHandler::CheckAndPrepare(uint8* buffer, uint64 bufferSize, uint64 pm
     regs->ss = GDT::UserData;
     regs->rflags = 0b000000000001000000000;
     regs->rip = entryPoint;
-    regs->userrsp = stackBase + 16 * 4096 - sizeof(ELFProgramInfo);
-    regs->rdi = stackBase + 16 * 4096 - sizeof(ELFProgramInfo);
+    regs->userrsp = stackBase + 16 * 4096 - argSize - sizeof(ELFProgramInfo);
+    regs->rdi = stackBase + 16 * 4096 - argSize - sizeof(ELFProgramInfo);
 
     return true;
 }
