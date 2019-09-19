@@ -80,6 +80,7 @@ namespace ktl {
                 new(&m_Data[i - 1]) T((T&&)m_Data[i]);
                 m_Data[i].~T();
             }
+            m_Size--;
         }
 
         Iterator insert(const Iterator& at, const T& t) {

@@ -32,7 +32,7 @@ static void HandleCommand() {
         exec(g_CmdBuffer);
 
         puts("Command not found\n");
-        thread_exit(1);
+        exit(1);
     }
     
     for(int i = 0; i < 128; i++)
