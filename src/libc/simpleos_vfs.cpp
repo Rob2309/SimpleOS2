@@ -46,8 +46,8 @@ int64 close(int64 fd) {
 int64 copyfd(int64 destFD, int64 srcFD) {
     return syscall_invoke(syscall_copyfd, destFD, srcFD);
 }
-int64 seekfd(int64 fd, uint64 pos) {
-    return syscall_invoke(syscall_seek, fd, pos);
+int64 seekfd(int64 fd, int64 mode, uint64 pos) {
+    return syscall_invoke(syscall_seek, fd, mode, pos);
 }
 
 int64 read(int64 fd, void* buffer, uint64 bufferSize) {
@@ -66,4 +66,8 @@ int64 mount(const char* mountPoint, const char* fsID, const char* dev) {
 
 int64 unmount(const char* mountPoint) {
     return syscall_invoke(syscall_unmount, (uint64)mountPoint);
+}
+
+int64 list(const char* path, int* numEntries, ListEntry* entries) {
+    return syscall_invoke(syscall_list, (uint64)path, (uint64)numEntries, (uint64)entries);
 }

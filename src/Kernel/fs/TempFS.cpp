@@ -121,6 +121,7 @@ uint64 TempFS::WriteNodeData(Node* node, uint64 pos, const void* buffer, uint64 
         delete[] refNode->fileData;
         refNode->fileData = newData;
         refNode->fileSize = pos + bufferSize;
+        node->infoFile.fileSize.Write(refNode->fileSize);
     }
 
     if(!kmemcpy_usersafe(refNode->fileData + pos, buffer, bufferSize))

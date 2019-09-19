@@ -74,6 +74,11 @@ namespace VFS {
     };
     int64 Stat(User* user, const char* path, NodeStats& outStats);
 
+    struct ListEntry {
+        char name[256];
+    };
+    int64 List(User* user, const char* path, int& numEntries, ListEntry* entries);
+
     /**
      * Mount the given FileSystem at the given path.
      * MountPoint has to be an empty folder.
@@ -126,10 +131,15 @@ namespace VFS {
      **/
     int64 Write(uint64 desc, const void* buffer, uint64 bufferSize);
 
+    enum SeekMode {
+        SEEK_SET,
+        SEEK_REL,
+        SEEK_END,
+    };
     /**
      * Sets the cursor offset of the given file descriptor to offs, if possible.
      * Returns 0 on success, error otherwise
      **/
-    int64 Seek(uint64 desc, uint64 offs);
+    int64 Seek(uint64 desc, SeekMode mode, uint64 offs);
 
 }

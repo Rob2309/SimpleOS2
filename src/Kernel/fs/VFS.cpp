@@ -929,6 +929,67 @@ namespace VFS {
         return OK;
     }
 
+    int64 List(User* user, const char* path, int& numEntries, ListEntry* entries) {
+        char cleanBuffer[255];
+        if(!kpathcpy_usersafe(cleanBuffer, path))
+            return ErrorInvalidBuffer;
+        if(!CleanPath(cleanBuffer))
+            return ErrorInvalidPath;
+
+        MountPoint* mp;
+        char* tmpPath = cleanBuffer;
+        Node* node;
+        Node* parentNode;
+        int64 error = AcquirePath(user, mp, tmpPath, true, false, node, parentNode);
+        if(error != OK)
+            return error;
+        if(parentNode != nullptr)
+            ReleaseNode(parentNode);
+        
+        if(node->type != Node::TYPE_DIRECTORY) {
+            ReleaseNode(node);
+            ReleaseMountPoint(mp);
+            return ErrorFileNotFound;
+        }
+
+        node->dirLock.Spinlock();
+        auto dir = GetNodeDir(node);
+        int rem = numEntries;
+        if(rem > dir->numEntries)
+            rem = dir->numEntries;
+
+        for(int i = 0; i < rem; i++) {
+            int l = kstrlen(dir->entries[i].name) + 1;
+            if(!kmemcpy_usersafe(entries[i].name, dir->entries[i].name, l)) {
+                node->dirLock.Unlock();
+                ReleaseNode(node);
+                ReleaseMountPoint(mp);
+                return ErrorInvalidBuffer;
+            }
+        }
+
+        numEntries = dir->numEntries;
+
+        node->dirLock.Unlock();
+        ReleaseNode(node);
+        ReleaseMountPoint(mp);
+        return OK;
+    }
+    SYSCALL_DEFINE3(syscall_list, const char* path, int* numEntries, ListEntry* entries) {
+        int tmpEntries;
+        if(!kmemcpy_usersafe(&tmpEntries, numEntries, sizeof(int)))
+            Scheduler::ThreadExit(1);
+
+        int64 error = List(Scheduler::GetCurrentThreadInfo()->user, path, tmpEntries, entries);
+        if(error == ErrorInvalidBuffer)
+            Scheduler::ThreadExit(1);
+        
+        if(!kmemcpy_usersafe(numEntries, &tmpEntries, sizeof(int)))
+            Scheduler::ThreadExit(1);
+
+        return error;
+    }
+
     int64 Mount(User* user, const char* mountPoint, FileSystem* fs) {
         char cleanBuffer[255];
         if(!kpathcpy_usersafe(cleanBuffer, mountPoint))
@@ -1314,25 +1375,28 @@ namespace VFS {
         return res;
     }
 
-    int64 Seek(uint64 descID, uint64 offs) {
+    int64 Seek(uint64 descID, SeekMode mode, uint64 offs) {
         FileDescriptor* desc = (FileDescriptor*)descID;
         if(desc == nullptr)
             return ErrorInvalidFD;
 
-        if(offs >= desc->node->infoFile.fileSize.Read())
+        if(mode == SEEK_END)
+            offs = desc->node->infoFile.fileSize.Read();
+
+        if(offs > desc->node->infoFile.fileSize.Read())
             return ErrorSeekOffsetOOB;
 
         desc->pos.Write(offs);
         return OK;
     }
-    SYSCALL_DEFINE2(syscall_seek, int64 desc, uint64 offs) {
+    SYSCALL_DEFINE3(syscall_seek, int64 desc, SeekMode mode, uint64 offs) {
         uint64 sysDesc;
         int64 error = Scheduler::ThreadGetSystemFileDescriptor(desc, sysDesc);
         if(error != OK) {
             return error;
         }
 
-        return Seek(sysDesc, offs);
+        return Seek(sysDesc, mode, offs);
     }
 
 }

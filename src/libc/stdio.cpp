@@ -384,7 +384,7 @@ int64 fseek(FILE* file, int64 offs, int origin) {
     else
         newOffs = 0;
 
-    int64 error = seekfd(file->descID, newOffs);
+    int64 error = seekfd(file->descID, seek_mode_set, newOffs);
     if(error != 0) {
         errno = error;
         file->error = true;

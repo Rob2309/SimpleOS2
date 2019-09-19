@@ -26,7 +26,11 @@ int64 close(int64 fd);
 
 //int64 reopenfd(int64 fd, const char* path, uint64 mode);
 int64 copyfd(int64 destFD, int64 srcFD);
-int64 seekfd(int64 fd, uint64 pos);
+
+constexpr int64 seek_mode_set = 0;
+constexpr int64 seek_mode_rel = 1;
+constexpr int64 seek_mode_end = 2;
+int64 seekfd(int64 fd, int64 mode, uint64 pos);
 
 int64 read(int64 fd, void* buffer, uint64 bufferSize);
 int64 write(int64 fd, const void* buffer, uint64 bufferSize);
@@ -35,3 +39,8 @@ int64 mount(const char* mountPoint, const char* fsID);
 int64 mount(const char* mountPoint, const char* fsID, const char* dev);
 
 int64 unmount(const char* mountPoint);
+
+struct ListEntry {
+    char name[256];
+};
+int64 list(const char* path, int* numEntries, ListEntry* entries);

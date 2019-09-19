@@ -75,24 +75,85 @@ static void BuiltinCat(int argc, char** argv) {
 
 static void BuiltinPut(int argc, char** argv) {
     if(argc < 2) {
-        puts("Usage: put <file> ...\n");
+        puts("Usage: put [-a] <file> ...\n");
         return;
     }
 
-    int64 fd = open(argv[1], open_mode_write | open_mode_create | open_mode_clear);
+    bool append = false;
+
+    int argi = 1;
+    while(argi < argc) {
+        if(strcmp(argv[argi], "-a") == 0) {
+            append = true;
+            argi++;
+        } else {
+            break;
+        }
+    }
+
+    if(argi == argc) {
+        puts("Usage: put [-a] <file> ...\n");
+        return;
+    }
+
+    const char* path = argv[argi];
+    argi++;
+
+    uint64 mode = open_mode_write | open_mode_create;
+    if(!append)
+        mode |= open_mode_clear;
+    int64 fd = open(path, mode);
     if(fd < 0) {
-        puts("Failed not found\n");
+        puts("File not found\n");
         return;
     }
 
-    for(int i = 2; i < argc; i++) {
+    if(append)
+        seekfd(fd, seek_mode_end, 0);
+
+    for(int i = argi; i < argc; i++) {
         int l = strlen(argv[i]);
 
         write(fd, argv[i], l);
-        write(fd, " ", 1);
+        if(i < argc - 1)
+            write(fd, " ", 1);
     }
 
     close(fd);
+}
+
+static void BuiltinLS(int argc, char** argv) {
+    if(argc < 2) {
+        puts("Usage: ls <folder>\n");
+        return;
+    }
+
+    int numEntries = 10;
+    ListEntry* entries = (ListEntry*)malloc(numEntries * sizeof(ListEntry));
+
+    int64 error = list(argv[1], &numEntries, entries);
+    if(error != 0) {
+        puts("File not found\n");
+        return;
+    }
+
+    if(numEntries > 10) {
+        free(entries);
+        entries = (ListEntry*)malloc(numEntries * sizeof(ListEntry));
+
+        error = list(argv[1], &numEntries, entries);
+        if(error != 0) {
+            puts("File not found\n");
+            return;
+        }
+    }
+
+    for(int i = 0; i < numEntries; i++) {
+        puts(entries[i].name);
+        puts("\n");
+    }
+
+    free(entries);
 }
 
 static void InvokeCommand() {
@@ -115,6 +176,8 @@ static void InvokeCommand() {
         BuiltinCat(argc, argv);
     } else if(strcmp(argv[0], "put") == 0) {
         BuiltinPut(argc, argv);
+    } else if(strcmp(argv[0], "ls") == 0) {
+        BuiltinLS(argc, argv);
     } else {
         exec(argv[0], argc, argv);
         puts("Command not found\n");
