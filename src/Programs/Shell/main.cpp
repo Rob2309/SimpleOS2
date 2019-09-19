@@ -141,6 +141,7 @@ static void BuiltinLS(int argc, char** argv) {
 
     int numEntries = 10;
     ListEntry* entries = (ListEntry*)malloc(numEntries * sizeof(ListEntry));
+    Stats* stats = (Stats*)malloc(numEntries * sizeof(Stats));
 
     int64 error = list(argv[1], &numEntries, entries);
     if(error != 0) {
@@ -150,7 +151,9 @@ static void BuiltinLS(int argc, char** argv) {
 
     if(numEntries > 10) {
         free(entries);
+        free(stats);
         entries = (ListEntry*)malloc(numEntries * sizeof(ListEntry));
+        stats = (Stats*)malloc(numEntries * sizeof(Stats));
 
         error = list(argv[1], &numEntries, entries);
         if(error != 0) {
@@ -159,8 +162,57 @@ static void BuiltinLS(int argc, char** argv) {
         }
     }
 
+    char pathBuffer[256];
+    strcpy(pathBuffer, argv[1]);
+    int l = strlen(pathBuffer);
+    pathBuffer[l] = '/';
+    l++;
+
+    for(int i = 0; i < numEntries; i++) {
+        strcpy(&pathBuffer[l], entries[i].name);
+        
+        stat(pathBuffer, &stats[i]);
+    }
+
     for(int i = 0; i < numEntries; i++) {
         puts(entries[i].name);
+        puts("  ");
+
+        switch(stats[i].type) {
+        case NODE_FILE: puts("f "); break;
+        case NODE_DIRECTORY: puts("d "); break;
+        case NODE_DEVICE_CHAR: puts("c "); break;
+        case NODE_DEVICE_BLOCK: puts("b "); break;
+        case NODE_PIPE: puts("p "); break;
+        }
+
+        if(stats[i].perms.owner & PermRead)
+            puts("r");
+        else
+            puts("-");
+        if(stats[i].perms.owner & PermWrite)
+            puts("w");
+        else
+            puts("-");
+
+        if(stats[i].perms.group & PermRead)
+            puts("r");
+        else
+            puts("-");
+        if(stats[i].perms.group & PermWrite)
+            puts("w");
+        else
+            puts("-");
+
+        if(stats[i].perms.other & PermRead)
+            puts("r");
+        else
+            puts("-");
+        if(stats[i].perms.other & PermWrite)
+            puts("w");
+        else
+            puts("-");
+
         puts("\n");
     }
 

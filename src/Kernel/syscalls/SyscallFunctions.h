@@ -35,6 +35,7 @@ constexpr uint64 syscall_seek = 66;
 constexpr uint64 syscall_create_symlink = 67;
 constexpr uint64 syscall_create_hardlink = 68;
 constexpr uint64 syscall_unmount = 69;
+constexpr uint64 syscall_stat = 70;
 
 constexpr uint64 syscall_alloc = 100;
 constexpr uint64 syscall_free = 101;

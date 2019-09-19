@@ -44,3 +44,27 @@ struct ListEntry {
     char name[256];
 };
 int64 list(const char* path, int* numEntries, ListEntry* entries);
+
+enum NodeType {
+    NODE_FILE,
+    NODE_DIRECTORY,
+    NODE_DEVICE_CHAR,
+    NODE_DEVICE_BLOCK,
+    NODE_PIPE,
+    NODE_SYMLINK,
+};
+constexpr uint8 PermRead = 0x1;
+constexpr uint8 PermWrite = 0x2;
+struct Permissions {
+    uint8 owner;
+    uint8 group;
+    uint8 other;
+};
+struct Stats {
+    NodeType type;
+    uint64 ownerGID;
+    uint64 ownerUID;
+    Permissions perms;
+    uint64 size;
+};
+int64 stat(const char* path, Stats* stats);

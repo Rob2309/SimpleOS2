@@ -71,3 +71,7 @@ int64 unmount(const char* mountPoint) {
 int64 list(const char* path, int* numEntries, ListEntry* entries) {
     return syscall_invoke(syscall_list, (uint64)path, (uint64)numEntries, (uint64)entries);
 }
+
+int64 stat(const char* path, Stats* stats) {
+    return syscall_invoke(syscall_stat, (uint64)path, (uint64)stats);
+}

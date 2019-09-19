@@ -928,6 +928,17 @@ namespace VFS {
 
         return OK;
     }
+    SYSCALL_DEFINE2(syscall_stat, const char* path, NodeStats* stats) {
+        NodeStats tmp;
+        int64 error = Stat(Scheduler::GetCurrentThreadInfo()->user, path, tmp);
+        if(error != OK)
+            return error;
+
+        if(!kmemcpy_usersafe(stats, &tmp, sizeof(NodeStats)))
+            Scheduler::ThreadExit(1);
+
+        return OK;
+    }
 
     int64 List(User* user, const char* path, int& numEntries, ListEntry* entries) {
         char cleanBuffer[255];
