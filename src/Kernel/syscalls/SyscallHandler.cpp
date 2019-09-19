@@ -102,7 +102,7 @@ namespace SyscallHandler {
         if(!ExecHandlerRegistry::Prepare(buffer, stats.size, pml4Entry, &regs)) {
             delete[] buffer;
             MemoryManager::FreeProcessMap(pml4Entry);
-            return 0;
+            return ErrorInvalidPath;
         }
 
         delete[] buffer;

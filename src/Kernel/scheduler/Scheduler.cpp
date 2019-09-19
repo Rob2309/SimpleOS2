@@ -47,7 +47,7 @@ namespace Scheduler {
         Tick(regs);
     }
 
-    static ThreadInfo* FindNextThread() {
+    static void UpdateEvents() {
         auto& cpuData = g_CPUData.Get();
 
         auto tsc = Time::GetTSC();
@@ -57,12 +57,10 @@ namespace Scheduler {
         for(auto a = cpuData.activeList.begin(); a != cpuData.activeList.end(); ++a) {
             auto tInfo = *a;
 
-            if(tInfo->state.type == ThreadState::FINISHED || tInfo->state.type == ThreadState::EXITED) {
+            if(tInfo->state.type == ThreadState::FINISHED) {
                 tInfo->state.type = ThreadState::EXITED;
-                continue;
-            }
-
-            if(tInfo->killPending) {
+                klog_info_isr("Scheduler", "Thread %i has exited", tInfo->tid);
+            } else if(tInfo->killPending) {
                 tInfo->state.type = ThreadState::READY;
                 tInfo->registers.rax = 1;
             } else if(tInfo->state.type == ThreadState::WAIT) {
@@ -79,6 +77,14 @@ namespace Scheduler {
                     tInfo->registers.rax = 0;
                 }
             }
+        }
+    }
+
+    static ThreadInfo* FindNextThread() {
+        auto& cpuData = g_CPUData.Get();
+
+        for(auto a = cpuData.activeList.begin(); a != cpuData.activeList.end(); ++a) {
+            auto tInfo = *a;
 
             if(tInfo->state.type == ThreadState::READY) {
                 cpuData.activeList.erase(a);
@@ -86,6 +92,8 @@ namespace Scheduler {
                 return tInfo;
             }
         }
+
+        return &cpuData.idleThread;
     }
 
     static void SaveThreadState(ThreadInfo* tInfo) {
@@ -244,6 +252,8 @@ namespace Scheduler {
         newT->registers = *regs;
         newT->registers.rflags |= CPU::FLAGS_IF;
         newT->fpuBuffer = new char[SSE::GetFPUBlockSize()];
+        kmemset(newT->fpuBuffer, 0, SSE::GetFPUBlockSize());
+        SSE::InitFPUBlock(newT->fpuBuffer);
 
         tInfo->mainThread->joinThreadsLock.Spinlock();
         tInfo->mainThread->joinThreads.push_back(newT);
@@ -367,6 +377,7 @@ namespace Scheduler {
             return;
 
         cpuData.activeListLock.Spinlock_Raw();
+        UpdateEvents();
         auto next = FindNextThread();
         cpuData.activeListLock.Unlock_Raw();
 
@@ -397,7 +408,7 @@ namespace Scheduler {
     }
 
     int64 ThreadSleep(uint64 ms) {
-        return ThreadBlock(ThreadState::WAIT, ms);
+        return ThreadBlock(ThreadState::WAIT, ms * Time::GetTSCTicksPerMilli());
     }
     SYSCALL_DEFINE1(syscall_wait, uint64 ms) {
         return ThreadSleep(ms);
@@ -435,10 +446,6 @@ namespace Scheduler {
 
         tInfo->exitCode = code;
         tInfo->state.type = ThreadState::FINISHED;
-
-        cpuData.activeListLock.Spinlock_Cli();
-        cpuData.activeList.erase(tInfo);
-        cpuData.activeListLock.Unlock_Cli();
 
         ThreadYield();
     }
