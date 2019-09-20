@@ -35,6 +35,10 @@ namespace Scheduler {
      **/
     int64 ThreadJoin(int64 tid, int64& exitCode);
 
+    int64 ThreadTryJoin(int64 tid, int64& exitCode);
+
+    int64 ThreadKill(int64 tid);
+
     /**
      * Suspends the currently active Thread and starts the next one.
      * @param regs [in]  The register state of the currently running Thread; 

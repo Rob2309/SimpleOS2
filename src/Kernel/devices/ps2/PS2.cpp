@@ -20,6 +20,9 @@ namespace PS2 {
     static uint64 g_WriteIndex = 0;
     static bool g_LeftShift = false;
     static bool g_RightShift = false;
+    static bool g_LeftControl = false;
+    static bool g_RightControl = false;
+
     static bool g_E0Key = false;
 
     static void KeyHandler(IDT::Registers* regs) {
@@ -55,6 +58,14 @@ namespace PS2 {
             g_RightShift = false;
             return;
         }
+        if(scan == 0x1D) {
+            g_LeftControl = true;
+            return;
+        }
+        if(scan == 0x9D) {
+            g_LeftControl = false;
+            return;
+        }
 
         if(scan == 0xE0) {
             g_E0Key = true;
@@ -63,6 +74,17 @@ namespace PS2 {
         
         if(scan & 0x80)
             return;
+
+        if(g_LeftControl || g_RightControl) {
+            char esc = g_ScanMap[scan];
+            if(esc == 'c') {
+                g_BufferLock.Spinlock_Raw();
+                g_Buffer[g_WriteIndex++ % sizeof(g_Buffer)] = '\3';
+                g_BufferLock.Unlock_Raw();
+            }
+
+            return;constexpr uint64 syscall_try_join = 11;
+        } 
 
         char c = (g_LeftShift || g_RightShift) ? g_ScanMapShift[scan] : g_ScanMap[scan];
         if(c == '\0')

@@ -373,6 +373,78 @@ namespace Scheduler {
             return err;
         return exitCode;
     }
+    int64 ThreadTryJoin(int64 tid, int64& exitCode) {
+        auto mainThread = g_CPUData.Get().currentThread->mainThread;
+
+        ThreadInfo* joinThread = nullptr;
+        mainThread->joinThreadsLock.Spinlock();
+        for(auto a = mainThread->joinThreads.begin(); a != mainThread->joinThreads.end(); ++a) {
+            if((*a)->tid == tid) {
+                if((*a)->state.type == ThreadState::EXITED) {
+                    auto jt = *a;
+
+                    exitCode = (*a)->exitCode;
+                    mainThread->joinThreads.erase(a);
+                    mainThread->joinThreadsLock.Unlock();
+
+                    delete[] (char*)(jt->kernelStack - KernelStackSize);
+                    delete jt;
+
+                    return OK;
+                } else {
+                    mainThread->joinThreadsLock.Unlock();
+                    return -1;
+                }
+            }
+        }
+        mainThread->joinThreadsLock.Unlock();
+        return ErrorThreadNotFound;
+    }
+    SYSCALL_DEFINE1(syscall_try_join, int64 tid) {
+        int64 exitCode;
+        int64 err = ThreadTryJoin(tid, exitCode);
+        if(err != OK)
+            return err;
+        return exitCode;
+    }
+
+    int64 ThreadKill(int64 tid) {
+        auto mainThread = g_CPUData.Get().currentThread->mainThread;
+
+        ThreadInfo* joinThread = nullptr;
+        mainThread->joinThreadsLock.Spinlock();
+        for(auto a = mainThread->joinThreads.begin(); a != mainThread->joinThreads.end(); ++a) {
+            if((*a)->tid == tid) {
+                joinThread = *a;
+                mainThread->joinThreads.erase(a);
+                break;
+            }
+        }
+        mainThread->joinThreadsLock.Unlock();
+
+        if(joinThread == nullptr)
+            return ErrorThreadNotFound;
+
+        joinThread->killPending = true;
+
+        if(ThreadBlock(ThreadState::JOIN, (uint64)joinThread) != OK) {
+            mainThread->joinThreadsLock.Spinlock();
+            mainThread->joinThreads.push_back(joinThread);
+            mainThread->joinThreadsLock.Unlock();
+
+            ThreadCheckFlags();
+
+            return ErrorInterrupted;
+        }
+
+        delete[] (char*)(joinThread->kernelStack - KernelStackSize);
+        delete joinThread;
+
+        return OK;
+    }
+    SYSCALL_DEFINE1(syscall_kill, int64 tid) {
+        return ThreadKill(tid);
+    }
 
     void Tick(IDT::Registers* regs) {
         auto& cpuData = g_CPUData.Get();

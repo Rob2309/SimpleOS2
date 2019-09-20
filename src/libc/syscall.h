@@ -14,6 +14,8 @@ constexpr uint64 syscall_print = 7;
 constexpr uint64 syscall_detach = 8;
 constexpr uint64 syscall_join = 9;
 constexpr uint64 syscall_whoami = 10;
+constexpr uint64 syscall_try_join = 11;
+constexpr uint64 syscall_kill = 12;
 
 constexpr uint64 syscall_create_file = 50;
 constexpr uint64 syscall_create_folder = 51;

@@ -354,7 +354,19 @@ static void HandleCommand() {
     } else {
         int64 tid;
         if(tid = fork()) {
-            join(tid);
+            while(true) {
+                char c;
+                int64 count = read(stdinfd, &c, 1);
+                if(count != 0) {
+                    if(c == '\3') {
+                        kill(tid);
+                        break;
+                    }
+                }
+
+                if(try_join(tid) == 0)
+                    break;
+            }
         } else {
             InvokeCommand();
             exit(0);
