@@ -65,6 +65,9 @@ namespace ktl {
             new(&m_Data[m_Size]) T(t);
             m_Size++;
         }
+        void pop_back() {
+            erase(--end());
+        }
 
         T& back() {
             return m_Data[m_Size - 1];
@@ -73,7 +76,7 @@ namespace ktl {
             return m_Data[m_Size - 1];
         }
         
-        void erase(const Iterator& it)
+        Iterator erase(const Iterator& it)
         {
             m_Data[it.m_Pos].~T();
             for(uint64 i = it.m_Pos + 1; i < m_Size; i++) {
@@ -81,6 +84,8 @@ namespace ktl {
                 m_Data[i].~T();
             }
             m_Size--;
+
+            return Iterator(m_Data, it.m_Pos);
         }
 
         Iterator insert(const Iterator& at, const T& t) {

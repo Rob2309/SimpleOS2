@@ -58,12 +58,15 @@ namespace Scheduler {
         for(auto a = cpuData.activeList.begin(); a != cpuData.activeList.end(); ++a) {
             auto tInfo = *a;
 
+            if(tInfo->state.type == ThreadState::EXITED)
+                continue;
+
             if(tInfo->state.type == ThreadState::FINISHED) {
                 tInfo->state.type = ThreadState::EXITED;
                 klog_info_isr("Scheduler", "Thread %i has exited with code %i", tInfo->tid, tInfo->exitCode);
             } else if(tInfo->killPending) {
                 tInfo->state.type = ThreadState::READY;
-                tInfo->registers.rax = 1;
+                tInfo->registers.rax = ErrorInterrupted;
             } else if(tInfo->state.type == ThreadState::WAIT) {
                 if(tInfo->state.arg <= dur) {
                     tInfo->state.type = ThreadState::READY;
@@ -415,19 +418,32 @@ namespace Scheduler {
         return ThreadSleep(ms);
     }
 
+    static void KillChildThreads(ThreadInfo* tInfo) {
+        while(true) {
+            ThreadInfo* jt = nullptr;
+
+            tInfo->joinThreadsLock.Spinlock();
+            if(tInfo->joinThreads.size() != 0) {
+                jt = tInfo->joinThreads.back();
+                tInfo->joinThreads.pop_back();
+            }
+            tInfo->joinThreadsLock.Unlock();
+
+            if(jt == nullptr)
+                break;
+
+            jt->killPending = true;
+            int64 exitCode;
+
+            ThreadJoin(jt->tid, exitCode);
+        }
+    }
+
     void ThreadExit(uint64 code) {
         auto& cpuData = g_CPUData.Get();
         auto tInfo = cpuData.currentThread;
 
-        tInfo->joinThreadsLock.Spinlock();
-        g_InitThread->joinThreadsLock.Spinlock();
-        for(auto jt : tInfo->joinThreads) {
-            jt->mainThread = jt;
-            jt->killPending = true;
-            g_InitThread->joinThreads.push_back(jt);
-        }
-        g_InitThread->joinThreadsLock.Unlock();
-        tInfo->joinThreadsLock.Unlock();
+        KillChildThreads(tInfo);
 
         ThreadSetSticky();
 

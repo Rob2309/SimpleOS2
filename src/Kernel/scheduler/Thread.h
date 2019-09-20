@@ -58,6 +58,7 @@ struct ThreadInfo {
     int64 tid;
     
     int64 exitCode;
+
     bool killPending;                       // Set this flag to inform a thread that it should kill itself
     
     ThreadMemSpace* memSpace;
