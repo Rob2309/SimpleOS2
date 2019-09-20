@@ -910,18 +910,21 @@ namespace VFS {
         char* tmpPath = cleanBuffer;
         Node* fileNode;
         Node* folderNode;
-        int64 error = AcquirePath(user, mp, tmpPath, true, false, fileNode, folderNode);
+        int64 error = AcquirePath(user, mp, tmpPath, true, true, fileNode, folderNode);
         if(error != OK)
             return error;
         if(folderNode != nullptr)
             ReleaseNode(folderNode);
         
+        outStats.nodeID = fileNode->id;
         outStats.type = fileNode->type;
         outStats.ownerGID = fileNode->ownerGID;
         outStats.ownerUID = fileNode->ownerUID;
         outStats.permissions = fileNode->permissions;
         if(outStats.type == Node::TYPE_FILE)
             outStats.size = fileNode->infoFile.fileSize.Read();
+        else if(outStats.type == Node::TYPE_SYMLINK)
+            kstrcpy(outStats.linkPath, fileNode->infoSymlink.linkPath);
 
         ReleaseNode(fileNode);
         ReleaseMountPoint(mp);

@@ -66,11 +66,16 @@ namespace VFS {
     int64 ChangePermissions(User* user, const char* path, const Permissions& permissions);
 
     struct NodeStats {
+        uint64 nodeID;
         Node::Type type;
         uint64 ownerGID;
         uint64 ownerUID;
         Permissions permissions;
-        uint64 size;
+
+        union {
+            uint64 size;
+            char linkPath[255];
+        };
     };
     int64 Stat(User* user, const char* path, NodeStats& outStats);
 

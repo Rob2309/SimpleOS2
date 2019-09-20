@@ -179,20 +179,6 @@ static void BuiltinLS(int argc, char** argv) {
     }
 
     for(int i = 0; i < numEntries; i++) {
-        puts(entries[i].name);
-        int p = strlen(entries[i].name);
-
-        for(int i = p; i < 20; i++)
-            puts(" ");
-
-        switch(stats[i].type) {
-        case NODE_FILE: puts("f "); break;
-        case NODE_DIRECTORY: puts("d "); break;
-        case NODE_DEVICE_CHAR: puts("c "); break;
-        case NODE_DEVICE_BLOCK: puts("b "); break;
-        case NODE_PIPE: puts("p "); break;
-        }
-
         if(stats[i].perms.owner & PermRead)
             puts("r");
         else
@@ -220,6 +206,28 @@ static void BuiltinLS(int argc, char** argv) {
         else
             puts("-");
 
+        puts("    ");
+
+        puts(entries[i].name);
+        int p = strlen(entries[i].name);
+
+        for(int i = p; i < 20; i++)
+            puts(" ");
+
+        switch(stats[i].type) {
+        case NODE_FILE: puts("f "); break;
+        case NODE_DIRECTORY: puts("d "); break;
+        case NODE_DEVICE_CHAR: puts("c "); break;
+        case NODE_DEVICE_BLOCK: puts("b "); break;
+        case NODE_PIPE: puts("p "); break;
+        case NODE_SYMLINK: puts("l "); break;
+        }
+
+        if(stats[i].type == NODE_SYMLINK) {
+            puts("-> ");
+            puts(stats[i].linkPath);
+        }
+
         puts("\n");
     }
 
@@ -235,6 +243,51 @@ static void BuiltinMkdir(int argc, char** argv) {
     int64 error = create_folder(argv[1]);
     if(error != 0)
         puts("Failed to create folder\n");
+}
+
+static void BuiltinLN(int argc, char** argv) {
+    if(argc < 3) {
+        puts("Usage: ln [-s] <file> <link>\n");
+        return;
+    }
+
+    bool symlink = false;
+
+    int argi = 1;
+    while(argi < argc) {
+        if(strcmp(argv[argi], "-s") == 0) {
+            symlink = true;
+            argi++;
+        } else {
+            break;
+        }
+    }
+
+    if(argi == argc) {
+        puts("Usage: ln [-s] <file> <link>\n");
+        return;
+    }
+
+    const char* path = argv[argi];
+    argi++;
+
+    if(argi == argc) {
+        puts("Usage: ln [-s] <file> <link>\n");
+        return;
+    }
+
+    const char* linkPath = argv[argi];
+    argi++;
+
+    if(symlink) {
+        int64 error = create_symlink(path, linkPath);
+        if(error != 0)
+            puts("Failed to create symlink\n");
+    } else {
+        int64 error = create_hardlink(path, linkPath);
+        if(error != 0)
+            puts("Failed to create hardlink\n");
+    }
 }
 
 static void BuiltinRM(int argc, char** argv) {
@@ -274,6 +327,8 @@ static void InvokeCommand() {
         BuiltinMkdir(argc, argv);
     } else if(strcmp(argv[0], "rm") == 0) {
         BuiltinRM(argc, argv);
+    } else if(strcmp(argv[0], "ln") == 0) {
+        BuiltinLN(argc, argv);
     } else {
         exec(argv[0], argc, argv);
         puts("Command not found\n");
