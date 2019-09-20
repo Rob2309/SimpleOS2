@@ -49,8 +49,8 @@ This OS should basically run on any x86_64 machine that supports UEFI. If you fi
 - ``make clean``:               remove everything but the sources
 
 ## Emulating SimpleOS2
-- ``make run``:                 run the OS in qemu (requires qemu-system-i86_64)
-- ``make runvbox``:             run the OS in VirtualBox (Requires a VirtualBox machine with name 'SimpleOS2' and partition.vdi as hard disk)
+- ``make runkvm``:              run the OS in qemu (requires qemu-system-i86_64)
+- ``make runvbox``:             run the OS in VirtualBox (Requires a VirtualBox machine with name 'SimpleOS2' and partition.vdi as hard disk, chipset has to be ICH9)
 - ``make debug``:               run the OS in qemu and debug it in GDB
 
 ## Configurations
