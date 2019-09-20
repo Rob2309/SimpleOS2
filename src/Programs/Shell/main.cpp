@@ -4,6 +4,10 @@
 #include <string.h>
 #include <stdlib.h>
 
+static char g_History[1024][128];
+static int g_HistoryMinIndex = 1024;
+static int g_HistoryIndex = 1024;
+
 static char g_CmdBuffer[128] = { 0 };
 static int g_CmdBufferIndex = 0;
 
@@ -175,17 +179,6 @@ static void BuiltinLS(int argc, char** argv) {
     }
 
     for(int i = 0; i < numEntries; i++) {
-        puts(entries[i].name);
-        puts("  ");
-
-        switch(stats[i].type) {
-        case NODE_FILE: puts("f "); break;
-        case NODE_DIRECTORY: puts("d "); break;
-        case NODE_DEVICE_CHAR: puts("c "); break;
-        case NODE_DEVICE_BLOCK: puts("b "); break;
-        case NODE_PIPE: puts("p "); break;
-        }
-
         if(stats[i].perms.owner & PermRead)
             puts("r");
         else
@@ -213,6 +206,28 @@ static void BuiltinLS(int argc, char** argv) {
         else
             puts("-");
 
+        puts("    ");
+
+        puts(entries[i].name);
+        int p = strlen(entries[i].name);
+
+        for(int i = p; i < 20; i++)
+            puts(" ");
+
+        switch(stats[i].type) {
+        case NODE_FILE: puts("f "); break;
+        case NODE_DIRECTORY: puts("d "); break;
+        case NODE_DEVICE_CHAR: puts("c "); break;
+        case NODE_DEVICE_BLOCK: puts("b "); break;
+        case NODE_PIPE: puts("p "); break;
+        case NODE_SYMLINK: puts("l "); break;
+        }
+
+        if(stats[i].type == NODE_SYMLINK) {
+            puts("-> ");
+            puts(stats[i].linkPath);
+        }
+
         puts("\n");
     }
 
@@ -228,6 +243,51 @@ static void BuiltinMkdir(int argc, char** argv) {
     int64 error = create_folder(argv[1]);
     if(error != 0)
         puts("Failed to create folder\n");
+}
+
+static void BuiltinLN(int argc, char** argv) {
+    if(argc < 3) {
+        puts("Usage: ln [-s] <file> <link>\n");
+        return;
+    }
+
+    bool symlink = false;
+
+    int argi = 1;
+    while(argi < argc) {
+        if(strcmp(argv[argi], "-s") == 0) {
+            symlink = true;
+            argi++;
+        } else {
+            break;
+        }
+    }
+
+    if(argi == argc) {
+        puts("Usage: ln [-s] <file> <link>\n");
+        return;
+    }
+
+    const char* path = argv[argi];
+    argi++;
+
+    if(argi == argc) {
+        puts("Usage: ln [-s] <file> <link>\n");
+        return;
+    }
+
+    const char* linkPath = argv[argi];
+    argi++;
+
+    if(symlink) {
+        int64 error = create_symlink(path, linkPath);
+        if(error != 0)
+            puts("Failed to create symlink\n");
+    } else {
+        int64 error = create_hardlink(path, linkPath);
+        if(error != 0)
+            puts("Failed to create hardlink\n");
+    }
 }
 
 static void BuiltinRM(int argc, char** argv) {
@@ -267,6 +327,8 @@ static void InvokeCommand() {
         BuiltinMkdir(argc, argv);
     } else if(strcmp(argv[0], "rm") == 0) {
         BuiltinRM(argc, argv);
+    } else if(strcmp(argv[0], "ln") == 0) {
+        BuiltinLN(argc, argv);
     } else {
         exec(argv[0], argc, argv);
         puts("Command not found\n");
@@ -281,12 +343,30 @@ static void HandleCommand() {
     if(g_CmdBufferIndex == 0)
         return;
 
+    if(g_HistoryMinIndex == 1024 || strcmp(g_History[1023], g_CmdBuffer) != 0) {
+        memcpy(&g_History[g_HistoryMinIndex - 1], &g_History[g_HistoryMinIndex], 128 * (1024 - g_HistoryMinIndex));
+        strcpy(g_History[1023], g_CmdBuffer);
+        g_HistoryMinIndex--;
+    }
+
     if(strcmp(g_CmdBuffer, "exit") == 0) {
         exit(0);
     } else {
         int64 tid;
         if(tid = fork()) {
-            join(tid);
+            while(true) {
+                char c;
+                int64 count = read(stdinfd, &c, 1);
+                if(count != 0) {
+                    if(c == '\3') {
+                        kill(tid);
+                        break;
+                    }
+                }
+
+                if(try_join(tid) == 0)
+                    break;
+            }
         } else {
             InvokeCommand();
             exit(0);
@@ -317,13 +397,45 @@ int main(int argc, char** argv) {
             if(count == 0)
                 continue;
 
-            if(c == '\b')
+            if(c == '\b') {
+                g_HistoryIndex = 1024;
                 HandleBackspace();
-            else if(c == '\n') {
+            } else if(c == '\n') {
+                g_HistoryIndex = 1024;
                 HandleCommand();
                 break;
-            }
-            else {
+            } else if(c == '\1') {
+                if(g_HistoryIndex > g_HistoryMinIndex) {
+                    for(int i = 0; i < strlen(g_CmdBuffer); i++)
+                        puts("\b");
+
+                    g_HistoryIndex--;
+                    strcpy(g_CmdBuffer, g_History[g_HistoryIndex]);
+                    g_CmdBufferIndex = strlen(g_CmdBuffer);
+
+                    puts(g_CmdBuffer);
+                }
+            } else if(c == '\2') {
+                if(g_HistoryIndex < 1023) {
+                    for(int i = 0; i < strlen(g_CmdBuffer); i++)
+                        puts("\b");
+
+                    g_HistoryIndex++;
+                    strcpy(g_CmdBuffer, g_History[g_HistoryIndex]);
+                    g_CmdBufferIndex = strlen(g_CmdBuffer);
+
+                    puts(g_CmdBuffer);
+                } else if(g_HistoryIndex == 1023) {
+                    for(int i = 0; i < strlen(g_CmdBuffer); i++)
+                        puts("\b");
+
+                    g_HistoryIndex = 1024;
+                    for(int i = 0; i < 128; i++)
+                        g_CmdBuffer[i] = 0;
+                    g_CmdBufferIndex = 0;
+                }
+            } else {
+                g_HistoryIndex = 1024;
                 g_CmdBuffer[g_CmdBufferIndex++] = c;
                 write(stdoutfd, &c, 1);
             }

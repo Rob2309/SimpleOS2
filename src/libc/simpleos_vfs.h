@@ -61,10 +61,15 @@ struct Permissions {
     uint8 other;
 };
 struct Stats {
+    uint64 nodeID;
     NodeType type;
     uint64 ownerGID;
     uint64 ownerUID;
     Permissions perms;
-    uint64 size;
+    
+    union {
+        uint64 size;
+        char linkPath[255];
+    };
 };
 int64 stat(const char* path, Stats* stats);

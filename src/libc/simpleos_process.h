@@ -17,5 +17,7 @@ void setfsbase(uint64 val);
 
 int64 detach(int64 tid);
 int64 join(int64 tid);
+int64 try_join(int64 tid);
+int64 kill(int64 tid);
 
 void whoami(char* buffer);
