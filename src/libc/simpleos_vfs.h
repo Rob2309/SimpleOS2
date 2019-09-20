@@ -73,3 +73,4 @@ struct Stats {
     };
 };
 int64 stat(const char* path, Stats* stats);
+int64 statl(const char* path, Stats* stats);

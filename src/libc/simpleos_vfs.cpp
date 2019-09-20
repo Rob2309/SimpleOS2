@@ -75,3 +75,6 @@ int64 list(const char* path, int* numEntries, ListEntry* entries) {
 int64 stat(const char* path, Stats* stats) {
     return syscall_invoke(syscall_stat, (uint64)path, (uint64)stats);
 }
+int64 statl(const char* path, Stats* stats) {
+    return syscall_invoke(syscall_statl, (uint64)path, (uint64)stats);
+}

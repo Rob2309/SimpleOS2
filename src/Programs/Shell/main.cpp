@@ -175,7 +175,7 @@ static void BuiltinLS(int argc, char** argv) {
     for(int i = 0; i < numEntries; i++) {
         strcpy(&pathBuffer[l], entries[i].name);
         
-        stat(pathBuffer, &stats[i]);
+        statl(pathBuffer, &stats[i]);
     }
 
     for(int i = 0; i < numEntries; i++) {

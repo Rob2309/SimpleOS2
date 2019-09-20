@@ -92,7 +92,7 @@ namespace SyscallHandler {
             return error;
         
         VFS::NodeStats stats;
-        error = VFS::Stat(tInfo->user, command, stats);
+        error = VFS::Stat(tInfo->user, command, stats, true);
         if(error != OK) {
             VFS::Close(file);
             return error;

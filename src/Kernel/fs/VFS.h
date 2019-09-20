@@ -77,7 +77,7 @@ namespace VFS {
             char linkPath[255];
         };
     };
-    int64 Stat(User* user, const char* path, NodeStats& outStats);
+    int64 Stat(User* user, const char* path, NodeStats& outStats, bool followSymlink);
 
     struct ListEntry {
         char name[256];

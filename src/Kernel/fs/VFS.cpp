@@ -899,7 +899,7 @@ namespace VFS {
         return ChangePermissions(tInfo->user, filePath, { ownerPerm, groupPerm, otherPerm });
     }
 
-    int64 Stat(User* user, const char* path, NodeStats& outStats) {
+    int64 Stat(User* user, const char* path, NodeStats& outStats, bool followSymlink) {
         char cleanBuffer[255];
         if(!kpathcpy_usersafe(cleanBuffer, path))
             return ErrorInvalidBuffer;
@@ -910,7 +910,7 @@ namespace VFS {
         char* tmpPath = cleanBuffer;
         Node* fileNode;
         Node* folderNode;
-        int64 error = AcquirePath(user, mp, tmpPath, true, true, fileNode, folderNode);
+        int64 error = AcquirePath(user, mp, tmpPath, true, !followSymlink, fileNode, folderNode);
         if(error != OK)
             return error;
         if(folderNode != nullptr)
@@ -933,7 +933,18 @@ namespace VFS {
     }
     SYSCALL_DEFINE2(syscall_stat, const char* path, NodeStats* stats) {
         NodeStats tmp;
-        int64 error = Stat(Scheduler::GetCurrentThreadInfo()->user, path, tmp);
+        int64 error = Stat(Scheduler::GetCurrentThreadInfo()->user, path, tmp, true);
+        if(error != OK)
+            return error;
+
+        if(!kmemcpy_usersafe(stats, &tmp, sizeof(NodeStats)))
+            Scheduler::ThreadExit(1);
+
+        return OK;
+    }
+    SYSCALL_DEFINE2(syscall_statl, const char* path, NodeStats* stats) {
+        NodeStats tmp;
+        int64 error = Stat(Scheduler::GetCurrentThreadInfo()->user, path, tmp, false);
         if(error != OK)
             return error;
 

@@ -56,7 +56,7 @@ static int64 SetupInitProcess(uint64, uint64) {
     }
 
     VFS::NodeStats stats;
-    error = VFS::Stat(&g_RootUser, config_Init_Command, stats);
+    error = VFS::Stat(&g_RootUser, config_Init_Command, stats, true);
     if(error != OK) {
         klog_fatal("Init", "Failed to stat %s (%s), aborting boot", config_Init_Command, ErrorToString(error));
         return 1;
