@@ -1231,6 +1231,12 @@ namespace VFS {
         
         if(folderNode != nullptr)
             ReleaseNode(folderNode);
+
+        if(fileNode->type == Node::TYPE_DIRECTORY) {
+            ReleaseNode(fileNode);
+            ReleaseMountPoint(mp);
+            return ErrorFileNotFound;
+        }
         
         if((openMode & OpenMode_Clear) && fileNode->type == Node::TYPE_FILE) {
             mp->fs->ClearNodeData(fileNode);
