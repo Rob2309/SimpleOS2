@@ -425,6 +425,14 @@ int main(int argc, char** argv) {
                     g_CmdBufferIndex = strlen(g_CmdBuffer);
 
                     puts(g_CmdBuffer);
+                } else if(g_HistoryIndex == 1023) {
+                    for(int i = 0; i < strlen(g_CmdBuffer); i++)
+                        puts("\b");
+
+                    g_HistoryIndex = 1024;
+                    for(int i = 0; i < 128; i++)
+                        g_CmdBuffer[i] = 0;
+                    g_CmdBufferIndex = 0;
                 }
             } else {
                 g_HistoryIndex = 1024;
