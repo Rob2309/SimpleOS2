@@ -3,7 +3,6 @@
 #include "types.h"
 #include "interrupts/IDT.h"
 #include "ktl/vector.h"
-#include "user/User.h"
 #include "atomic/Atomics.h"
 #include "locks/StickyLock.h"
 
@@ -64,7 +63,8 @@ struct ThreadInfo {
     ThreadMemSpace* memSpace;
     ThreadFileDescriptors* fds;
 
-    User* user;
+    uint64 uid;
+    uint64 gid;
 
     ThreadState state;
     

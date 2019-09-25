@@ -17,7 +17,6 @@
 #include "devices/DevFS.h"
 
 #include "scheduler/Scheduler.h"
-#include "user/User.h"
 #include "klib/string.h"
 
 #include "exec/ExecHandler.h"
@@ -45,18 +44,16 @@ extern "C" {
     #include "acpica/acpi.h"
 }
 
-static User g_RootUser;
-
 static int64 SetupInitProcess(uint64, uint64) {
     uint64 file;
-    int64 error = VFS::Open(&g_RootUser, config_Init_Command, VFS::OpenMode_Read, file);
+    int64 error = VFS::Open(0, 0, config_Init_Command, VFS::OpenMode_Read, file);
     if(error != OK) {
         klog_fatal("Init", "Failed to open %s (%s), aborting boot", config_Init_Command, ErrorToString(error));
         return 1;
     }
 
     VFS::NodeStats stats;
-    error = VFS::Stat(&g_RootUser, config_Init_Command, stats, true);
+    error = VFS::Stat(0, 0, config_Init_Command, stats, true);
     if(error != OK) {
         klog_fatal("Init", "Failed to stat %s (%s), aborting boot", config_Init_Command, ErrorToString(error));
         return 1;
@@ -82,8 +79,6 @@ static int64 SetupInitProcess(uint64, uint64) {
 
     delete[] buffer;
 
-    Scheduler::GetCurrentThreadInfo()->user = &g_RootUser;
-
     klog_info("Init", "Executing init program");
     Scheduler::ThreadExec(pml4Entry, &regs);
 }
@@ -97,20 +92,16 @@ static int64 InitThread(uint64, uint64) {
 
     klog_info("Boot", "Init KernelThread starting");
 
-    g_RootUser.gid = 0;
-    g_RootUser.uid = 0;
-    kstrcpy(g_RootUser.name, "root");
-
     VFS::FileSystem* rootFS = new TempFS();
     VFS::Init(rootFS);
 
     VFS::FileSystem* devFS = new DevFS();
-    int64 error = VFS::CreateFolder(&g_RootUser, "/dev", { 1, 1, 1 });
+    int64 error = VFS::CreateFolder(0, 0, "/dev", { 1, 1, 1 });
     if(error < 0) {
         klog_fatal("Init", "Failed to create /dev folder (%s)", ErrorToString(error));
         return 1;
     }
-    error = VFS::Mount(&g_RootUser, "/dev", devFS);
+    error = VFS::Mount(0, 0, "/dev", devFS);
     if(error < 0) {
         klog_fatal("Init", "Failed to mount DevFS to /dev (%s)", ErrorToString(error));
         return 1;
@@ -132,12 +123,12 @@ static int64 InitThread(uint64, uint64) {
 
     klog_info("Init", "Mounting boot filesystem");
 
-    error = VFS::CreateFolder(&g_RootUser, "/boot", { 3, 1, 1 });
+    error = VFS::CreateFolder(0, 0, "/boot", { 3, 1, 1 });
     if(error < 0) {
         klog_fatal("Init", "Failed to create /boot folder (%s)", ErrorToString(error));
         return 1;
     }
-    error = VFS::Mount(&g_RootUser, "/boot", config_BootFS_FSID, config_BootFS_DevFile);
+    error = VFS::Mount(0, 0, "/boot", config_BootFS_FSID, config_BootFS_DevFile);
     if(error < 0) {
         klog_fatal("Init", "Failed to mount boot filesystem: %s", ErrorToString(error));
         return 1;

@@ -204,13 +204,13 @@ namespace VFS {
         return &path[lastSep + 1];
     }
 
-    static bool CheckPermissions(User* user, Node* node, uint8 reqPerms) {
-        if(user->uid == 0)
+    static bool CheckPermissions(uint64 uid, uint64 gid, Node* node, uint8 reqPerms) {
+        if(uid == 0)
             return true;
             
-        if(user->uid == node->ownerUID) {
+        if(uid == node->ownerUID) {
             return (node->permissions.ownerPermissions & reqPerms) == reqPerms;
-        } else if(user->gid == node->ownerGID) {
+        } else if(gid == node->ownerGID) {
             return (node->permissions.groupPermissions & reqPerms) == reqPerms;
         } else {
             return (node->permissions.otherPermissions & reqPerms) == reqPerms;
@@ -222,7 +222,7 @@ namespace VFS {
         return node->infoFolder.cachedDir;
     }
 
-    static int64 _AcquirePathRec(User* user, MountPoint* mp, const char*& pathBuffer, bool fileHasToExist, bool deleteMode, Node*& outNode, Node*& outParent) {
+    static int64 _AcquirePathRec(uint64 uid, uint64 gid, MountPoint* mp, const char*& pathBuffer, bool fileHasToExist, bool deleteMode, Node*& outNode, Node*& outParent) {
         auto currentNode = AcquireNode(mp, mp->sb.rootNode);
 
         if(pathBuffer[0] == '\0') {
@@ -236,7 +236,7 @@ namespace VFS {
                 ReleaseNode(currentNode);
                 return ErrorFileNotFound;
             }
-            if(!CheckPermissions(user, currentNode, Permissions::Read)) {
+            if(!CheckPermissions(uid, gid, currentNode, Permissions::Read)) {
                 ReleaseNode(currentNode);
                 return ErrorPermissionDenied;
             }
@@ -292,12 +292,12 @@ namespace VFS {
     /**
      * If outParent is nullptr, outNode has to be a mountPoint
      **/
-    static int64 AcquirePath(User* user, MountPoint*& outMP, char*& inOutPathBuffer, bool fileHasToExist, bool deleteMode, Node*& outNode, Node*& outParent) {
+    static int64 AcquirePath(uint64 uid, uint64 gid, MountPoint*& outMP, char*& inOutPathBuffer, bool fileHasToExist, bool deleteMode, Node*& outNode, Node*& outParent) {
         MountPoint* mp = FindMountPoint(inOutPathBuffer);
         const char* currentPath = AdvancePath(inOutPathBuffer, mp->path);
 
         int64 error;
-        while((error = _AcquirePathRec(user, mp, currentPath, fileHasToExist, deleteMode, outNode, outParent)) == ErrorEncounteredSymlink) {
+        while((error = _AcquirePathRec(uid, gid, mp, currentPath, fileHasToExist, deleteMode, outNode, outParent)) == ErrorEncounteredSymlink) {
             const char* linkPath = outNode->infoSymlink.linkPath;
             const char* restPath = currentPath;
 
@@ -364,7 +364,7 @@ namespace VFS {
         g_PipeMount->fs = new PipeFS();
     }
 
-    int64 CreateFile(User* user, const char* path, const Permissions& perms) {
+    int64 CreateFile(uint64 uid, uint64 gid, const char* path, const Permissions& perms) {
         char cleanBuffer[255];
         if(!kpathcpy_usersafe(cleanBuffer, path))
             return ErrorInvalidBuffer;
@@ -375,7 +375,7 @@ namespace VFS {
         char* tmpPath = cleanBuffer;
         Node* parentNode;
         Node* fileNode;
-        int64 error = AcquirePath(user, mp, tmpPath, false, false, fileNode, parentNode);
+        int64 error = AcquirePath(uid, gid, mp, tmpPath, false, false, fileNode, parentNode);
         if(error != OK)
             return error;
         if(parentNode == nullptr) {
@@ -389,7 +389,7 @@ namespace VFS {
             ReleaseMountPoint(mp);
             return ErrorFileExists;
         }
-        if(!CheckPermissions(user, parentNode, Permissions::Write)) {
+        if(!CheckPermissions(uid, gid, parentNode, Permissions::Write)) {
             ReleaseNode(parentNode);
             ReleaseMountPoint(mp);
             return ErrorPermissionDenied;
@@ -399,8 +399,8 @@ namespace VFS {
         newNode->linkCount.Write(1);
         newNode->type = Node::TYPE_FILE;
         newNode->infoFile.fileSize = 0;
-        newNode->ownerGID = user->gid;
-        newNode->ownerUID = user->uid;
+        newNode->ownerGID = gid;
+        newNode->ownerUID = uid;
         newNode->permissions = perms;
 
         parentNode->dirLock.Spinlock();
@@ -425,10 +425,10 @@ namespace VFS {
 
         ThreadInfo* tInfo = Scheduler::GetCurrentThreadInfo();
 
-        return CreateFile(tInfo->user, filePath, {3, 3, 3});
+        return CreateFile(tInfo->uid, tInfo->gid, filePath, {3, 3, 3});
     }
 
-    int64 CreateFolder(User* user, const char* path, const Permissions& perms) {
+    int64 CreateFolder(uint64 uid, uint64 gid, const char* path, const Permissions& perms) {
         char cleanBuffer[255];
         if(!kpathcpy_usersafe(cleanBuffer, path))
             return ErrorInvalidBuffer;
@@ -439,7 +439,7 @@ namespace VFS {
         char* tmpPath = cleanBuffer;
         Node* parentNode;
         Node* fileNode;
-        int64 error = AcquirePath(user, mp, tmpPath, false, false, fileNode, parentNode);
+        int64 error = AcquirePath(uid, gid, mp, tmpPath, false, false, fileNode, parentNode);
         if(error != OK)
             return error;
         if(parentNode == nullptr) {
@@ -453,7 +453,7 @@ namespace VFS {
             ReleaseMountPoint(mp);
             return ErrorFileExists;
         }
-        if(!CheckPermissions(user, parentNode, Permissions::Write)) {
+        if(!CheckPermissions(uid, gid, parentNode, Permissions::Write)) {
             ReleaseNode(parentNode);
             ReleaseMountPoint(mp);
             return ErrorPermissionDenied;
@@ -463,8 +463,8 @@ namespace VFS {
         newNode->linkCount.Write(1);
         newNode->type = Node::TYPE_DIRECTORY;
         newNode->infoFolder.cachedDir = Directory::Create(10);
-        newNode->ownerGID = user->gid;
-        newNode->ownerUID = user->uid;
+        newNode->ownerGID = gid;
+        newNode->ownerUID = uid;
         newNode->permissions = perms;
 
         parentNode->dirLock.Spinlock();
@@ -489,10 +489,10 @@ namespace VFS {
 
         ThreadInfo* tInfo = Scheduler::GetCurrentThreadInfo();
 
-        return CreateFolder(tInfo->user, filePath, {3, 3, 3});
+        return CreateFolder(tInfo->uid, tInfo->gid, filePath, {3, 3, 3});
     }
 
-    int64 CreateDeviceFile(User* user, const char* path, const Permissions& perms, uint64 driverID, uint64 subID) {
+    int64 CreateDeviceFile(uint64 uid, uint64 gid, const char* path, const Permissions& perms, uint64 driverID, uint64 subID) {
         char cleanBuffer[255];
         if(!kpathcpy_usersafe(cleanBuffer, path))
             return ErrorInvalidBuffer;
@@ -503,7 +503,7 @@ namespace VFS {
         char* tmpPath = cleanBuffer;
         Node* parentNode;
         Node* fileNode;
-        int64 error = AcquirePath(user, mp, tmpPath, false, false, fileNode, parentNode);
+        int64 error = AcquirePath(uid, gid, mp, tmpPath, false, false, fileNode, parentNode);
         if(error != OK)
             return error;
         if(parentNode == nullptr) {
@@ -517,7 +517,7 @@ namespace VFS {
             ReleaseMountPoint(mp);
             return ErrorFileExists;
         }
-        if(!CheckPermissions(user, parentNode, Permissions::Write)) {
+        if(!CheckPermissions(uid, gid, parentNode, Permissions::Write)) {
             ReleaseNode(parentNode);
             ReleaseMountPoint(mp);
             return ErrorPermissionDenied;
@@ -530,8 +530,8 @@ namespace VFS {
         newNode->type = driver->GetType() == DeviceDriver::TYPE_BLOCK ? Node::TYPE_DEVICE_BLOCK : Node::TYPE_DEVICE_CHAR;
         newNode->infoDevice.driverID = driverID;
         newNode->infoDevice.subID = subID;
-        newNode->ownerGID = user->gid;
-        newNode->ownerUID = user->uid;
+        newNode->ownerGID = gid;
+        newNode->ownerUID = uid;
         newNode->permissions = perms;
 
         parentNode->dirLock.Spinlock();
@@ -556,10 +556,10 @@ namespace VFS {
 
         ThreadInfo* tInfo = Scheduler::GetCurrentThreadInfo();
 
-        return CreateDeviceFile(tInfo->user, filePath, {3, 3, 3}, driverID, devID);
+        return CreateDeviceFile(tInfo->uid, tInfo->gid, filePath, {3, 3, 3}, driverID, devID);
     }
 
-    int64 CreatePipe(User* user, uint64* readDesc, uint64* writeDesc) {
+    int64 CreatePipe(uint64 uid, uint64 gid, uint64* readDesc, uint64* writeDesc) {
         auto pipeNode = CreateNode(g_PipeMount, 2);
         pipeNode->type = Node::TYPE_PIPE;
 
@@ -585,13 +585,13 @@ namespace VFS {
 
         ThreadInfo* tInfo = Scheduler::GetCurrentThreadInfo();
 
-        VFS::CreatePipe(tInfo->user, &sysRead, &sysWrite);
+        VFS::CreatePipe(tInfo->uid, tInfo->gid, &sysRead, &sysWrite);
         *readDesc = Scheduler::ThreadAddFileDescriptor(sysRead);
         *writeDesc = Scheduler::ThreadAddFileDescriptor(sysWrite);
         return 0;
     }
 
-    int64 CreateSymLink(User* user, const char* path, const Permissions& permissions, const char* linkPath) {
+    int64 CreateSymLink(uint64 uid, uint64 gid, const char* path, const Permissions& permissions, const char* linkPath) {
         char cleanBuffer[255];
         if(!kpathcpy_usersafe(cleanBuffer, path))
             return ErrorInvalidBuffer;
@@ -602,7 +602,7 @@ namespace VFS {
         char* tmpPath = cleanBuffer;
         Node* parentNode;
         Node* linkNode;
-        int64 error = AcquirePath(user, mp, tmpPath, false, false, linkNode, parentNode);
+        int64 error = AcquirePath(uid, gid, mp, tmpPath, false, false, linkNode, parentNode);
         if(error != OK)
             return error;
         if(parentNode == nullptr) {
@@ -616,7 +616,7 @@ namespace VFS {
             ReleaseMountPoint(mp);
             return ErrorFileExists;
         }
-        if(!CheckPermissions(user, parentNode, Permissions::Write)) {
+        if(!CheckPermissions(uid, gid, parentNode, Permissions::Write)) {
             ReleaseNode(parentNode);
             ReleaseMountPoint(mp);
             return ErrorPermissionDenied;
@@ -627,8 +627,8 @@ namespace VFS {
         newNode->type = Node::TYPE_SYMLINK;
         newNode->infoSymlink.linkPath = new char[kstrlen(linkPath) + 1];
         kmemcpy(newNode->infoSymlink.linkPath, linkPath, kstrlen(linkPath) + 1);
-        newNode->ownerUID = user->uid;
-        newNode->ownerGID = user->gid;
+        newNode->ownerUID = uid;
+        newNode->ownerGID = gid;
         newNode->permissions = permissions;
 
         parentNode->dirLock.Spinlock();
@@ -653,10 +653,10 @@ namespace VFS {
 
         ThreadInfo* tInfo = Scheduler::GetCurrentThreadInfo();
 
-        return CreateSymLink(tInfo->user, path, { 3, 3, 3 }, linkPath);
+        return CreateSymLink(tInfo->uid, tInfo->gid, path, { 3, 3, 3 }, linkPath);
     }
 
-    int64 CreateHardLink(User* user, const char* path, const Permissions& permissions, const char* linkPath) {
+    int64 CreateHardLink(uint64 uid, uint64 gid, const char* path, const Permissions& permissions, const char* linkPath) {
         char cleanBuffer[255];
         if(!kpathcpy_usersafe(cleanBuffer, linkPath))
             return ErrorInvalidBuffer;
@@ -667,7 +667,7 @@ namespace VFS {
         char* tmpPath = cleanBuffer;
         Node* linkParentNode;
         Node* linkFileNode;
-        int64 error = AcquirePath(user, linkMP, tmpPath, true, false, linkFileNode, linkParentNode);
+        int64 error = AcquirePath(uid, gid, linkMP, tmpPath, true, false, linkFileNode, linkParentNode);
         if(error != OK)
             return error;
         if(linkParentNode != nullptr)
@@ -694,7 +694,7 @@ namespace VFS {
         tmpPath = cleanBuffer;
         Node* parentNode;
         Node* fileNode;
-        error = AcquirePath(user, mp, tmpPath, false, false, fileNode, parentNode);
+        error = AcquirePath(uid, gid, mp, tmpPath, false, false, fileNode, parentNode);
         if(error != OK) {
             ReleaseNode(linkFileNode);
             ReleaseMountPoint(linkMP);
@@ -715,7 +715,7 @@ namespace VFS {
             ReleaseMountPoint(mp);
             return ErrorFileExists;
         }
-        if(!CheckPermissions(user, parentNode, Permissions::Write)) {
+        if(!CheckPermissions(uid, gid, parentNode, Permissions::Write)) {
             ReleaseNode(linkFileNode);
             ReleaseMountPoint(linkMP);
             ReleaseNode(parentNode);
@@ -755,10 +755,10 @@ namespace VFS {
 
         ThreadInfo* tInfo = Scheduler::GetCurrentThreadInfo();
 
-        return CreateHardLink(tInfo->user, path, { 3, 3, 3 }, linkPath);
+        return CreateHardLink(tInfo->uid, tInfo->gid, path, { 3, 3, 3 }, linkPath);
     }
 
-    int64 Delete(User* user, const char* path) {
+    int64 Delete(uint64 uid, uint64 gid, const char* path) {
         char cleanBuffer[255];
         if(!kpathcpy_usersafe(cleanBuffer, path))
             return ErrorInvalidBuffer;
@@ -769,7 +769,7 @@ namespace VFS {
         char* tmpPath = cleanBuffer;
         Node* fileNode;
         Node* parentNode;
-        int64 error = AcquirePath(user, mp, tmpPath, true, true, fileNode, parentNode);
+        int64 error = AcquirePath(uid, gid, mp, tmpPath, true, true, fileNode, parentNode);
         if(error != OK)
             return error;
         // attempting to delete mountpoint
@@ -778,7 +778,7 @@ namespace VFS {
             ReleaseMountPoint(mp);
             return ErrorPermissionDenied;
         }
-        if(!CheckPermissions(user, parentNode, Permissions::Write)) {
+        if(!CheckPermissions(uid, gid, parentNode, Permissions::Write)) {
             ReleaseNode(parentNode);
             ReleaseNode(fileNode);
             ReleaseMountPoint(mp);
@@ -821,10 +821,10 @@ namespace VFS {
 
         ThreadInfo* tInfo = Scheduler::GetCurrentThreadInfo();
 
-        return Delete(tInfo->user, filePath); 
+        return Delete(tInfo->uid, tInfo->gid, filePath); 
     }
 
-    int64 ChangeOwner(User* user, const char* path, uint64 newUID, uint64 newGID) {
+    int64 ChangeOwner(uint64 uid, uint64 gid, const char* path, uint64 newUID, uint64 newGID) {
         char cleanBuffer[255];
         if(!kpathcpy_usersafe(cleanBuffer, path))
             return ErrorInvalidBuffer;
@@ -835,12 +835,12 @@ namespace VFS {
         char* tmpPath = cleanBuffer;
         Node* fileNode;
         Node* folderNode;
-        int64 error = AcquirePath(user, mp, tmpPath, true, false, fileNode, folderNode);
+        int64 error = AcquirePath(uid, gid, mp, tmpPath, true, false, fileNode, folderNode);
         if(error != OK)
             return error;
         if(folderNode != nullptr)
             ReleaseNode(folderNode);
-        if(user->uid != 0 && user->uid != fileNode->ownerUID) {
+        if(uid != 0 && uid != fileNode->ownerUID) {
             ReleaseNode(fileNode);
             ReleaseMountPoint(mp);
             return ErrorPermissionDenied;
@@ -859,10 +859,10 @@ namespace VFS {
 
         ThreadInfo* tInfo = Scheduler::GetCurrentThreadInfo();
 
-        return ChangeOwner(tInfo->user, filePath, uid, gid);
+        return ChangeOwner(tInfo->uid, tInfo->gid, filePath, uid, gid);
     }
 
-    int64 ChangePermissions(User* user, const char* path, const Permissions& permissions) {
+    int64 ChangePermissions(uint64 uid, uint64 gid, const char* path, const Permissions& permissions) {
         char cleanBuffer[255];
         if(!kpathcpy_usersafe(cleanBuffer, path))
             return ErrorInvalidBuffer;
@@ -873,12 +873,12 @@ namespace VFS {
         char* tmpPath = cleanBuffer;
         Node* fileNode;
         Node* folderNode;
-        int64 error = AcquirePath(user, mp, tmpPath, true, false, fileNode, folderNode);
+        int64 error = AcquirePath(uid, gid, mp, tmpPath, true, false, fileNode, folderNode);
         if(error != OK)
             return error;
         if(folderNode != nullptr)
             ReleaseNode(folderNode);
-        if(user->uid != 0 && user->uid != fileNode->ownerUID) {
+        if(uid != 0 && uid != fileNode->ownerUID) {
             ReleaseNode(fileNode);
             ReleaseMountPoint(mp);
             return ErrorPermissionDenied;
@@ -896,10 +896,10 @@ namespace VFS {
 
         ThreadInfo* tInfo = Scheduler::GetCurrentThreadInfo();
 
-        return ChangePermissions(tInfo->user, filePath, { ownerPerm, groupPerm, otherPerm });
+        return ChangePermissions(tInfo->uid, tInfo->gid, filePath, { ownerPerm, groupPerm, otherPerm });
     }
 
-    int64 Stat(User* user, const char* path, NodeStats& outStats, bool followSymlink) {
+    int64 Stat(uint64 uid, uint64 gid, const char* path, NodeStats& outStats, bool followSymlink) {
         char cleanBuffer[255];
         if(!kpathcpy_usersafe(cleanBuffer, path))
             return ErrorInvalidBuffer;
@@ -910,7 +910,7 @@ namespace VFS {
         char* tmpPath = cleanBuffer;
         Node* fileNode;
         Node* folderNode;
-        int64 error = AcquirePath(user, mp, tmpPath, true, !followSymlink, fileNode, folderNode);
+        int64 error = AcquirePath(uid, gid, mp, tmpPath, true, !followSymlink, fileNode, folderNode);
         if(error != OK)
             return error;
         if(folderNode != nullptr)
@@ -933,7 +933,10 @@ namespace VFS {
     }
     SYSCALL_DEFINE2(syscall_stat, const char* path, NodeStats* stats) {
         NodeStats tmp;
-        int64 error = Stat(Scheduler::GetCurrentThreadInfo()->user, path, tmp, true);
+
+        auto tInfo = Scheduler::GetCurrentThreadInfo();
+
+        int64 error = Stat(tInfo->uid, tInfo->gid, path, tmp, true);
         if(error != OK)
             return error;
 
@@ -944,7 +947,10 @@ namespace VFS {
     }
     SYSCALL_DEFINE2(syscall_statl, const char* path, NodeStats* stats) {
         NodeStats tmp;
-        int64 error = Stat(Scheduler::GetCurrentThreadInfo()->user, path, tmp, false);
+
+        auto tInfo = Scheduler::GetCurrentThreadInfo();
+
+        int64 error = Stat(tInfo->uid, tInfo->gid, path, tmp, false);
         if(error != OK)
             return error;
 
@@ -954,7 +960,7 @@ namespace VFS {
         return OK;
     }
 
-    int64 List(User* user, const char* path, int& numEntries, ListEntry* entries) {
+    int64 List(uint64 uid, uint64 gid, const char* path, int& numEntries, ListEntry* entries) {
         char cleanBuffer[255];
         if(!kpathcpy_usersafe(cleanBuffer, path))
             return ErrorInvalidBuffer;
@@ -965,7 +971,7 @@ namespace VFS {
         char* tmpPath = cleanBuffer;
         Node* node;
         Node* parentNode;
-        int64 error = AcquirePath(user, mp, tmpPath, true, false, node, parentNode);
+        int64 error = AcquirePath(uid, gid, mp, tmpPath, true, false, node, parentNode);
         if(error != OK)
             return error;
         if(parentNode != nullptr)
@@ -1005,7 +1011,9 @@ namespace VFS {
         if(!kmemcpy_usersafe(&tmpEntries, numEntries, sizeof(int)))
             Scheduler::ThreadExit(1);
 
-        int64 error = List(Scheduler::GetCurrentThreadInfo()->user, path, tmpEntries, entries);
+        auto tInfo = Scheduler::GetCurrentThreadInfo();
+
+        int64 error = List(tInfo->uid, tInfo->gid, path, tmpEntries, entries);
         if(error == ErrorInvalidBuffer)
             Scheduler::ThreadExit(1);
         
@@ -1015,7 +1023,7 @@ namespace VFS {
         return error;
     }
 
-    int64 Mount(User* user, const char* mountPoint, FileSystem* fs) {
+    int64 Mount(uint64 uid, uint64 gid, const char* mountPoint, FileSystem* fs) {
         char cleanBuffer[255];
         if(!kpathcpy_usersafe(cleanBuffer, mountPoint))
             return ErrorInvalidBuffer;
@@ -1026,7 +1034,7 @@ namespace VFS {
         char* tmpPath = cleanBuffer;
         Node* folderNode;
         Node* fileNode;
-        int64 error = AcquirePath(user, mp, tmpPath, true, false, fileNode, folderNode);
+        int64 error = AcquirePath(uid, gid, mp, tmpPath, true, false, fileNode, folderNode);
         if(error != OK)
             return error;
         // Trying to mount onto a mountPoint
@@ -1043,7 +1051,7 @@ namespace VFS {
             ReleaseMountPoint(mp);
             return ErrorFileNotFound;
         } 
-        if(!CheckPermissions(user, fileNode, Permissions::Write)) {
+        if(!CheckPermissions(uid, gid, fileNode, Permissions::Write)) {
             ReleaseNode(fileNode);
             ReleaseMountPoint(mp);
             return ErrorPermissionDenied;
@@ -1067,12 +1075,12 @@ namespace VFS {
 
         return OK;
     }
-    int64 Mount(User* user, const char* mountPoint, const char* fsID) {
+    int64 Mount(uint64 uid, uint64 gid, const char* mountPoint, const char* fsID) {
         FileSystem* fs = FileSystemRegistry::CreateFileSystem(fsID);
         if(fs == nullptr)
             return ErrorInvalidFileSystem;
 
-        int64 error = Mount(user, mountPoint, fs);
+        int64 error = Mount(uid, gid, mountPoint, fs);
         if(error != OK) {
             delete fs;
             return error;
@@ -1086,9 +1094,9 @@ namespace VFS {
 
         ThreadInfo* tInfo = Scheduler::GetCurrentThreadInfo();
 
-        return Mount(tInfo->user, mountPoint, fsID); 
+        return Mount(tInfo->uid, tInfo->gid, mountPoint, fsID); 
     }
-    int64 Mount(User* user, const char* mountPoint, const char* fsID, const char* devFile) {
+    int64 Mount(uint64 uid, uint64 gid, const char* mountPoint, const char* fsID, const char* devFile) {
         char cleanBuffer[255];
         if(!kpathcpy_usersafe(cleanBuffer, devFile))
             return ErrorInvalidBuffer;
@@ -1099,7 +1107,7 @@ namespace VFS {
         char* tmpPath = cleanBuffer;
         Node* folderNode;
         Node* fileNode;
-        int64 error = AcquirePath(user, mp, tmpPath, true, false, fileNode, folderNode);
+        int64 error = AcquirePath(uid, gid, mp, tmpPath, true, false, fileNode, folderNode);
         if(error != OK)
             return error;
         if(folderNode != nullptr)
@@ -1109,7 +1117,7 @@ namespace VFS {
             ReleaseMountPoint(mp);
             return ErrorInvalidDevice;
         }
-        if(!CheckPermissions(user, fileNode, Permissions::Read)) {
+        if(!CheckPermissions(uid, gid, fileNode, Permissions::Read)) {
             ReleaseNode(fileNode);
             ReleaseMountPoint(mp);
             return ErrorPermissionDenied;
@@ -1121,7 +1129,7 @@ namespace VFS {
         ReleaseNode(fileNode);
         ReleaseMountPoint(mp);
 
-        return Mount(user, mountPoint, fsID, driverID, subID);
+        return Mount(uid, gid, mountPoint, fsID, driverID, subID);
     }
     SYSCALL_DEFINE3(syscall_mount_dev, const char* mountPoint, const char* fsID, const char* devFile) {
         if(!MemoryManager::IsUserPtr(mountPoint) || !MemoryManager::IsUserPtr(fsID) || !MemoryManager::IsUserPtr(devFile))
@@ -1129,9 +1137,9 @@ namespace VFS {
 
         ThreadInfo* tInfo = Scheduler::GetCurrentThreadInfo();
 
-        return Mount(tInfo->user, mountPoint, fsID, devFile);
+        return Mount(tInfo->uid, tInfo->gid, mountPoint, fsID, devFile);
     }
-    int64 Mount(User* user, const char* mountPoint, const char* fsID, uint64 driverID, uint64 devID) {
+    int64 Mount(uint64 uid, uint64 gid, const char* mountPoint, const char* fsID, uint64 driverID, uint64 devID) {
         DeviceDriver* driver = DeviceDriverRegistry::GetDriver(driverID);
         if(driver->GetType() != DeviceDriver::TYPE_BLOCK)
             return ErrorInvalidDevice;
@@ -1140,7 +1148,7 @@ namespace VFS {
         if(fs == nullptr)
             return ErrorInvalidFileSystem;
 
-        int64 error = Mount(user, mountPoint, fs);
+        int64 error = Mount(uid, gid, mountPoint, fs);
         if(error != OK) {
             delete fs;
         }
@@ -1148,7 +1156,7 @@ namespace VFS {
         return error;
     }
 
-    int64 Unmount(User* user, const char* mountPoint) {
+    int64 Unmount(uint64 uid, uint64 gid, const char* mountPoint) {
         char cleanBuffer[255];
         if(!kpathcpy_usersafe(cleanBuffer, mountPoint))
             return ErrorInvalidBuffer;
@@ -1180,10 +1188,10 @@ namespace VFS {
     SYSCALL_DEFINE1(syscall_unmount, const char* path) {
         ThreadInfo* tInfo = Scheduler::GetCurrentThreadInfo();
 
-        return Unmount(tInfo->user, path);
+        return Unmount(tInfo->uid, tInfo->gid, path);
     }
 
-    int64 Open(User* user, const char* path, uint64 openMode, uint64& fileDesc) {
+    int64 Open(uint64 uid, uint64 gid, const char* path, uint64 openMode, uint64& fileDesc) {
         char cleanBuffer[255];
         if(!kpathcpy_usersafe(cleanBuffer, path))
             return ErrorInvalidBuffer;
@@ -1194,12 +1202,12 @@ namespace VFS {
         char* tmpPath = cleanBuffer;
         Node* folderNode;
         Node* fileNode;
-        int64 error = AcquirePath(user, mp, tmpPath, (openMode & OpenMode_Create) ? false : true, false, fileNode, folderNode);
+        int64 error = AcquirePath(uid, gid, mp, tmpPath, (openMode & OpenMode_Create) ? false : true, false, fileNode, folderNode);
         if(error != OK)
             return error;
 
         if(fileNode == nullptr) {
-            if(!CheckPermissions(user, folderNode, Permissions::Write)) {
+            if(!CheckPermissions(uid, gid, folderNode, Permissions::Write)) {
                 ReleaseNode(folderNode);
                 ReleaseMountPoint(mp);
                 return ErrorPermissionDenied;
@@ -1209,8 +1217,8 @@ namespace VFS {
             fileNode->linkCount.Write(1);
             fileNode->type = Node::TYPE_FILE;
             fileNode->infoFile.fileSize.Write(0);
-            fileNode->ownerUID = user->uid;
-            fileNode->ownerGID = user->gid;
+            fileNode->ownerUID = uid;
+            fileNode->ownerGID = gid;
             fileNode->permissions = folderNode->permissions;
 
             folderNode->dirLock.Spinlock();
@@ -1258,7 +1266,7 @@ namespace VFS {
         ThreadInfo* tInfo = Scheduler::GetCurrentThreadInfo();
 
         uint64 sysDesc;
-        int64 error = Open(tInfo->user, filePath, openMode, sysDesc);
+        int64 error = Open(tInfo->uid, tInfo->gid, filePath, openMode, sysDesc);
         if(error != OK) {
             return error;
         }

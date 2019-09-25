@@ -5,7 +5,6 @@
 #include "atomic/Atomics.h"
 #include "locks/QueueLock.h"
 #include "FileSystem.h"
-#include "user/User.h"
 #include "errno.h"
 #include "Node.h"
 #include "Permissions.h"
@@ -23,47 +22,47 @@ namespace VFS {
      * Creates a regular file at the given path. 
      * All directories up to the given path have to exist.
      **/
-    int64 CreateFile(User* user, const char* path, const Permissions& permissions);
+    int64 CreateFile(uint64 uid, uint64 gid, const char* path, const Permissions& permissions);
     /**
      * Creates an empty directory.
      * All directories up to the given path have to exist.
      **/
-    int64 CreateFolder(User* user, const char* path, const Permissions& permissions);
+    int64 CreateFolder(uint64 uid, uint64 gid, const char* path, const Permissions& permissions);
     /**
      * Creates a special device file.
      * All directories up to the given path have to exist.
      * @param driverID The ID of the driver the device is handled by.
      * @param subID The ID of the device within the driver.
      **/
-    int64 CreateDeviceFile(User* user, const char* path, const Permissions& permissions, uint64 driverID, uint64 subID);
+    int64 CreateDeviceFile(uint64 uid, uint64 gid, const char* path, const Permissions& permissions, uint64 driverID, uint64 subID);
     /**
      * Creates an unnamed pipe.
      * @param readDesc Filled with a FileDescriptor that can be used to read from the Pipe.
      * @param writeDesc Filled with a FileDescriptor that can be used to write to the Pipe.
      **/
-    int64 CreatePipe(User* user, uint64* readDesc, uint64* writeDesc);
+    int64 CreatePipe(uint64 uid, uint64 gid, uint64* readDesc, uint64* writeDesc);
 
     /**
      * Creates a symlink to another file
      **/
-    int64 CreateSymLink(User* user, const char* path, const Permissions& permissions, const char* linkPath);
+    int64 CreateSymLink(uint64 uid, uint64 gid, const char* path, const Permissions& permissions, const char* linkPath);
 
-    int64 CreateHardLink(User* user, const char* path, const Permissions& permissions, const char* linkPath);
+    int64 CreateHardLink(uint64 uid, uint64 gid, const char* path, const Permissions& permissions, const char* linkPath);
 
     /**
      * Removes the files directory entry from the containing directory.
      * The node will, however, only be freed if every reference to it is closed.
      **/
-    int64 Delete(User* user, const char* path);
+    int64 Delete(uint64 uid, uint64 gid, const char* path);
 
     /**
      * Changes the owner of the given file, only the current owner and root can do that
      **/
-    int64 ChangeOwner(User* user, const char* path, uint64 newUID, uint64 newGID);
+    int64 ChangeOwner(uint64 uid, uint64 gid, const char* path, uint64 newUID, uint64 newGID);
     /**
      * Changes the permissions of the given file, only the current owner and root can do that
      **/
-    int64 ChangePermissions(User* user, const char* path, const Permissions& permissions);
+    int64 ChangePermissions(uint64 uid, uint64 gid, const char* path, const Permissions& permissions);
 
     struct NodeStats {
         uint64 nodeID;
@@ -77,26 +76,26 @@ namespace VFS {
             char linkPath[255];
         };
     };
-    int64 Stat(User* user, const char* path, NodeStats& outStats, bool followSymlink);
+    int64 Stat(uint64 uid, uint64 gid, const char* path, NodeStats& outStats, bool followSymlink);
 
     struct ListEntry {
         char name[256];
     };
-    int64 List(User* user, const char* path, int& numEntries, ListEntry* entries);
+    int64 List(uint64 uid, uint64 gid, const char* path, int& numEntries, ListEntry* entries);
 
     /**
      * Mount the given FileSystem at the given path.
      * MountPoint has to be an empty folder.
      **/
-    int64 Mount(User* user, const char* mountPoint, FileSystem* fs);
-    int64 Mount(User* user, const char* mountPoint, const char* fsID);
-    int64 Mount(User* user, const char* mountPoint, const char* fsID, const char* devFile);
-    int64 Mount(User* user, const char* mountPoint, const char* fsID, uint64 driverID, uint64 devID);
+    int64 Mount(uint64 uid, uint64 gid, const char* mountPoint, FileSystem* fs);
+    int64 Mount(uint64 uid, uint64 gid, const char* mountPoint, const char* fsID);
+    int64 Mount(uint64 uid, uint64 gid, const char* mountPoint, const char* fsID, const char* devFile);
+    int64 Mount(uint64 uid, uint64 gid, const char* mountPoint, const char* fsID, uint64 driverID, uint64 devID);
 
     /**
      * Unmounts the given path
      **/
-    int64 Unmount(User* user, const char* mountPoint);
+    int64 Unmount(uint64 uid, uint64 gid, const char* mountPoint);
 
     constexpr uint64 OpenMode_Read = 0x1;           // Open for reading
     constexpr uint64 OpenMode_Write = 0x2;          // Open for writing
@@ -108,7 +107,7 @@ namespace VFS {
      * Opens the given path
      * Returns the FileDescriptor of the opened path, or 0 on error.
      **/
-    int64 Open(User* user, const char* path, uint64 mode, uint64& fileDesc);
+    int64 Open(uint64 uid, uint64 gid, const char* path, uint64 mode, uint64& fileDesc);
     /**
      * Closes the given FileDescriptor
      **/

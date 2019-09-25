@@ -144,7 +144,8 @@ namespace Scheduler {
         cpuData.idleThread.killPending = false;
         cpuData.idleThread.memSpace = &cpuData.idleThreadMemSpace;
         cpuData.idleThread.fds = &cpuData.idleThreadFDs;
-        cpuData.idleThread.user = nullptr;
+        cpuData.idleThread.uid = 0;
+        cpuData.idleThread.gid = 0;
         cpuData.idleThread.state.type = ThreadState::READY;
         cpuData.idleThread.stickyCount = 1;
         cpuData.idleThread.cliCount = 1;
@@ -168,7 +169,8 @@ namespace Scheduler {
         tInfo->killPending = false;
         tInfo->memSpace = memSpace;
         tInfo->fds = fds;
-        tInfo->user = nullptr;
+        tInfo->uid = 0;
+        tInfo->gid = 0;
         tInfo->state.type = ThreadState::READY;
         tInfo->kernelStack = (uint64)new char[KernelStackSize] + KernelStackSize;
         tInfo->stickyCount = 0;
@@ -247,7 +249,8 @@ namespace Scheduler {
         newT->killPending = false;
         newT->memSpace = memSpace;
         newT->fds = fds;
-        newT->user = tInfo->user;
+        newT->uid = tInfo->uid;
+        newT->gid = tInfo->gid;
         newT->state.type = ThreadState::READY;
         newT->kernelStack = (uint64)new char[KernelStackSize] + KernelStackSize;
         newT->stickyCount = 0;
@@ -553,33 +556,12 @@ namespace Scheduler {
     uint64 ThreadGetUID() {
         auto tInfo = g_CPUData.Get().currentThread;
 
-        if(tInfo->user != nullptr)
-            return tInfo->user->uid;
-        else
-            return 0;
+        return tInfo->uid;
     }
     uint64 ThreadGetGID() {
         auto tInfo = g_CPUData.Get().currentThread;
 
-        if(tInfo->user != nullptr)
-            return tInfo->user->gid;
-        else
-            return 0;
-    }
-    const char* ThreadGetUserName() {
-        auto tInfo = g_CPUData.Get().currentThread;
-
-        if(tInfo->user != nullptr)
-            return tInfo->user->name;
-        else
-            return "--Kernel--";
-    }
-    SYSCALL_DEFINE1(syscall_whoami, char* buffer) {
-        const char* uname = ThreadGetUserName();
-
-        int l = kstrlen(uname) + 1;
-        if(!kmemcpy_usersafe(buffer, uname, l))
-            ThreadExit(1);
+        return tInfo->gid;
     }
 
     static ThreadFileDescriptor* FindFreeFD(ThreadInfo* tInfo) {

@@ -2,7 +2,6 @@
 
 #include "types.h"
 #include "interrupts/IDT.h"
-#include "user/User.h"
 
 #include "Thread.h"
 
