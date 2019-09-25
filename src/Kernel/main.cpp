@@ -87,7 +87,6 @@ static KernelHeader* g_KernelHeader;
 Terminal::TerminalInfo g_TerminalInfo;
 
 static int64 InitThread(uint64, uint64) {
-    ACPI::StartSystem();
     PCI::Init();
 
     klog_info("Boot", "Init KernelThread starting");
@@ -118,6 +117,8 @@ static int64 InitThread(uint64, uint64) {
 
     VConsoleDriver* vcon = (VConsoleDriver*)DeviceDriverRegistry::GetDriver("vconsole");
     vcon->AddConsole(&g_TerminalInfo);
+
+    ACPI::StartSystem();
 
     kprintf("%C%s\n", 40, 200, 40, config_HelloMessage);
 

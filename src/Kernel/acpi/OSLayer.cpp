@@ -17,6 +17,8 @@ extern "C" {
 #include "arch/APIC.h"
 #include "arch/IOAPIC.h"
 
+extern uint64 g_ACPILogFile;
+
 extern "C" {
 
     ACPI_STATUS AcpiOsInitialize() { return AE_OK; }
@@ -205,7 +207,7 @@ extern "C" {
         
         IOAPIC::RegisterIRQ(no, AcpiISR);
 
-        klog_info("ACPI", "Installed ISR %u", no);
+        kfprintf(g_ACPILogFile, "Installed ISR %u\n", no);
 
         return AE_OK;
     }
@@ -292,7 +294,7 @@ extern "C" {
     }
 
     void AcpiOsVprintf(const char* fmt, va_list args) {
-        kvprintf(fmt, args);
+        kfvprintf(g_ACPILogFile, fmt, args);
     }
 
     void AcpiOsRedirectOutput(void* dest) { }
