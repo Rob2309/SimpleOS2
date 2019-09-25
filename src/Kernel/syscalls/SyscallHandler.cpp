@@ -87,12 +87,12 @@ namespace SyscallHandler {
         ThreadInfo* tInfo = Scheduler::GetCurrentThreadInfo();
 
         uint64 file;
-        int64 error = VFS::Open(tInfo->uid, tInfo->gid, command, VFS::OpenMode_Read, file);
+        int64 error = VFS::Open(command, VFS::OpenMode_Read, file);
         if(error != OK)
             return error;
         
         VFS::NodeStats stats;
-        error = VFS::Stat(tInfo->uid, tInfo->gid, command, stats, true);
+        error = VFS::Stat(command, stats, true);
         if(error != OK) {
             VFS::Close(file);
             return error;

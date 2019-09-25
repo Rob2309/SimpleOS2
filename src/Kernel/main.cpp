@@ -46,14 +46,14 @@ extern "C" {
 
 static int64 SetupInitProcess(uint64, uint64) {
     uint64 file;
-    int64 error = VFS::Open(0, 0, config_Init_Command, VFS::OpenMode_Read, file);
+    int64 error = VFS::Open(config_Init_Command, VFS::OpenMode_Read, file);
     if(error != OK) {
         klog_fatal("Init", "Failed to open %s (%s), aborting boot", config_Init_Command, ErrorToString(error));
         return 1;
     }
 
     VFS::NodeStats stats;
-    error = VFS::Stat(0, 0, config_Init_Command, stats, true);
+    error = VFS::Stat(config_Init_Command, stats, true);
     if(error != OK) {
         klog_fatal("Init", "Failed to stat %s (%s), aborting boot", config_Init_Command, ErrorToString(error));
         return 1;
@@ -96,12 +96,12 @@ static int64 InitThread(uint64, uint64) {
     VFS::Init(rootFS);
 
     VFS::FileSystem* devFS = new DevFS();
-    int64 error = VFS::CreateFolder(0, 0, "/dev", { 1, 1, 1 });
+    int64 error = VFS::CreateFolder("/dev", { 1, 1, 1 });
     if(error < 0) {
         klog_fatal("Init", "Failed to create /dev folder (%s)", ErrorToString(error));
         return 1;
     }
-    error = VFS::Mount(0, 0, "/dev", devFS);
+    error = VFS::Mount("/dev", devFS);
     if(error < 0) {
         klog_fatal("Init", "Failed to mount DevFS to /dev (%s)", ErrorToString(error));
         return 1;
@@ -123,12 +123,12 @@ static int64 InitThread(uint64, uint64) {
 
     klog_info("Init", "Mounting boot filesystem");
 
-    error = VFS::CreateFolder(0, 0, "/boot", { 3, 1, 1 });
+    error = VFS::CreateFolder("/boot", { 3, 1, 1 });
     if(error < 0) {
         klog_fatal("Init", "Failed to create /boot folder (%s)", ErrorToString(error));
         return 1;
     }
-    error = VFS::Mount(0, 0, "/boot", config_BootFS_FSID, config_BootFS_DevFile);
+    error = VFS::Mount("/boot", config_BootFS_FSID, config_BootFS_DevFile);
     if(error < 0) {
         klog_fatal("Init", "Failed to mount boot filesystem: %s", ErrorToString(error));
         return 1;

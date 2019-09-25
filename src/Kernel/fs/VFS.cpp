@@ -364,12 +364,16 @@ namespace VFS {
         g_PipeMount->fs = new PipeFS();
     }
 
-    int64 CreateFile(uint64 uid, uint64 gid, const char* path, const Permissions& perms) {
+    int64 CreateFile(const char* path, const Permissions& perms) {
         char cleanBuffer[255];
         if(!kpathcpy_usersafe(cleanBuffer, path))
             return ErrorInvalidBuffer;
         if(!CleanPath(cleanBuffer))
             return ErrorInvalidPath;
+
+        auto tInfo = Scheduler::GetCurrentThreadInfo();
+        uint64 uid = tInfo->uid;
+        uint64 gid = tInfo->gid;
 
         MountPoint* mp;
         char* tmpPath = cleanBuffer;
@@ -423,17 +427,19 @@ namespace VFS {
         if(!MemoryManager::IsUserPtr(filePath))
             Scheduler::ThreadExit(1);
 
-        ThreadInfo* tInfo = Scheduler::GetCurrentThreadInfo();
-
-        return CreateFile(tInfo->uid, tInfo->gid, filePath, {3, 3, 3});
+        return CreateFile(filePath, {3, 3, 3});
     }
 
-    int64 CreateFolder(uint64 uid, uint64 gid, const char* path, const Permissions& perms) {
+    int64 CreateFolder(const char* path, const Permissions& perms) {
         char cleanBuffer[255];
         if(!kpathcpy_usersafe(cleanBuffer, path))
             return ErrorInvalidBuffer;
         if(!CleanPath(cleanBuffer))
             return ErrorInvalidPath;
+
+        auto tInfo = Scheduler::GetCurrentThreadInfo();
+        uint64 uid = tInfo->uid;
+        uint64 gid = tInfo->gid;
 
         MountPoint* mp;
         char* tmpPath = cleanBuffer;
@@ -487,17 +493,19 @@ namespace VFS {
         if(!MemoryManager::IsUserPtr(filePath))
             Scheduler::ThreadExit(1);
 
-        ThreadInfo* tInfo = Scheduler::GetCurrentThreadInfo();
-
-        return CreateFolder(tInfo->uid, tInfo->gid, filePath, {3, 3, 3});
+        return CreateFolder(filePath, {3, 3, 3});
     }
 
-    int64 CreateDeviceFile(uint64 uid, uint64 gid, const char* path, const Permissions& perms, uint64 driverID, uint64 subID) {
+    int64 CreateDeviceFile(const char* path, const Permissions& perms, uint64 driverID, uint64 subID) {
         char cleanBuffer[255];
         if(!kpathcpy_usersafe(cleanBuffer, path))
             return ErrorInvalidBuffer;
         if(!CleanPath(cleanBuffer))
             return ErrorInvalidPath;
+
+        auto tInfo = Scheduler::GetCurrentThreadInfo();
+        uint64 uid = tInfo->uid;
+        uint64 gid = tInfo->gid;
 
         MountPoint* mp;
         char* tmpPath = cleanBuffer;
@@ -554,12 +562,10 @@ namespace VFS {
         if(!MemoryManager::IsUserPtr(filePath))
             Scheduler::ThreadExit(1);
 
-        ThreadInfo* tInfo = Scheduler::GetCurrentThreadInfo();
-
-        return CreateDeviceFile(tInfo->uid, tInfo->gid, filePath, {3, 3, 3}, driverID, devID);
+        return CreateDeviceFile(filePath, {3, 3, 3}, driverID, devID);
     }
 
-    int64 CreatePipe(uint64 uid, uint64 gid, uint64* readDesc, uint64* writeDesc) {
+    int64 CreatePipe(uint64* readDesc, uint64* writeDesc) {
         auto pipeNode = CreateNode(g_PipeMount, 2);
         pipeNode->type = Node::TYPE_PIPE;
 
@@ -583,20 +589,22 @@ namespace VFS {
     SYSCALL_DEFINE2(syscall_pipe, int64* readDesc, int64* writeDesc) {
         uint64 sysRead, sysWrite;
 
-        ThreadInfo* tInfo = Scheduler::GetCurrentThreadInfo();
-
-        VFS::CreatePipe(tInfo->uid, tInfo->gid, &sysRead, &sysWrite);
+        VFS::CreatePipe(&sysRead, &sysWrite);
         *readDesc = Scheduler::ThreadAddFileDescriptor(sysRead);
         *writeDesc = Scheduler::ThreadAddFileDescriptor(sysWrite);
         return 0;
     }
 
-    int64 CreateSymLink(uint64 uid, uint64 gid, const char* path, const Permissions& permissions, const char* linkPath) {
+    int64 CreateSymLink(const char* path, const Permissions& permissions, const char* linkPath) {
         char cleanBuffer[255];
         if(!kpathcpy_usersafe(cleanBuffer, path))
             return ErrorInvalidBuffer;
         if(!CleanPath(cleanBuffer))
             return ErrorInvalidPath;
+
+        auto tInfo = Scheduler::GetCurrentThreadInfo();
+        uint64 uid = tInfo->uid;
+        uint64 gid = tInfo->gid;
 
         MountPoint* mp;
         char* tmpPath = cleanBuffer;
@@ -651,17 +659,19 @@ namespace VFS {
         if(!MemoryManager::IsUserPtr(path) || !MemoryManager::IsUserPtr(linkPath))
             Scheduler::ThreadExit(1);
 
-        ThreadInfo* tInfo = Scheduler::GetCurrentThreadInfo();
-
-        return CreateSymLink(tInfo->uid, tInfo->gid, path, { 3, 3, 3 }, linkPath);
+        return CreateSymLink(path, { 3, 3, 3 }, linkPath);
     }
 
-    int64 CreateHardLink(uint64 uid, uint64 gid, const char* path, const Permissions& permissions, const char* linkPath) {
+    int64 CreateHardLink(const char* path, const Permissions& permissions, const char* linkPath) {
         char cleanBuffer[255];
         if(!kpathcpy_usersafe(cleanBuffer, linkPath))
             return ErrorInvalidBuffer;
         if(!CleanPath(cleanBuffer))
             return ErrorInvalidPath;
+
+        auto tInfo = Scheduler::GetCurrentThreadInfo();
+        uint64 uid = tInfo->uid;
+        uint64 gid = tInfo->gid;
 
         MountPoint* linkMP;
         char* tmpPath = cleanBuffer;
@@ -753,17 +763,19 @@ namespace VFS {
         if(!MemoryManager::IsUserPtr(path) || !MemoryManager::IsUserPtr(linkPath))
             Scheduler::ThreadExit(1);
 
-        ThreadInfo* tInfo = Scheduler::GetCurrentThreadInfo();
-
-        return CreateHardLink(tInfo->uid, tInfo->gid, path, { 3, 3, 3 }, linkPath);
+        return CreateHardLink(path, { 3, 3, 3 }, linkPath);
     }
 
-    int64 Delete(uint64 uid, uint64 gid, const char* path) {
+    int64 Delete(const char* path) {
         char cleanBuffer[255];
         if(!kpathcpy_usersafe(cleanBuffer, path))
             return ErrorInvalidBuffer;
         if(!CleanPath(cleanBuffer))
             return ErrorInvalidPath;
+
+        auto tInfo = Scheduler::GetCurrentThreadInfo();
+        uint64 uid = tInfo->uid;
+        uint64 gid = tInfo->gid;
 
         MountPoint* mp;
         char* tmpPath = cleanBuffer;
@@ -819,17 +831,19 @@ namespace VFS {
         if(!MemoryManager::IsUserPtr(filePath))
             Scheduler::ThreadExit(1);
 
-        ThreadInfo* tInfo = Scheduler::GetCurrentThreadInfo();
-
-        return Delete(tInfo->uid, tInfo->gid, filePath); 
+        return Delete(filePath); 
     }
 
-    int64 ChangeOwner(uint64 uid, uint64 gid, const char* path, uint64 newUID, uint64 newGID) {
+    int64 ChangeOwner(const char* path, uint64 newUID, uint64 newGID) {
         char cleanBuffer[255];
         if(!kpathcpy_usersafe(cleanBuffer, path))
             return ErrorInvalidBuffer;
         if(!CleanPath(cleanBuffer))
             return ErrorInvalidPath;
+
+        auto tInfo = Scheduler::GetCurrentThreadInfo();
+        uint64 uid = tInfo->uid;
+        uint64 gid = tInfo->gid;
 
         MountPoint* mp;
         char* tmpPath = cleanBuffer;
@@ -857,17 +871,19 @@ namespace VFS {
         if(!MemoryManager::IsUserPtr(filePath))
             Scheduler::ThreadExit(1);
 
-        ThreadInfo* tInfo = Scheduler::GetCurrentThreadInfo();
-
-        return ChangeOwner(tInfo->uid, tInfo->gid, filePath, uid, gid);
+        return ChangeOwner(filePath, uid, gid);
     }
 
-    int64 ChangePermissions(uint64 uid, uint64 gid, const char* path, const Permissions& permissions) {
+    int64 ChangePermissions(const char* path, const Permissions& permissions) {
         char cleanBuffer[255];
         if(!kpathcpy_usersafe(cleanBuffer, path))
             return ErrorInvalidBuffer;
         if(!CleanPath(cleanBuffer))
             return ErrorInvalidPath;
+
+        auto tInfo = Scheduler::GetCurrentThreadInfo();
+        uint64 uid = tInfo->uid;
+        uint64 gid = tInfo->gid;
 
         MountPoint* mp;
         char* tmpPath = cleanBuffer;
@@ -894,17 +910,19 @@ namespace VFS {
         if(!MemoryManager::IsUserPtr(filePath))
             Scheduler::ThreadExit(1);
 
-        ThreadInfo* tInfo = Scheduler::GetCurrentThreadInfo();
-
-        return ChangePermissions(tInfo->uid, tInfo->gid, filePath, { ownerPerm, groupPerm, otherPerm });
+        return ChangePermissions(filePath, { ownerPerm, groupPerm, otherPerm });
     }
 
-    int64 Stat(uint64 uid, uint64 gid, const char* path, NodeStats& outStats, bool followSymlink) {
+    int64 Stat(const char* path, NodeStats& outStats, bool followSymlink) {
         char cleanBuffer[255];
         if(!kpathcpy_usersafe(cleanBuffer, path))
             return ErrorInvalidBuffer;
         if(!CleanPath(cleanBuffer))
             return ErrorInvalidPath;
+
+        auto tInfo = Scheduler::GetCurrentThreadInfo();
+        uint64 uid = tInfo->uid;
+        uint64 gid = tInfo->gid;
 
         MountPoint* mp;
         char* tmpPath = cleanBuffer;
@@ -934,9 +952,7 @@ namespace VFS {
     SYSCALL_DEFINE2(syscall_stat, const char* path, NodeStats* stats) {
         NodeStats tmp;
 
-        auto tInfo = Scheduler::GetCurrentThreadInfo();
-
-        int64 error = Stat(tInfo->uid, tInfo->gid, path, tmp, true);
+        int64 error = Stat(path, tmp, true);
         if(error != OK)
             return error;
 
@@ -948,9 +964,7 @@ namespace VFS {
     SYSCALL_DEFINE2(syscall_statl, const char* path, NodeStats* stats) {
         NodeStats tmp;
 
-        auto tInfo = Scheduler::GetCurrentThreadInfo();
-
-        int64 error = Stat(tInfo->uid, tInfo->gid, path, tmp, false);
+        int64 error = Stat(path, tmp, false);
         if(error != OK)
             return error;
 
@@ -960,12 +974,16 @@ namespace VFS {
         return OK;
     }
 
-    int64 List(uint64 uid, uint64 gid, const char* path, int& numEntries, ListEntry* entries) {
+    int64 List(const char* path, int& numEntries, ListEntry* entries) {
         char cleanBuffer[255];
         if(!kpathcpy_usersafe(cleanBuffer, path))
             return ErrorInvalidBuffer;
         if(!CleanPath(cleanBuffer))
             return ErrorInvalidPath;
+
+        auto tInfo = Scheduler::GetCurrentThreadInfo();
+        uint64 uid = tInfo->uid;
+        uint64 gid = tInfo->gid;
 
         MountPoint* mp;
         char* tmpPath = cleanBuffer;
@@ -1011,9 +1029,7 @@ namespace VFS {
         if(!kmemcpy_usersafe(&tmpEntries, numEntries, sizeof(int)))
             Scheduler::ThreadExit(1);
 
-        auto tInfo = Scheduler::GetCurrentThreadInfo();
-
-        int64 error = List(tInfo->uid, tInfo->gid, path, tmpEntries, entries);
+        int64 error = List(path, tmpEntries, entries);
         if(error == ErrorInvalidBuffer)
             Scheduler::ThreadExit(1);
         
@@ -1023,12 +1039,16 @@ namespace VFS {
         return error;
     }
 
-    int64 Mount(uint64 uid, uint64 gid, const char* mountPoint, FileSystem* fs) {
+    int64 Mount(const char* mountPoint, FileSystem* fs) {
         char cleanBuffer[255];
         if(!kpathcpy_usersafe(cleanBuffer, mountPoint))
             return ErrorInvalidBuffer;
         if(!CleanPath(cleanBuffer))
             return ErrorInvalidPath;
+
+        auto tInfo = Scheduler::GetCurrentThreadInfo();
+        uint64 uid = tInfo->uid;
+        uint64 gid = tInfo->gid;
 
         MountPoint* mp;
         char* tmpPath = cleanBuffer;
@@ -1075,12 +1095,12 @@ namespace VFS {
 
         return OK;
     }
-    int64 Mount(uint64 uid, uint64 gid, const char* mountPoint, const char* fsID) {
+    int64 Mount(const char* mountPoint, const char* fsID) {
         FileSystem* fs = FileSystemRegistry::CreateFileSystem(fsID);
         if(fs == nullptr)
             return ErrorInvalidFileSystem;
 
-        int64 error = Mount(uid, gid, mountPoint, fs);
+        int64 error = Mount(mountPoint, fs);
         if(error != OK) {
             delete fs;
             return error;
@@ -1092,16 +1112,18 @@ namespace VFS {
         if(!MemoryManager::IsUserPtr(mountPoint) || !MemoryManager::IsUserPtr(fsID))
             Scheduler::ThreadExit(1);
 
-        ThreadInfo* tInfo = Scheduler::GetCurrentThreadInfo();
-
-        return Mount(tInfo->uid, tInfo->gid, mountPoint, fsID); 
+        return Mount(mountPoint, fsID); 
     }
-    int64 Mount(uint64 uid, uint64 gid, const char* mountPoint, const char* fsID, const char* devFile) {
+    int64 Mount(const char* mountPoint, const char* fsID, const char* devFile) {
         char cleanBuffer[255];
         if(!kpathcpy_usersafe(cleanBuffer, devFile))
             return ErrorInvalidBuffer;
         if(!CleanPath(cleanBuffer))
             return ErrorInvalidPath;
+
+        auto tInfo = Scheduler::GetCurrentThreadInfo();
+        uint64 uid = tInfo->uid;
+        uint64 gid = tInfo->gid;
 
         MountPoint* mp;
         char* tmpPath = cleanBuffer;
@@ -1129,17 +1151,15 @@ namespace VFS {
         ReleaseNode(fileNode);
         ReleaseMountPoint(mp);
 
-        return Mount(uid, gid, mountPoint, fsID, driverID, subID);
+        return Mount(mountPoint, fsID, driverID, subID);
     }
     SYSCALL_DEFINE3(syscall_mount_dev, const char* mountPoint, const char* fsID, const char* devFile) {
         if(!MemoryManager::IsUserPtr(mountPoint) || !MemoryManager::IsUserPtr(fsID) || !MemoryManager::IsUserPtr(devFile))
             Scheduler::ThreadExit(1);
 
-        ThreadInfo* tInfo = Scheduler::GetCurrentThreadInfo();
-
-        return Mount(tInfo->uid, tInfo->gid, mountPoint, fsID, devFile);
+        return Mount(mountPoint, fsID, devFile);
     }
-    int64 Mount(uint64 uid, uint64 gid, const char* mountPoint, const char* fsID, uint64 driverID, uint64 devID) {
+    int64 Mount(const char* mountPoint, const char* fsID, uint64 driverID, uint64 devID) {
         DeviceDriver* driver = DeviceDriverRegistry::GetDriver(driverID);
         if(driver->GetType() != DeviceDriver::TYPE_BLOCK)
             return ErrorInvalidDevice;
@@ -1148,7 +1168,7 @@ namespace VFS {
         if(fs == nullptr)
             return ErrorInvalidFileSystem;
 
-        int64 error = Mount(uid, gid, mountPoint, fs);
+        int64 error = Mount(mountPoint, fs);
         if(error != OK) {
             delete fs;
         }
@@ -1156,7 +1176,7 @@ namespace VFS {
         return error;
     }
 
-    int64 Unmount(uint64 uid, uint64 gid, const char* mountPoint) {
+    int64 Unmount(const char* mountPoint) {
         char cleanBuffer[255];
         if(!kpathcpy_usersafe(cleanBuffer, mountPoint))
             return ErrorInvalidBuffer;
@@ -1188,15 +1208,19 @@ namespace VFS {
     SYSCALL_DEFINE1(syscall_unmount, const char* path) {
         ThreadInfo* tInfo = Scheduler::GetCurrentThreadInfo();
 
-        return Unmount(tInfo->uid, tInfo->gid, path);
+        return Unmount(path);
     }
 
-    int64 Open(uint64 uid, uint64 gid, const char* path, uint64 openMode, uint64& fileDesc) {
+    int64 Open(const char* path, uint64 openMode, uint64& fileDesc) {
         char cleanBuffer[255];
         if(!kpathcpy_usersafe(cleanBuffer, path))
             return ErrorInvalidBuffer;
         if(!CleanPath(cleanBuffer))
             return ErrorInvalidPath;
+
+        auto tInfo = Scheduler::GetCurrentThreadInfo();
+        uint64 uid = tInfo->uid;
+        uint64 gid = tInfo->gid;
 
         MountPoint* mp;
         char* tmpPath = cleanBuffer;
@@ -1263,10 +1287,8 @@ namespace VFS {
         return OK;
     }
     SYSCALL_DEFINE2(syscall_open, const char* filePath, uint64 openMode) {
-        ThreadInfo* tInfo = Scheduler::GetCurrentThreadInfo();
-
         uint64 sysDesc;
-        int64 error = Open(tInfo->uid, tInfo->gid, filePath, openMode, sysDesc);
+        int64 error = Open(filePath, openMode, sysDesc);
         if(error != OK) {
             return error;
         }
