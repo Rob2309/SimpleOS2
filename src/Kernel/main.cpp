@@ -36,6 +36,8 @@
 #include "init/Init.h"
 #include "init/InitInvoke.h"
 
+#include "klib/stdio.h"
+
 #include "percpu/PerCPUInit.h"
 
 #include "acpi/ACPI.h"
@@ -85,6 +87,20 @@ static int64 SetupInitProcess(uint64, uint64) {
 
 static KernelHeader* g_KernelHeader;
 Terminal::TerminalInfo g_TerminalInfo;
+
+static int64 SpamThread(uint64, uint64) {
+    uint64 fd;
+    int64 error = VFS::Open("/spam.txt", VFS::OpenMode_Write | VFS::OpenMode_Create | VFS::OpenMode_Clear, fd); 
+
+    int i = 0;
+
+    while(true) {
+        kfprintf(fd, "Test %i\n", i);
+        i++;
+
+        Scheduler::ThreadSleep(1000);
+    }
+}
 
 static int64 InitThread(uint64, uint64) {
     PCI::Init();
@@ -136,6 +152,7 @@ static int64 InitThread(uint64, uint64) {
     }
 
     uint64 tid = Scheduler::CreateKernelThread(SetupInitProcess);
+    Scheduler::CreateKernelThread(SpamThread);
 
     Time::DateTime dt;
     Time::GetRTC(&dt);
