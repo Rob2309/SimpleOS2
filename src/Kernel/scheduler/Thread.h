@@ -48,6 +48,7 @@ struct ThreadFileDescriptors {
 
 struct ThreadInfo {
     ktl::Anchor<ThreadInfo> activeListAnchor;
+    ktl::Anchor<ThreadInfo> globalListAnchor;
 
     ThreadInfo* mainThread;
 

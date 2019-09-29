@@ -42,6 +42,9 @@ namespace Scheduler {
     static uint64 g_ThreadStructSize;
     static Atomic<uint64> g_TIDCounter = 1;
 
+    static StickyLock g_GlobalThreadListLock;
+    static ktl::AnchorList<ThreadInfo, &ThreadInfo::globalListAnchor> g_GlobalThreadList;
+
     static ThreadInfo* g_InitThread = nullptr;
 
     static void TimerEvent(IDT::Registers* regs) {
@@ -191,6 +194,10 @@ namespace Scheduler {
         g_CPUData.Get().activeList.push_back(tInfo);
         g_CPUData.Get().activeListLock.Unlock_Cli();
 
+        g_GlobalThreadListLock.Spinlock_Cli();
+        g_GlobalThreadList.push_back(tInfo);
+        g_GlobalThreadListLock.Unlock_Cli();
+
         return tInfo;
     }
 
@@ -269,6 +276,10 @@ namespace Scheduler {
         cpuData.activeListLock.Spinlock_Cli();
         cpuData.activeList.push_back(newT);
         cpuData.activeListLock.Unlock_Cli();
+
+        g_GlobalThreadListLock.Spinlock_Cli();
+        g_GlobalThreadList.push_back(newT);
+        g_GlobalThreadListLock.Unlock_Cli();
 
         return newT->tid;
     }
@@ -363,6 +374,10 @@ namespace Scheduler {
             return ErrorInterrupted;
         }
 
+        g_GlobalThreadListLock.Spinlock_Cli();
+        g_GlobalThreadList.erase(joinThread);
+        g_GlobalThreadListLock.Unlock_Cli();
+
         exitCode = joinThread->exitCode;
         delete[] (char*)(joinThread->kernelStack - KernelStackSize);
         delete joinThread;
@@ -389,6 +404,10 @@ namespace Scheduler {
                     exitCode = (*a)->exitCode;
                     mainThread->joinThreads.erase(a);
                     mainThread->joinThreadsLock.Unlock();
+
+                    g_GlobalThreadListLock.Spinlock_Cli();
+                    g_GlobalThreadList.erase(joinThread);
+                    g_GlobalThreadListLock.Unlock_Cli();
 
                     delete[] (char*)(jt->kernelStack - KernelStackSize);
                     delete jt;
@@ -439,6 +458,10 @@ namespace Scheduler {
 
             return ErrorInterrupted;
         }
+
+        g_GlobalThreadListLock.Spinlock_Cli();
+        g_GlobalThreadList.erase(joinThread);
+        g_GlobalThreadListLock.Unlock_Cli();
 
         delete[] (char*)(joinThread->kernelStack - KernelStackSize);
         delete joinThread;
