@@ -5,6 +5,7 @@
 #include "ktl/vector.h"
 #include "atomic/Atomics.h"
 #include "locks/StickyLock.h"
+#include "ktl/AnchorList.h"
 
 constexpr uint64 KernelStackPages = 3;
 constexpr uint64 KernelStackSize = KernelStackPages * 4096;
@@ -46,8 +47,7 @@ struct ThreadFileDescriptors {
 };
 
 struct ThreadInfo {
-    ThreadInfo* next;
-    ThreadInfo* prev;
+    ktl::Anchor<ThreadInfo> activeListAnchor;
 
     ThreadInfo* mainThread;
 

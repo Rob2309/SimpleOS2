@@ -33,7 +33,7 @@ namespace Scheduler {
         ThreadInfo* currentThread;
 
         StickyLock activeListLock;
-        ktl::nlist<ThreadInfo> activeList;
+        ktl::AnchorList<ThreadInfo, &ThreadInfo::activeListAnchor> activeList;
 
         uint64 lastTSC;
     };
@@ -56,29 +56,29 @@ namespace Scheduler {
         cpuData.lastTSC = tsc;
 
         for(auto a = cpuData.activeList.begin(); a != cpuData.activeList.end(); ++a) {
-            auto tInfo = *a;
+            auto& tInfo = *a;
 
-            if(tInfo->state.type == ThreadState::EXITED)
+            if(tInfo.state.type == ThreadState::EXITED)
                 continue;
 
-            if(tInfo->state.type == ThreadState::FINISHED) {
-                tInfo->state.type = ThreadState::EXITED;
-                klog_info_isr("Scheduler", "Thread %i has exited with code %i", tInfo->tid, tInfo->exitCode);
-            } else if(tInfo->killPending) {
-                tInfo->state.type = ThreadState::READY;
-                tInfo->registers.rax = ErrorInterrupted;
-            } else if(tInfo->state.type == ThreadState::WAIT) {
-                if(tInfo->state.arg <= dur) {
-                    tInfo->state.type = ThreadState::READY;
-                    tInfo->registers.rax = 0;
+            if(tInfo.state.type == ThreadState::FINISHED) {
+                tInfo.state.type = ThreadState::EXITED;
+                klog_info_isr("Scheduler", "Thread %i has exited with code %i", tInfo.tid, tInfo.exitCode);
+            } else if(tInfo.killPending) {
+                tInfo.state.type = ThreadState::READY;
+                tInfo.registers.rax = ErrorInterrupted;
+            } else if(tInfo.state.type == ThreadState::WAIT) {
+                if(tInfo.state.arg <= dur) {
+                    tInfo.state.type = ThreadState::READY;
+                    tInfo.registers.rax = 0;
                 } else {
-                    tInfo->state.arg -= dur;
+                    tInfo.state.arg -= dur;
                 }
-            } else if(tInfo->state.type == ThreadState::JOIN) {
-                auto jt = (ThreadInfo*)tInfo->state.arg;
+            } else if(tInfo.state.type == ThreadState::JOIN) {
+                auto jt = (ThreadInfo*)tInfo.state.arg;
                 if(jt->state.type == ThreadState::EXITED) {
-                    tInfo->state.type = ThreadState::READY;
-                    tInfo->registers.rax = 0;
+                    tInfo.state.type = ThreadState::READY;
+                    tInfo.registers.rax = 0;
                 }
             }
         }
@@ -88,12 +88,12 @@ namespace Scheduler {
         auto& cpuData = g_CPUData.Get();
 
         for(auto a = cpuData.activeList.begin(); a != cpuData.activeList.end(); ++a) {
-            auto tInfo = *a;
+            auto& tInfo = *a;
 
-            if(tInfo->state.type == ThreadState::READY) {
+            if(tInfo.state.type == ThreadState::READY) {
                 cpuData.activeList.erase(a);
-                cpuData.activeList.push_back(*a);
-                return tInfo;
+                cpuData.activeList.push_back(&tInfo);
+                return &tInfo;
             }
         }
 

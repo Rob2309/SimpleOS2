@@ -4,6 +4,7 @@
 #include "atomic/Atomics.h"
 #include "ktl/vector.h"
 #include "locks/StickyLock.h"
+#include "ktl/AnchorList.h"
 
 class DeviceDriver {
 public:
@@ -24,8 +25,7 @@ public:
     const char* GetName() const { return m_Name; }
 
 public:
-    DeviceDriver* next;
-    DeviceDriver* prev;
+    ktl::Anchor<DeviceDriver> m_Anchor;
 
 private:
     Type m_Type;

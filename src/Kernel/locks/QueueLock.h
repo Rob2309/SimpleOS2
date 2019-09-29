@@ -2,13 +2,12 @@
 
 #include "types.h"
 #include "StickyLock.h"
-#include "ktl/list.h"
+#include "ktl/AnchorList.h"
 
 #include "scheduler/Thread.h"
 
 struct QueueLockEntry {
-    QueueLockEntry* next;
-    QueueLockEntry* prev;
+    ktl::Anchor<QueueLockEntry> anchor;
 
     ThreadInfo* thread;
 };
@@ -28,5 +27,5 @@ public:
 private:
     StickyLock m_Lock;
     uint64 m_Count;
-    ktl::nlist<QueueLockEntry> m_Queue;
+    ktl::AnchorList<QueueLockEntry, &QueueLockEntry::anchor> m_Queue;
 };

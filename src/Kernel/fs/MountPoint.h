@@ -4,14 +4,15 @@
 #include "atomic/Atomics.h"
 #include "Node.h"
 #include "SuperBlock.h"
+#include "ktl/AnchorList.h"
 
 namespace VFS {
 
     struct FileSystem;
 
     struct MountPoint {
-        MountPoint* next;
-        MountPoint* prev;
+        ktl::Anchor<MountPoint> anchor;
+
         MountPoint* parent;
 
         char path[255];
@@ -19,10 +20,10 @@ namespace VFS {
         SuperBlock sb;
 
         StickyLock childMountLock;
-        ktl::nlist<MountPoint> childMounts;
+        ktl::AnchorList<MountPoint, &MountPoint::anchor> childMounts;
 
         StickyLock nodeCacheLock;
-        ktl::nlist<Node> nodeCache;
+        ktl::AnchorList<Node, &Node::anchor> nodeCache;
 
         Atomic<uint64> refCount;
     };

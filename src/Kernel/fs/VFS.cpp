@@ -1,6 +1,6 @@
 #include "VFS.h"
 
-#include "ktl/list.h"
+#include "ktl/AnchorList.h"
 #include "klib/string.h"
 #include "klib/memory.h"
 #include "klib/stdio.h"
@@ -72,10 +72,10 @@ namespace VFS {
 
         while(true) {
             MountPoint* next = nullptr;
-            for(MountPoint* mp : current->childMounts) {
-                if(MountCmp(path, mp->path)) {
-                    mp->refCount.Inc();
-                    next = mp;
+            for(MountPoint& mp : current->childMounts) {
+                if(MountCmp(path, mp.path)) {
+                    mp.refCount.Inc();
+                    next = &mp;
                     break;
                 }
             }
@@ -111,17 +111,17 @@ namespace VFS {
 
     static Node* AcquireNode(MountPoint* mp, uint64 nodeID) {
         mp->nodeCacheLock.Spinlock();
-        for(auto n : mp->nodeCache) {
-            if(n->id == nodeID) {
-                n->refCount++;
+        for(Node& n : mp->nodeCache) {
+            if(n.id == nodeID) {
+                n.refCount++;
                 mp->nodeCacheLock.Unlock();
                 
-                if(!n->ready) {
-                    n->readyQueue.Lock();   // wait for node to be ready
-                    n->readyQueue.Unlock(); // notify next waiting thread
+                if(!n.ready) {
+                    n.readyQueue.Lock();   // wait for node to be ready
+                    n.readyQueue.Unlock(); // notify next waiting thread
                 }
 
-                return n;
+                return &n;
             }
         }
 
