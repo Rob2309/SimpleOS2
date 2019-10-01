@@ -1,8 +1,9 @@
 #pragma once
 
 #include "DeviceDriver.h"
-#include "ktl/vector.h"
 #include "terminal/terminal.h"
+
+#include <vector>
 
 class VConsoleDriver : public CharDeviceDriver {
 public:
@@ -14,5 +15,5 @@ public:
     uint64 Write(uint64 subID, const void* buffer, uint64 bufferSize) override;
 
 private:
-    ktl::vector<Terminal::TerminalInfo*> m_Consoles;
+    std::vector<Terminal::TerminalInfo*> m_Consoles;
 };

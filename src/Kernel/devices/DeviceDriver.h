@@ -2,9 +2,10 @@
 
 #include "types.h"
 #include "atomic/Atomics.h"
-#include "ktl/vector.h"
 #include "locks/StickyLock.h"
 #include "ktl/AnchorList.h"
+
+#include <vector>
 
 class DeviceDriver {
 public:
@@ -57,7 +58,7 @@ protected:
 
 private:
     StickyLock m_CacheLock;
-    ktl::vector<CachedBlock*> m_Cache;
+    std::vector<CachedBlock*> m_Cache;
 };
 
 class DeviceDriverRegistry {

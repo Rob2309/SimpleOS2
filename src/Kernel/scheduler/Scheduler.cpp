@@ -10,11 +10,13 @@
 #include "fs/VFS.h"
 #include "klib/stdio.h"
 #include "arch/SSE.h"
-#include "ktl/new.h"
 #include "syscalls/SyscallDefine.h"
 #include "time/Time.h"
 #include "percpu/PerCPU.h"
 #include "klib/string.h"
+#include "klib/memory.h"
+
+#include <new>
 
 namespace Scheduler {
 

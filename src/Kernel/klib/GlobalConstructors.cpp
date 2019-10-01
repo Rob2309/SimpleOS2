@@ -14,3 +14,10 @@ extern "C" {
     void __cxa_pure_virtual() { }
 
 }
+
+namespace std {
+
+    void __throw_length_error(const char*) { }
+    void __throw_bad_alloc() { }
+
+}

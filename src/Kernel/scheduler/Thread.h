@@ -2,10 +2,11 @@
 
 #include "types.h"
 #include "interrupts/IDT.h"
-#include "ktl/vector.h"
 #include "atomic/Atomics.h"
 #include "locks/StickyLock.h"
 #include "ktl/AnchorList.h"
+
+#include <vector>
 
 constexpr uint64 KernelStackPages = 3;
 constexpr uint64 KernelStackSize = KernelStackPages * 4096;
@@ -43,7 +44,7 @@ struct ThreadFileDescriptors {
     Atomic<uint64> refCount;
 
     StickyLock lock;
-    ktl::vector<ThreadFileDescriptor> fds;
+    std::vector<ThreadFileDescriptor> fds;
 };
 
 struct ThreadInfo {
@@ -53,7 +54,7 @@ struct ThreadInfo {
     ThreadInfo* mainThread;
 
     StickyLock joinThreadsLock;
-    ktl::vector<ThreadInfo*> joinThreads;
+    std::vector<ThreadInfo*> joinThreads;
 
     int64 tid;
     

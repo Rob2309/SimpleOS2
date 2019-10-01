@@ -1,11 +1,11 @@
 #include "DevFS.h"
 
 #include "locks/StickyLock.h"
-#include "ktl/vector.h"
 #include "klib/string.h"
 #include "init/Init.h"
-
 #include "klib/stdio.h"
+
+#include <vector>
 
 struct DevReg {
     const char* name;
@@ -18,7 +18,7 @@ struct DevReg {
 
 static StickyLock g_Lock;
 
-static ktl::vector<DevReg> g_Devices;
+static std::vector<DevReg> g_Devices;
 static VFS::MountPoint* g_MP = nullptr;
 
 static VFS::Directory* g_CurrentDir = nullptr;
