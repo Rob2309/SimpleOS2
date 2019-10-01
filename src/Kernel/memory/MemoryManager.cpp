@@ -83,7 +83,7 @@ namespace MemoryManager {
             return false;
         }
 
-        g_FreeList = ktl::FreeList(header->physMapStart);
+        g_FreeList.Init(header->physMapStart);
         g_HighMemBase = header->highMemoryBase;
         g_KernelPages = (uint64*)PhysToKernelPtr((void*)PML_GET_ADDR(header->pageBuffer[511]));
 
