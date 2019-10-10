@@ -135,17 +135,6 @@ bool PrepareELF(const uint8* diskImg, uint8* processImg, Elf64Addr* entryPoint)
                 default: break;
                 }
             }
-
-            if(initArrayAddr != 0)
-            {
-                initArrayAddr += (uint64)processImg;
-
-                typedef void (**INITARRAY)();
-                INITARRAY arr = (INITARRAY)initArrayAddr;
-
-                for(int i = 0; i < initArraySz / 8; i++)
-                    arr[i]();
-            }
         }
     }
 
