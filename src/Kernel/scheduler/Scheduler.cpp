@@ -429,41 +429,30 @@ namespace Scheduler {
     }
 
     int64 ThreadKill(int64 tid) {
+        auto uid = g_CPUData.Get().currentThread->uid;
+
         auto mainThread = g_CPUData.Get().currentThread->mainThread;
 
-        ThreadInfo* joinThread = nullptr;
-        mainThread->joinThreadsLock.Spinlock();
-        for(auto a = mainThread->joinThreads.begin(); a != mainThread->joinThreads.end(); ++a) {
-            if(a->tid == tid) {
-                joinThread = &*a;
-                mainThread->joinThreads.erase(a);
+        ThreadInfo* killThread = nullptr;
+        g_GlobalThreadListLock.Spinlock();
+        for(auto& tInfo : g_GlobalThreadList) {
+            if(tInfo.tid == tid) {
+                killThread = &tInfo;
                 break;
             }
         }
-        mainThread->joinThreadsLock.Unlock();
 
-        if(joinThread == nullptr)
+        if(killThread == nullptr) {
+            g_GlobalThreadListLock.Unlock();
             return ErrorThreadNotFound;
-
-        joinThread->killPending = true;
-
-        if(ThreadBlock(ThreadState::JOIN, (uint64)joinThread) != OK) {
-            mainThread->joinThreadsLock.Spinlock();
-            mainThread->joinThreads.push_back(joinThread);
-            mainThread->joinThreadsLock.Unlock();
-
-            ThreadCheckFlags();
-
-            return ErrorInterrupted;
+        }
+        if(uid != 0 && uid != killThread->tid) {
+            g_GlobalThreadListLock.Unlock();
+            return ErrorPermissionDenied;
         }
 
-        g_GlobalThreadListLock.Spinlock_Cli();
-        g_GlobalThreadList.erase(joinThread);
-        g_GlobalThreadListLock.Unlock_Cli();
-
-        delete[] (char*)(joinThread->kernelStack - KernelStackSize);
-        delete joinThread;
-
+        killThread->killPending = true;
+        g_GlobalThreadListLock.Unlock();
         return OK;
     }
     SYSCALL_DEFINE1(syscall_kill, int64 tid) {

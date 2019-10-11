@@ -384,6 +384,7 @@ static void HandleCommand() {
                 if(count != 0) {
                     if(c == '\3') {
                         kill(tid);
+                        join(tid);
                         break;
                     }
                 }
