@@ -216,6 +216,7 @@ extern "C" {
         if(no > 0xFF || handler == nullptr || handler != g_AcpiISRFunc)
             return AE_BAD_PARAMETER;
         IDT::SetISR(no, nullptr);
+        return AE_OK;
     }
 
     ACPI_STATUS AcpiOsReadMemory(ACPI_PHYSICAL_ADDRESS addr, UINT64* val, UINT32 width) {
@@ -308,7 +309,7 @@ extern "C" {
     }
 
     ACPI_STATUS AcpiOsSignal(UINT32 func, void* info) {
-
+        return AE_OK;
     }
 
     ACPI_STATUS AcpiOsEnterSleep (UINT8 sleepState, UINT32 regAValue, UINT32 regBValue) {

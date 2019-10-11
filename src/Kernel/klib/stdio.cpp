@@ -160,6 +160,8 @@ static const char* ParsePrecision(const char* fmt, Format& flags) {
         } else if(fmt[0] == '*') {
             flags.argPrecision = true;
             return &fmt[1];
+        } else {
+            return &fmt[1];
         }
     } else {
         return &fmt[0];

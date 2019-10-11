@@ -553,6 +553,7 @@ namespace Scheduler {
     }
     SYSCALL_DEFINE1(syscall_exit, uint64 code) {
         ThreadExit(code);
+        return 1;
     }
 
     int64 ThreadGetTID() {
@@ -699,6 +700,7 @@ namespace Scheduler {
     SYSCALL_DEFINE1(syscall_setfs, uint64 val) {
         ThreadSetFS(val);
         MSR::Write(MSR::RegFSBase, val);
+        return OK;
     }
     void ThreadSetGS(uint64 val) {
         g_CPUData.Get().currentThread->userGSBase = val;

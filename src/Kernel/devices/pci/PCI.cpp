@@ -155,6 +155,7 @@ namespace PCI {
             for(int i = 1; i < 8; i++)
                 CheckFunction(group, bus, device, i);
         }
+        return true;
     }
 
     static void CheckGroup(const Group& group) {

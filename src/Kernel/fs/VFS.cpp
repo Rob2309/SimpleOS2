@@ -826,6 +826,8 @@ namespace VFS {
                 return OK;
             }
         }
+        
+        return ErrorFileNotFound;
     }
     SYSCALL_DEFINE1(syscall_delete, const char* filePath) {
         if(!MemoryManager::IsUserPtr(filePath))

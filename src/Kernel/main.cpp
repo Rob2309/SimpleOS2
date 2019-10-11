@@ -83,6 +83,7 @@ static int64 SetupInitProcess(uint64, uint64) {
 
     klog_info("Init", "Executing init program");
     Scheduler::ThreadExec(pml4Entry, &regs);
+    return 1;
 }
 
 static KernelHeader* g_KernelHeader;
