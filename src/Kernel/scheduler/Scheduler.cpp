@@ -324,8 +324,8 @@ namespace Scheduler {
 
         mainThread->joinThreadsLock.Spinlock();
         for(auto a = mainThread->joinThreads.begin(); a != mainThread->joinThreads.end(); ++a) {
-            if((*a)->tid == tid) {
-                detachThread = *a;
+            if(a->tid == tid && a->mainThread == &*a) {
+                detachThread = &*a;
                 mainThread->joinThreads.erase(a);
                 break;
             }
@@ -334,8 +334,6 @@ namespace Scheduler {
 
         if(detachThread == nullptr)
             return ErrorThreadNotFound;
-
-        detachThread->mainThread = detachThread;
 
         g_InitThread->joinThreadsLock.Spinlock();
         g_InitThread->joinThreads.push_back(detachThread);
@@ -353,8 +351,8 @@ namespace Scheduler {
         ThreadInfo* joinThread = nullptr;
         mainThread->joinThreadsLock.Spinlock();
         for(auto a = mainThread->joinThreads.begin(); a != mainThread->joinThreads.end(); ++a) {
-            if((*a)->tid == tid) {
-                joinThread = *a;
+            if(a->tid == tid) {
+                joinThread = &*a;
                 mainThread->joinThreads.erase(a);
                 break;
             }
@@ -397,11 +395,11 @@ namespace Scheduler {
         ThreadInfo* joinThread = nullptr;
         mainThread->joinThreadsLock.Spinlock();
         for(auto a = mainThread->joinThreads.begin(); a != mainThread->joinThreads.end(); ++a) {
-            if((*a)->tid == tid) {
-                if((*a)->state.type == ThreadState::EXITED) {
-                    auto jt = *a;
+            if(a->tid == tid) {
+                if(a->state.type == ThreadState::EXITED) {
+                    auto jt = &*a;
 
-                    exitCode = (*a)->exitCode;
+                    exitCode = a->exitCode;
                     mainThread->joinThreads.erase(a);
                     mainThread->joinThreadsLock.Unlock();
 
@@ -436,8 +434,8 @@ namespace Scheduler {
         ThreadInfo* joinThread = nullptr;
         mainThread->joinThreadsLock.Spinlock();
         for(auto a = mainThread->joinThreads.begin(); a != mainThread->joinThreads.end(); ++a) {
-            if((*a)->tid == tid) {
-                joinThread = *a;
+            if(a->tid == tid) {
+                joinThread = &*a;
                 mainThread->joinThreads.erase(a);
                 break;
             }
@@ -521,8 +519,8 @@ namespace Scheduler {
             ThreadInfo* jt = nullptr;
 
             tInfo->joinThreadsLock.Spinlock();
-            if(tInfo->joinThreads.size() != 0) {
-                jt = tInfo->joinThreads.back();
+            if(!tInfo->joinThreads.empty()) {
+                jt = &tInfo->joinThreads.back();
                 tInfo->joinThreads.pop_back();
             }
             tInfo->joinThreadsLock.Unlock();

@@ -49,11 +49,12 @@ struct ThreadFileDescriptors {
 struct ThreadInfo {
     ktl::Anchor<ThreadInfo> activeListAnchor;
     ktl::Anchor<ThreadInfo> globalListAnchor;
+    ktl::Anchor<ThreadInfo> joinListAnchor;
 
     ThreadInfo* mainThread;
 
     StickyLock joinThreadsLock;
-    ktl::vector<ThreadInfo*> joinThreads;
+    ktl::AnchorList<ThreadInfo, &ThreadInfo::joinListAnchor> joinThreads;
 
     int64 tid;
     
