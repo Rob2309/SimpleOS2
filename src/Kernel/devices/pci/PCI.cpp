@@ -159,7 +159,7 @@ namespace PCI {
     }
 
     static void CheckGroup(const Group& group) {
-        for(uint64 i = 0; i < 256; i++)
+        for(uint64 i = group.busStart; i <= group.busEnd; i++)
             for(uint64 j = 0; j < 32; j++)
                 CheckDevice(group, i, j);
     }
@@ -176,6 +176,8 @@ namespace PCI {
             group.id = mcfg->entries[g].groupID;
 
             g_Groups.push_back(group);
+
+            klog_info("PCIe", "Group: %016X %02X %02X %04X", group.baseAddr, group.busStart, group.busEnd, group.id);
 
             CheckGroup(group);
         }
