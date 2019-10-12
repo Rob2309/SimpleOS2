@@ -24,6 +24,13 @@ SECTIONS
         __PER_CPU_END = . ;
     }
 
+    .init_array :
+    {
+        INIT_ARRAY_START = . ;
+        *(.init_array)
+        INIT_ARRAY_END = . ;
+    }
+
     .data.rel.ro :
     {
         *(.data.rel.ro)

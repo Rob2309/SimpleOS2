@@ -42,6 +42,8 @@
 
 #include "acpi/ACPI.h"
 
+#include "klib/GlobalConstructors.h"
+
 extern "C" {
     #include "acpica/acpi.h"
 }
@@ -165,6 +167,8 @@ static int64 InitThread(uint64, uint64) {
 }
 
 extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
+    GlobalConstructors::Run();
+
     g_KernelHeader = info;
 
     Terminal::InitTerminalInfo(&g_TerminalInfo, info->screenBuffer, info->screenWidth, info->screenHeight, info->screenScanlineWidth, info->screenColorsInverted);
