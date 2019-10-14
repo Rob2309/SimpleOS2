@@ -4,6 +4,8 @@
 #include <string.h>
 #include <stdlib.h>
 
+#include "Keys.h"
+
 static char g_History[1024][128];
 static int g_HistoryMinIndex = 1024;
 static int g_HistoryIndex = 1024;
@@ -403,6 +405,61 @@ static void HandleCommand() {
     g_CmdBufferIndex = 0;
 }
 
+static bool g_ShiftLeft = false;
+static bool g_ShiftRight = false;
+static bool g_CtrlLeft = false;
+static bool g_CtrlRight = false;
+
+static char ConvertKey(uint16 key) {
+    if((g_ShiftLeft || g_ShiftRight) && (g_CtrlLeft || g_CtrlRight))
+        return '\0';
+
+    if(g_ShiftLeft || g_ShiftRight) {
+        if(key >= KEY_A && key <= KEY_Z)
+            return 'A' + (key - KEY_A);
+
+        switch(key) {
+        case KEY_0: return '=';
+        case KEY_1: return '!';
+        case KEY_2: return '"';
+        case KEY_3: return 0;
+        case KEY_4: return '$';
+        case KEY_5: return '%';
+        case KEY_6: return '&';
+        case KEY_7: return '/';
+        case KEY_8: return '(';
+        case KEY_9: return ')';
+
+        case KEY_TAB: return ' ';
+        case KEY_PLUS: return '*';
+        case KEY_MINUS: return '_';
+        case KEY_COMMA: return ';';
+        case KEY_PERIOD: return ':';
+        case KEY_SPACE: return ' ';
+        }
+
+        return '\0';
+    } else if(g_CtrlLeft || g_CtrlRight) {
+        return '\0';
+    } else {
+        if(key >= KEY_0 && key <= KEY_9)
+            return '0' + (key - KEY_0);
+        if(key >= KEY_A && key <= KEY_Z)
+            return 'a' + (key - KEY_A);
+
+        switch(key) {
+        case KEY_TAB: return ' ';
+        case KEY_PLUS: return '+';
+        case KEY_MINUS: return '-';
+        case KEY_COMMA: return ',';
+        case KEY_PERIOD: return '.';
+        case KEY_SPACE: return ' ';
+        }
+
+        return '\0';
+    }
+}
+
 int main(int argc, char** argv) {
 
     if(argc >= 3 && strcmp(argv[1], "-c") == 0) {
@@ -417,19 +474,30 @@ int main(int argc, char** argv) {
         puts("Test Shell > ");
 
         while(true) {
-            char c;
-            int64 count = read(stdinfd, &c, 1);
+            uint16 k;
+            int64 count = read(stdinfd, &k, sizeof(uint16));
             if(count == 0)
                 continue;
 
-            if(c == '\b') {
+            if(k & KEY_RELEASED) {
+                k &= 0x7FFF;
+                
+                if(k == KEY_SHIFT_LEFT)
+                    g_ShiftLeft = false;
+                else if(k == KEY_SHIFT_RIGHT)
+                    g_ShiftRight = false;
+                else if(k == KEY_CTRL_LEFT)
+                    g_CtrlLeft = false;
+                else if(k == KEY_CTRL_RIGHT)
+                    g_CtrlRight = false;
+            } else if(k == KEY_BACKSPACE) {
                 g_HistoryIndex = 1024;
                 HandleBackspace();
-            } else if(c == '\n') {
+            } else if(k == KEY_ENTER) {
                 g_HistoryIndex = 1024;
                 HandleCommand();
                 break;
-            } else if(c == '\1') {
+            } else if(k == KEY_UP) {
                 if(g_HistoryIndex > g_HistoryMinIndex) {
                     for(int i = 0; i < strlen(g_CmdBuffer); i++)
                         puts("\b");
@@ -440,7 +508,7 @@ int main(int argc, char** argv) {
 
                     puts(g_CmdBuffer);
                 }
-            } else if(c == '\2') {
+            } else if(k == KEY_DOWN) {
                 if(g_HistoryIndex < 1023) {
                     for(int i = 0; i < strlen(g_CmdBuffer); i++)
                         puts("\b");
@@ -459,10 +527,22 @@ int main(int argc, char** argv) {
                         g_CmdBuffer[i] = 0;
                     g_CmdBufferIndex = 0;
                 }
-            } else {
+            } else if(k == KEY_SHIFT_LEFT)
+                g_ShiftLeft = true;
+            else if(k == KEY_SHIFT_RIGHT)
+                g_ShiftRight = true;
+            else if(k == KEY_CTRL_LEFT)
+                g_CtrlLeft = true;
+            else if(k == KEY_CTRL_RIGHT)
+                g_CtrlRight = true; 
+            else {
                 g_HistoryIndex = 1024;
-                g_CmdBuffer[g_CmdBufferIndex++] = c;
-                write(stdoutfd, &c, 1);
+                char c = ConvertKey(k);
+                
+                if(c != '\0') {
+                    g_CmdBuffer[g_CmdBufferIndex++] = c;
+                    write(stdoutfd, &c, 1);
+                }
             }
         }
     }
