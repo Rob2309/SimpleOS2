@@ -1,6 +1,6 @@
 #include "DeviceDriver.h"
 
-#include "ktl/list.h"
+#include "ktl/AnchorList.h"
 #include "ktl/new.h"
 #include "scheduler/Scheduler.h"
 #include "locks/QueueLock.h"
@@ -160,7 +160,7 @@ uint64 BlockDeviceDriver::SetData(uint64 subID, uint64 pos, const void* buffer, 
 
 static StickyLock g_DriverLock;
 static uint64 g_DriverIDCounter = 0;
-static ktl::nlist<DeviceDriver> g_Drivers;
+static ktl::AnchorList<DeviceDriver, &DeviceDriver::m_Anchor> g_Drivers;
 
 uint64 DeviceDriverRegistry::RegisterDriver(DeviceDriver* driver) {
     g_DriverLock.Spinlock();
@@ -176,10 +176,10 @@ void DeviceDriverRegistry::UnregisterDriver(DeviceDriver* driver) {
 }
 DeviceDriver* DeviceDriverRegistry::GetDriver(uint64 id) {
     g_DriverLock.Spinlock();
-    for(DeviceDriver* driver : g_Drivers) {
-        if(driver->GetDriverID() == id) {
+    for(DeviceDriver& driver : g_Drivers) {
+        if(driver.GetDriverID() == id) {
             g_DriverLock.Unlock();
-            return driver;
+            return &driver;
         }
     }
     g_DriverLock.Unlock();
@@ -187,10 +187,10 @@ DeviceDriver* DeviceDriverRegistry::GetDriver(uint64 id) {
 }
 DeviceDriver* DeviceDriverRegistry::GetDriver(const char* name) {
     g_DriverLock.Spinlock();
-    for(DeviceDriver* driver : g_Drivers) {
-        if(kstrcmp(driver->GetName(), name) == 0) {
+    for(DeviceDriver& driver : g_Drivers) {
+        if(kstrcmp(driver.GetName(), name) == 0) {
             g_DriverLock.Unlock();
-            return driver;
+            return &driver;
         }
     }
     g_DriverLock.Unlock();

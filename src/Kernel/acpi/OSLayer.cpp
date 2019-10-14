@@ -17,6 +17,8 @@ extern "C" {
 #include "arch/APIC.h"
 #include "arch/IOAPIC.h"
 
+extern uint64 g_ACPILogFile;
+
 extern "C" {
 
     ACPI_STATUS AcpiOsInitialize() { return AE_OK; }
@@ -205,7 +207,7 @@ extern "C" {
         
         IOAPIC::RegisterIRQ(no, AcpiISR);
 
-        klog_info("ACPI", "Installed ISR %u", no);
+        kfprintf(g_ACPILogFile, "Installed ISR %u\n", no);
 
         return AE_OK;
     }
@@ -214,6 +216,7 @@ extern "C" {
         if(no > 0xFF || handler == nullptr || handler != g_AcpiISRFunc)
             return AE_BAD_PARAMETER;
         IDT::SetISR(no, nullptr);
+        return AE_OK;
     }
 
     ACPI_STATUS AcpiOsReadMemory(ACPI_PHYSICAL_ADDRESS addr, UINT64* val, UINT32 width) {
@@ -292,7 +295,7 @@ extern "C" {
     }
 
     void AcpiOsVprintf(const char* fmt, va_list args) {
-        kvprintf(fmt, args);
+        kfvprintf(g_ACPILogFile, fmt, args);
     }
 
     void AcpiOsRedirectOutput(void* dest) { }
@@ -306,7 +309,7 @@ extern "C" {
     }
 
     ACPI_STATUS AcpiOsSignal(UINT32 func, void* info) {
-
+        return AE_OK;
     }
 
     ACPI_STATUS AcpiOsEnterSleep (UINT8 sleepState, UINT32 regAValue, UINT32 regBValue) {

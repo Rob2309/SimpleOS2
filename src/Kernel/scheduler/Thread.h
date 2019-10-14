@@ -3,9 +3,9 @@
 #include "types.h"
 #include "interrupts/IDT.h"
 #include "ktl/vector.h"
-#include "user/User.h"
 #include "atomic/Atomics.h"
 #include "locks/StickyLock.h"
+#include "ktl/AnchorList.h"
 
 constexpr uint64 KernelStackPages = 3;
 constexpr uint64 KernelStackSize = KernelStackPages * 4096;
@@ -47,13 +47,14 @@ struct ThreadFileDescriptors {
 };
 
 struct ThreadInfo {
-    ThreadInfo* next;
-    ThreadInfo* prev;
+    ktl::Anchor<ThreadInfo> activeListAnchor;
+    ktl::Anchor<ThreadInfo> globalListAnchor;
+    ktl::Anchor<ThreadInfo> joinListAnchor;
 
     ThreadInfo* mainThread;
 
     StickyLock joinThreadsLock;
-    ktl::vector<ThreadInfo*> joinThreads;
+    ktl::AnchorList<ThreadInfo, &ThreadInfo::joinListAnchor> joinThreads;
 
     int64 tid;
     
@@ -64,7 +65,8 @@ struct ThreadInfo {
     ThreadMemSpace* memSpace;
     ThreadFileDescriptors* fds;
 
-    User* user;
+    uint64 uid;
+    uint64 gid;
 
     ThreadState state;
     

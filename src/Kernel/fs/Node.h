@@ -5,6 +5,7 @@
 #include "locks/StickyLock.h"
 #include "locks/QueueLock.h"
 #include "atomic/Atomics.h"
+#include "ktl/AnchorList.h"
 
 namespace VFS {
 
@@ -13,8 +14,7 @@ namespace VFS {
 
     struct Node
     {
-        Node* next;
-        Node* prev;
+        ktl::Anchor<Node> anchor;
 
         uint64 id;
         MountPoint* mp;

@@ -5,10 +5,13 @@
 #include "interrupts/IDT.h"
 #include "scheduler/Scheduler.h"
 #include "devices/pci/PCI.h"
+#include "fs/VFS.h"
 
 extern "C" {
     #include "acpica/acpi.h"
 }
+
+uint64 g_ACPILogFile;
 
 namespace ACPI {
 
@@ -46,48 +49,54 @@ namespace ACPI {
     extern "C" int64 AcpiJobThread(uint64, uint64);
 
     bool StartSystem() {
+        int64 error = VFS::Open("/acpi.log", VFS::OpenMode_Create | VFS::OpenMode_Clear | VFS::OpenMode_Write, g_ACPILogFile);
+        if(error != OK) {
+            klog_fatal("ACPI", "Failed to open ACPI log file (/acpi.log): %s", ErrorToString(error));
+            return false;
+        }
+
         ACPI_STATUS err;
         err = AcpiInitializeSubsystem();
         if(err != AE_OK) {
-            klog_fatal("ACPI", "Failed to init ACPI: %i", err);
+            kfprintf(g_ACPILogFile, "Failed to init ACPI: %i\n", err);
             return false;
         }
         err = AcpiInitializeTables(nullptr, 16, false);
         if(err != AE_OK) {
-            klog_fatal("ACPI", "Failed to init ACPI tables: %i", err);
+            kfprintf(g_ACPILogFile, "Failed to init ACPI tables: %i\n", err);
             return false;
         }
         err = AcpiLoadTables();
         if(err != AE_OK) {
-            klog_fatal("ACPI", "Failed to load ACPI tables: %i", err);
+            kfprintf(g_ACPILogFile, "Failed to load ACPI tables: %i\n", err);
             return false;
         }
 
         err = AcpiEnableSubsystem(ACPI_FULL_INITIALIZATION);
         if(err != AE_OK) {
-            klog_fatal("ACPI", "Failed to enter ACPI mode: %i", err);
+            kfprintf(g_ACPILogFile, "Failed to enter ACPI mode: %i\n", err);
             return false;
         }
         err = AcpiInitializeObjects(ACPI_FULL_INITIALIZATION);
         if(err != AE_OK) {
-            klog_fatal("ACPI", "Failed to init ACPI Objects: %i", err);
+            kfprintf(g_ACPILogFile, "Failed to init ACPI Objects: %i\n", err);
             return false;
         }
 
         err = AcpiUpdateAllGpes();
         if(err != AE_OK) {
-            klog_fatal("ACPI", "Failed to update GPEs: %i", err);
+            kfprintf(g_ACPILogFile, "Failed to update GPEs: %i\n", err);
             return false;
         }
 
         err = AcpiInstallGlobalEventHandler(AcpiEventHandler, nullptr);
         if(err != AE_OK) {
-            klog_fatal("ACPI", "Failed to install power button handler: %i", err);
+            kfprintf(g_ACPILogFile, "Failed to install power button handler: %i\n", err);
             return false;
         }
         err = AcpiEnableEvent(ACPI_EVENT_POWER_BUTTON, 0);
         if(err != AE_OK) {
-            klog_fatal("ACPI", "Failed to enable power button handler: %i", err);
+            kfprintf(g_ACPILogFile, "Failed to enable power button handler: %i\n", err);
             return false;
         }
 
@@ -156,7 +165,7 @@ namespace ACPI {
         ACPI_OBJECT_LIST argList = { argCount, args };
         ACPI_STATUS err = AcpiEvaluateObject(objHandle, (char*)method, &argList, &retVal);
         if(err != AE_OK) {
-            klog_error("ACPI", "Failed to execute %s: %i", method, err);
+            kfprintf(g_ACPILogFile, "Failed to execute %s: %i\n", method, err);
         }
         return retVal;
     }

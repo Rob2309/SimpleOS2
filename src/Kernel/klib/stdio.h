@@ -10,6 +10,8 @@
  **/ 
 void kprintf(const char* format, ...);
 void kvprintf(const char* format, __builtin_va_list arg);
+void kfprintf(uint64 fd, const char* format, ...);
+void kfvprintf(uint64 fd, const char* format, __builtin_va_list arg);
 
 void kprintf_isr(const char* format, ...);
 void kvprintf_isr(const char* format, __builtin_va_list arg);

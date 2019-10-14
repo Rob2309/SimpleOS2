@@ -17,7 +17,6 @@
 #include "devices/DevFS.h"
 
 #include "scheduler/Scheduler.h"
-#include "user/User.h"
 #include "klib/string.h"
 
 #include "exec/ExecHandler.h"
@@ -37,26 +36,28 @@
 #include "init/Init.h"
 #include "init/InitInvoke.h"
 
+#include "klib/stdio.h"
+
 #include "percpu/PerCPUInit.h"
 
 #include "acpi/ACPI.h"
+
+#include "klib/GlobalConstructors.h"
 
 extern "C" {
     #include "acpica/acpi.h"
 }
 
-static User g_RootUser;
-
 static int64 SetupInitProcess(uint64, uint64) {
     uint64 file;
-    int64 error = VFS::Open(&g_RootUser, config_Init_Command, VFS::OpenMode_Read, file);
+    int64 error = VFS::Open(config_Init_Command, VFS::OpenMode_Read, file);
     if(error != OK) {
         klog_fatal("Init", "Failed to open %s (%s), aborting boot", config_Init_Command, ErrorToString(error));
         return 1;
     }
 
     VFS::NodeStats stats;
-    error = VFS::Stat(&g_RootUser, config_Init_Command, stats, true);
+    error = VFS::Stat(config_Init_Command, stats, true);
     if(error != OK) {
         klog_fatal("Init", "Failed to stat %s (%s), aborting boot", config_Init_Command, ErrorToString(error));
         return 1;
@@ -82,35 +83,43 @@ static int64 SetupInitProcess(uint64, uint64) {
 
     delete[] buffer;
 
-    Scheduler::GetCurrentThreadInfo()->user = &g_RootUser;
-
     klog_info("Init", "Executing init program");
     Scheduler::ThreadExec(pml4Entry, &regs);
+    return 1;
 }
 
 static KernelHeader* g_KernelHeader;
 Terminal::TerminalInfo g_TerminalInfo;
 
+static int64 SpamThread(uint64, uint64) {
+    uint64 fd;
+    int64 error = VFS::Open("/spam.txt", VFS::OpenMode_Write | VFS::OpenMode_Create | VFS::OpenMode_Clear, fd); 
+
+    int i = 0;
+
+    while(true) {
+        kfprintf(fd, "Test %i\n", i);
+        i++;
+
+        Scheduler::ThreadSleep(1000);
+    }
+}
+
 static int64 InitThread(uint64, uint64) {
-    ACPI::StartSystem();
     PCI::Init();
 
     klog_info("Boot", "Init KernelThread starting");
-
-    g_RootUser.gid = 0;
-    g_RootUser.uid = 0;
-    kstrcpy(g_RootUser.name, "root");
 
     VFS::FileSystem* rootFS = new TempFS();
     VFS::Init(rootFS);
 
     VFS::FileSystem* devFS = new DevFS();
-    int64 error = VFS::CreateFolder(&g_RootUser, "/dev", { 1, 1, 1 });
+    int64 error = VFS::CreateFolder("/dev", { 1, 1, 1 });
     if(error < 0) {
         klog_fatal("Init", "Failed to create /dev folder (%s)", ErrorToString(error));
         return 1;
     }
-    error = VFS::Mount(&g_RootUser, "/dev", devFS);
+    error = VFS::Mount("/dev", devFS);
     if(error < 0) {
         klog_fatal("Init", "Failed to mount DevFS to /dev (%s)", ErrorToString(error));
         return 1;
@@ -128,22 +137,25 @@ static int64 InitThread(uint64, uint64) {
     VConsoleDriver* vcon = (VConsoleDriver*)DeviceDriverRegistry::GetDriver("vconsole");
     vcon->AddConsole(&g_TerminalInfo);
 
+    ACPI::StartSystem();
+
     kprintf("%C%s\n", 40, 200, 40, config_HelloMessage);
 
     klog_info("Init", "Mounting boot filesystem");
 
-    error = VFS::CreateFolder(&g_RootUser, "/boot", { 3, 1, 1 });
+    error = VFS::CreateFolder("/boot", { 3, 1, 1 });
     if(error < 0) {
         klog_fatal("Init", "Failed to create /boot folder (%s)", ErrorToString(error));
         return 1;
     }
-    error = VFS::Mount(&g_RootUser, "/boot", config_BootFS_FSID, config_BootFS_DevFile);
+    error = VFS::Mount("/boot", config_BootFS_FSID, config_BootFS_DevFile);
     if(error < 0) {
         klog_fatal("Init", "Failed to mount boot filesystem: %s", ErrorToString(error));
         return 1;
     }
 
     uint64 tid = Scheduler::CreateKernelThread(SetupInitProcess);
+    Scheduler::CreateKernelThread(SpamThread);
 
     Time::DateTime dt;
     Time::GetRTC(&dt);
@@ -155,6 +167,8 @@ static int64 InitThread(uint64, uint64) {
 }
 
 extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
+    GlobalConstructors::Run();
+
     g_KernelHeader = info;
 
     Terminal::InitTerminalInfo(&g_TerminalInfo, info->screenBuffer, info->screenWidth, info->screenHeight, info->screenScanlineWidth, info->screenColorsInverted);

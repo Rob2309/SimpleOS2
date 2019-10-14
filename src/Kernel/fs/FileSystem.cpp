@@ -1,14 +1,13 @@
 #include "FileSystem.h"
 
 #include "locks/StickyLock.h"
-#include "ktl/list.h"
+#include "ktl/AnchorList.h"
 #include "klib/string.h"
 
 namespace VFS {
 
     struct FSEntry {
-        FSEntry* next;
-        FSEntry* prev;
+        ktl::Anchor<FSEntry> anchor;
 
         union {
             FileSystemFactory factory;
@@ -19,7 +18,7 @@ namespace VFS {
     };
 
     static StickyLock g_Lock;
-    static ktl::nlist<FSEntry> g_FileSystems;
+    static ktl::AnchorList<FSEntry, &FSEntry::anchor> g_FileSystems;
 
     void FileSystemRegistry::RegisterFileSystem(const char* id, FileSystemFactory factory) {
         FSEntry* entry = new FSEntry();
@@ -47,7 +46,7 @@ namespace VFS {
         for(auto a = g_FileSystems.begin(); a != g_FileSystems.end(); ++a) {
             if(kstrcmp(a->id, id) == 0) {
                 g_FileSystems.erase(a);
-                delete *a;
+                delete &*a;
                 g_Lock.Unlock();
                 return;
             }
@@ -57,14 +56,14 @@ namespace VFS {
 
     FileSystem* FileSystemRegistry::CreateFileSystem(const char* id) {
         g_Lock.Spinlock();
-        for(const FSEntry* entry : g_FileSystems) {
-            if(kstrcmp(entry->id, id) == 0) {
-                if(entry->needsDev) {
+        for(const FSEntry& entry : g_FileSystems) {
+            if(kstrcmp(entry.id, id) == 0) {
+                if(entry.needsDev) {
                     g_Lock.Unlock();
                     return nullptr;
                 }
 
-                FileSystemFactory factory = entry->factory;
+                FileSystemFactory factory = entry.factory;
                 g_Lock.Unlock();
                 FileSystem* res = factory();
                 return res;
@@ -76,14 +75,14 @@ namespace VFS {
     }
     FileSystem* FileSystemRegistry::CreateFileSystem(const char* id, BlockDeviceDriver* devDriver, uint64 devID) {
         g_Lock.Spinlock();
-        for(const FSEntry* entry : g_FileSystems) {
-            if(kstrcmp(entry->id, id) == 0) {
-                if(!entry->needsDev) {
+        for(const FSEntry& entry : g_FileSystems) {
+            if(kstrcmp(entry.id, id) == 0) {
+                if(!entry.needsDev) {
                     g_Lock.Unlock();
                     return nullptr;
                 }
 
-                FileSystemFactoryDev factory = entry->factoryDev;
+                FileSystemFactoryDev factory = entry.factoryDev;
                 g_Lock.Unlock();
                 FileSystem* res = factory(devDriver, devID);
                 return res;

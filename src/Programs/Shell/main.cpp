@@ -88,6 +88,28 @@ static void BuiltinCat(int argc, char** argv) {
     exit(0);
 }
 
+static void BuiltinTail(int argc, char** argv) {
+    if(argc != 2) {
+        puts("Usage: tail <file>\n");
+        return;
+    }
+
+    int64 fd = open(argv[1], open_mode_read);
+    if(fd < 0) {
+        puts("File not found\n");
+        return;
+    }
+
+    char buffer[128];
+    while(true) {
+        int64 count = read(fd, buffer, sizeof(buffer));
+        if(count < 0)
+            break;
+
+        write(stdoutfd, buffer, count);
+    }
+}
+
 static void BuiltinPut(int argc, char** argv) {
     if(argc < 2) {
         puts("Usage: put [-a] <file> ...\n");
@@ -329,6 +351,8 @@ static void InvokeCommand() {
         BuiltinRM(argc, argv);
     } else if(strcmp(argv[0], "ln") == 0) {
         BuiltinLN(argc, argv);
+    } else if(strcmp(argv[0], "tail") == 0) {
+        BuiltinTail(argc, argv);
     } else {
         exec(argv[0], argc, argv);
         puts("Command not found\n");
@@ -360,6 +384,7 @@ static void HandleCommand() {
                 if(count != 0) {
                     if(c == '\3') {
                         kill(tid);
+                        join(tid);
                         break;
                     }
                 }

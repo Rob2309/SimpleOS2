@@ -87,12 +87,12 @@ namespace SyscallHandler {
         ThreadInfo* tInfo = Scheduler::GetCurrentThreadInfo();
 
         uint64 file;
-        int64 error = VFS::Open(tInfo->user, command, VFS::OpenMode_Read, file);
+        int64 error = VFS::Open(command, VFS::OpenMode_Read, file);
         if(error != OK)
             return error;
         
         VFS::NodeStats stats;
-        error = VFS::Stat(tInfo->user, command, stats, true);
+        error = VFS::Stat(command, stats, true);
         if(error != OK) {
             VFS::Close(file);
             return error;
@@ -131,6 +131,7 @@ namespace SyscallHandler {
         delete[] argPtrBuffer;
 
         Scheduler::ThreadExec(pml4Entry, &regs);
+        return 1;
     }
     SYSCALL_DEFINE3(syscall_exec, const char* path, int argc, const char* const* argv) {
         return DoExec(path, argc, argv);

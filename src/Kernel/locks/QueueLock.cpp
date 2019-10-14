@@ -41,10 +41,10 @@ void QueueLock::Unlock() {
         m_Count++;
         m_Lock.Unlock();
     } else {
-        QueueLockEntry* e = m_Queue.front();
+        QueueLockEntry& e = m_Queue.front();
         m_Queue.pop_front();
-        e->thread->registers.rax = 0;
-        e->thread->state.type = ThreadState::READY;
+        e.thread->registers.rax = 0;
+        e.thread->state.type = ThreadState::READY;
         m_Lock.Unlock();
     }
 }

@@ -33,7 +33,7 @@ namespace Scheduler {
         ThreadInfo* currentThread;
 
         StickyLock activeListLock;
-        ktl::nlist<ThreadInfo> activeList;
+        ktl::AnchorList<ThreadInfo, &ThreadInfo::activeListAnchor> activeList;
 
         uint64 lastTSC;
     };
@@ -41,6 +41,9 @@ namespace Scheduler {
     static DECLARE_PER_CPU(CPUData, g_CPUData);
     static uint64 g_ThreadStructSize;
     static Atomic<uint64> g_TIDCounter = 1;
+
+    static StickyLock g_GlobalThreadListLock;
+    static ktl::AnchorList<ThreadInfo, &ThreadInfo::globalListAnchor> g_GlobalThreadList;
 
     static ThreadInfo* g_InitThread = nullptr;
 
@@ -56,29 +59,29 @@ namespace Scheduler {
         cpuData.lastTSC = tsc;
 
         for(auto a = cpuData.activeList.begin(); a != cpuData.activeList.end(); ++a) {
-            auto tInfo = *a;
+            auto& tInfo = *a;
 
-            if(tInfo->state.type == ThreadState::EXITED)
+            if(tInfo.state.type == ThreadState::EXITED)
                 continue;
 
-            if(tInfo->state.type == ThreadState::FINISHED) {
-                tInfo->state.type = ThreadState::EXITED;
-                klog_info_isr("Scheduler", "Thread %i has exited with code %i", tInfo->tid, tInfo->exitCode);
-            } else if(tInfo->killPending) {
-                tInfo->state.type = ThreadState::READY;
-                tInfo->registers.rax = ErrorInterrupted;
-            } else if(tInfo->state.type == ThreadState::WAIT) {
-                if(tInfo->state.arg <= dur) {
-                    tInfo->state.type = ThreadState::READY;
-                    tInfo->registers.rax = 0;
+            if(tInfo.state.type == ThreadState::FINISHED) {
+                tInfo.state.type = ThreadState::EXITED;
+                klog_info_isr("Scheduler", "Thread %i has exited with code %i", tInfo.tid, tInfo.exitCode);
+            } else if(tInfo.killPending) {
+                tInfo.state.type = ThreadState::READY;
+                tInfo.registers.rax = ErrorInterrupted;
+            } else if(tInfo.state.type == ThreadState::WAIT) {
+                if(tInfo.state.arg <= dur) {
+                    tInfo.state.type = ThreadState::READY;
+                    tInfo.registers.rax = 0;
                 } else {
-                    tInfo->state.arg -= dur;
+                    tInfo.state.arg -= dur;
                 }
-            } else if(tInfo->state.type == ThreadState::JOIN) {
-                auto jt = (ThreadInfo*)tInfo->state.arg;
+            } else if(tInfo.state.type == ThreadState::JOIN) {
+                auto jt = (ThreadInfo*)tInfo.state.arg;
                 if(jt->state.type == ThreadState::EXITED) {
-                    tInfo->state.type = ThreadState::READY;
-                    tInfo->registers.rax = 0;
+                    tInfo.state.type = ThreadState::READY;
+                    tInfo.registers.rax = 0;
                 }
             }
         }
@@ -88,12 +91,12 @@ namespace Scheduler {
         auto& cpuData = g_CPUData.Get();
 
         for(auto a = cpuData.activeList.begin(); a != cpuData.activeList.end(); ++a) {
-            auto tInfo = *a;
+            auto& tInfo = *a;
 
-            if(tInfo->state.type == ThreadState::READY) {
+            if(tInfo.state.type == ThreadState::READY) {
                 cpuData.activeList.erase(a);
-                cpuData.activeList.push_back(*a);
-                return tInfo;
+                cpuData.activeList.push_back(&tInfo);
+                return &tInfo;
             }
         }
 
@@ -144,7 +147,8 @@ namespace Scheduler {
         cpuData.idleThread.killPending = false;
         cpuData.idleThread.memSpace = &cpuData.idleThreadMemSpace;
         cpuData.idleThread.fds = &cpuData.idleThreadFDs;
-        cpuData.idleThread.user = nullptr;
+        cpuData.idleThread.uid = 0;
+        cpuData.idleThread.gid = 0;
         cpuData.idleThread.state.type = ThreadState::READY;
         cpuData.idleThread.stickyCount = 1;
         cpuData.idleThread.cliCount = 1;
@@ -168,7 +172,8 @@ namespace Scheduler {
         tInfo->killPending = false;
         tInfo->memSpace = memSpace;
         tInfo->fds = fds;
-        tInfo->user = nullptr;
+        tInfo->uid = 0;
+        tInfo->gid = 0;
         tInfo->state.type = ThreadState::READY;
         tInfo->kernelStack = (uint64)new char[KernelStackSize] + KernelStackSize;
         tInfo->stickyCount = 0;
@@ -188,6 +193,10 @@ namespace Scheduler {
         g_CPUData.Get().activeListLock.Spinlock_Cli();
         g_CPUData.Get().activeList.push_back(tInfo);
         g_CPUData.Get().activeListLock.Unlock_Cli();
+
+        g_GlobalThreadListLock.Spinlock_Cli();
+        g_GlobalThreadList.push_back(tInfo);
+        g_GlobalThreadListLock.Unlock_Cli();
 
         return tInfo;
     }
@@ -247,7 +256,8 @@ namespace Scheduler {
         newT->killPending = false;
         newT->memSpace = memSpace;
         newT->fds = fds;
-        newT->user = tInfo->user;
+        newT->uid = tInfo->uid;
+        newT->gid = tInfo->gid;
         newT->state.type = ThreadState::READY;
         newT->kernelStack = (uint64)new char[KernelStackSize] + KernelStackSize;
         newT->stickyCount = 0;
@@ -266,6 +276,10 @@ namespace Scheduler {
         cpuData.activeListLock.Spinlock_Cli();
         cpuData.activeList.push_back(newT);
         cpuData.activeListLock.Unlock_Cli();
+
+        g_GlobalThreadListLock.Spinlock_Cli();
+        g_GlobalThreadList.push_back(newT);
+        g_GlobalThreadListLock.Unlock_Cli();
 
         return newT->tid;
     }
@@ -310,8 +324,8 @@ namespace Scheduler {
 
         mainThread->joinThreadsLock.Spinlock();
         for(auto a = mainThread->joinThreads.begin(); a != mainThread->joinThreads.end(); ++a) {
-            if((*a)->tid == tid) {
-                detachThread = *a;
+            if(a->tid == tid && a->mainThread == &*a) {
+                detachThread = &*a;
                 mainThread->joinThreads.erase(a);
                 break;
             }
@@ -320,8 +334,6 @@ namespace Scheduler {
 
         if(detachThread == nullptr)
             return ErrorThreadNotFound;
-
-        detachThread->mainThread = detachThread;
 
         g_InitThread->joinThreadsLock.Spinlock();
         g_InitThread->joinThreads.push_back(detachThread);
@@ -339,8 +351,8 @@ namespace Scheduler {
         ThreadInfo* joinThread = nullptr;
         mainThread->joinThreadsLock.Spinlock();
         for(auto a = mainThread->joinThreads.begin(); a != mainThread->joinThreads.end(); ++a) {
-            if((*a)->tid == tid) {
-                joinThread = *a;
+            if(a->tid == tid) {
+                joinThread = &*a;
                 mainThread->joinThreads.erase(a);
                 break;
             }
@@ -359,6 +371,10 @@ namespace Scheduler {
 
             return ErrorInterrupted;
         }
+
+        g_GlobalThreadListLock.Spinlock_Cli();
+        g_GlobalThreadList.erase(joinThread);
+        g_GlobalThreadListLock.Unlock_Cli();
 
         exitCode = joinThread->exitCode;
         delete[] (char*)(joinThread->kernelStack - KernelStackSize);
@@ -379,13 +395,17 @@ namespace Scheduler {
         ThreadInfo* joinThread = nullptr;
         mainThread->joinThreadsLock.Spinlock();
         for(auto a = mainThread->joinThreads.begin(); a != mainThread->joinThreads.end(); ++a) {
-            if((*a)->tid == tid) {
-                if((*a)->state.type == ThreadState::EXITED) {
-                    auto jt = *a;
+            if(a->tid == tid) {
+                if(a->state.type == ThreadState::EXITED) {
+                    auto jt = &*a;
 
-                    exitCode = (*a)->exitCode;
+                    exitCode = a->exitCode;
                     mainThread->joinThreads.erase(a);
                     mainThread->joinThreadsLock.Unlock();
+
+                    g_GlobalThreadListLock.Spinlock_Cli();
+                    g_GlobalThreadList.erase(joinThread);
+                    g_GlobalThreadListLock.Unlock_Cli();
 
                     delete[] (char*)(jt->kernelStack - KernelStackSize);
                     delete jt;
@@ -409,37 +429,30 @@ namespace Scheduler {
     }
 
     int64 ThreadKill(int64 tid) {
+        auto uid = g_CPUData.Get().currentThread->uid;
+
         auto mainThread = g_CPUData.Get().currentThread->mainThread;
 
-        ThreadInfo* joinThread = nullptr;
-        mainThread->joinThreadsLock.Spinlock();
-        for(auto a = mainThread->joinThreads.begin(); a != mainThread->joinThreads.end(); ++a) {
-            if((*a)->tid == tid) {
-                joinThread = *a;
-                mainThread->joinThreads.erase(a);
+        ThreadInfo* killThread = nullptr;
+        g_GlobalThreadListLock.Spinlock();
+        for(auto& tInfo : g_GlobalThreadList) {
+            if(tInfo.tid == tid) {
+                killThread = &tInfo;
                 break;
             }
         }
-        mainThread->joinThreadsLock.Unlock();
 
-        if(joinThread == nullptr)
+        if(killThread == nullptr) {
+            g_GlobalThreadListLock.Unlock();
             return ErrorThreadNotFound;
-
-        joinThread->killPending = true;
-
-        if(ThreadBlock(ThreadState::JOIN, (uint64)joinThread) != OK) {
-            mainThread->joinThreadsLock.Spinlock();
-            mainThread->joinThreads.push_back(joinThread);
-            mainThread->joinThreadsLock.Unlock();
-
-            ThreadCheckFlags();
-
-            return ErrorInterrupted;
+        }
+        if(uid != 0 && uid != killThread->tid) {
+            g_GlobalThreadListLock.Unlock();
+            return ErrorPermissionDenied;
         }
 
-        delete[] (char*)(joinThread->kernelStack - KernelStackSize);
-        delete joinThread;
-
+        killThread->killPending = true;
+        g_GlobalThreadListLock.Unlock();
         return OK;
     }
     SYSCALL_DEFINE1(syscall_kill, int64 tid) {
@@ -495,8 +508,8 @@ namespace Scheduler {
             ThreadInfo* jt = nullptr;
 
             tInfo->joinThreadsLock.Spinlock();
-            if(tInfo->joinThreads.size() != 0) {
-                jt = tInfo->joinThreads.back();
+            if(!tInfo->joinThreads.empty()) {
+                jt = &tInfo->joinThreads.back();
                 tInfo->joinThreads.pop_back();
             }
             tInfo->joinThreadsLock.Unlock();
@@ -540,6 +553,7 @@ namespace Scheduler {
     }
     SYSCALL_DEFINE1(syscall_exit, uint64 code) {
         ThreadExit(code);
+        return 1;
     }
 
     int64 ThreadGetTID() {
@@ -553,33 +567,12 @@ namespace Scheduler {
     uint64 ThreadGetUID() {
         auto tInfo = g_CPUData.Get().currentThread;
 
-        if(tInfo->user != nullptr)
-            return tInfo->user->uid;
-        else
-            return 0;
+        return tInfo->uid;
     }
     uint64 ThreadGetGID() {
         auto tInfo = g_CPUData.Get().currentThread;
 
-        if(tInfo->user != nullptr)
-            return tInfo->user->gid;
-        else
-            return 0;
-    }
-    const char* ThreadGetUserName() {
-        auto tInfo = g_CPUData.Get().currentThread;
-
-        if(tInfo->user != nullptr)
-            return tInfo->user->name;
-        else
-            return "--Kernel--";
-    }
-    SYSCALL_DEFINE1(syscall_whoami, char* buffer) {
-        const char* uname = ThreadGetUserName();
-
-        int l = kstrlen(uname) + 1;
-        if(!kmemcpy_usersafe(buffer, uname, l))
-            ThreadExit(1);
+        return tInfo->gid;
     }
 
     static ThreadFileDescriptor* FindFreeFD(ThreadInfo* tInfo) {
@@ -707,6 +700,7 @@ namespace Scheduler {
     SYSCALL_DEFINE1(syscall_setfs, uint64 val) {
         ThreadSetFS(val);
         MSR::Write(MSR::RegFSBase, val);
+        return OK;
     }
     void ThreadSetGS(uint64 val) {
         g_CPUData.Get().currentThread->userGSBase = val;
