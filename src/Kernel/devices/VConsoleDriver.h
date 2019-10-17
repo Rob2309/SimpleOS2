@@ -5,6 +5,9 @@
 
 class VConsoleDriver : public CharDeviceDriver {
 public:
+    static constexpr int64 COMMAND_SET_FOREGROUND = 1;
+
+public:
     VConsoleDriver();
 
     uint64 AddConsole(Terminal::TerminalInfo* info);
