@@ -98,6 +98,10 @@ namespace PS2 {
         DevFS::RegisterCharDevice("keyboard", GetDriverID(), DeviceKeyboard);
     }
 
+    int64 PS2Driver::DeviceCommand(uint64 subID, int64 command, void* arg) {
+        return OK;
+    }
+
     uint64 PS2Driver::Read(uint64 subID, void* buffer, uint64 bufferSize) {
         g_QueueLock.Spinlock_Cli();
 

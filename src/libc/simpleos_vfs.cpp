@@ -57,6 +57,10 @@ int64 write(int64 fd, const void* buffer, uint64 bufferSize) {
     return syscall_invoke(syscall_write, fd, (uint64)buffer, bufferSize);
 }
 
+int64 devcmd(int64 fd, int64 cmd, void* arg) {
+    return syscall_invoke(syscall_dev_cmd, fd, cmd, (uint64)arg);
+}
+
 int64 mount(const char* mountPoint, const char* fsID) {
     return syscall_invoke(syscall_mount, (uint64)mountPoint, (uint64)fsID);
 }

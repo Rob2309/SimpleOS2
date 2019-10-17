@@ -7,6 +7,14 @@
 
 #include "devices/DevFS.h"
 
+#include "ktl/vector.h"
+
+struct ConsoleInfo {
+    Terminal::TerminalInfo* tInfo;
+    int64 foregroundTid;
+};
+static ktl::vector<ConsoleInfo> g_Consoles;
+
 static void Init() {
     VConsoleDriver* driver = new VConsoleDriver();
 }
@@ -17,22 +25,27 @@ VConsoleDriver::VConsoleDriver()
 { }
 
 uint64 VConsoleDriver::AddConsole(Terminal::TerminalInfo* info) {
-    uint64 res = m_Consoles.size();
-    m_Consoles.push_back(info);
+    uint64 res = g_Consoles.size();
+    g_Consoles.push_back({ info, 0 });
 
     DevFS::RegisterCharDevice("tty0", GetDriverID(), res);
 
     return res;
 }
 
+int64 VConsoleDriver::DeviceCommand(uint64 subID, int64 command, void* arg) {
+    return OK;
+}
+
 uint64 VConsoleDriver::Read(uint64 subID, void* buffer, uint64 bufferSize) {
     return 0;
 }
 uint64 VConsoleDriver::Write(uint64 subID, const void* buffer, uint64 bufferSize) {
-    if(subID >= m_Consoles.size())
+    if(subID >= g_Consoles.size())
         return ErrorInvalidDevice;
 
-    Terminal::TerminalInfo* tInfo = m_Consoles[subID];
+    auto& cInfo = g_Consoles[subID];
+    auto tInfo = cInfo.tInfo;
 
     Terminal::Begin();
 
