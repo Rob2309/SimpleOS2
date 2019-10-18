@@ -161,7 +161,7 @@ namespace Scheduler {
     /**
      * Called by the fault interrupt handlers to let a thread know it caused a fault.
      **/
-    void ThreadSetupPageFaultHandler(IDT::Registers* regs, const char* msg);
+    void ThreadSetupFaultHandler(IDT::Registers* regs, const char* msg);
 
     ThreadInfo* GetCurrentThreadInfo();
 

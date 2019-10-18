@@ -69,7 +69,9 @@ namespace Scheduler {
                 tInfo.state.type = ThreadState::EXITED;
                 klog_info_isr("Scheduler", "Thread %i has exited with code %i", tInfo.tid, tInfo.exitCode);
             } else {
-                if(tInfo.state.type == ThreadState::QUEUE_LOCK) {
+                if(tInfo.state.type == ThreadState::READY) {
+
+                } else if(tInfo.state.type == ThreadState::QUEUE_LOCK) {
                     
                 } else if(tInfo.killPending) {
                     tInfo.state.type = ThreadState::READY;
@@ -403,7 +405,7 @@ namespace Scheduler {
         for(auto a = mainThread->childThreads.begin(); a != mainThread->childThreads.end(); ++a) {
             if(a->tid == tid) {
                 if(a->state.type == ThreadState::EXITED) {
-                    auto jt = &*a;
+                    joinThread = &*a;
 
                     exitCode = a->exitCode;
                     mainThread->childThreads.erase(a);
@@ -413,8 +415,8 @@ namespace Scheduler {
                     g_GlobalThreadList.erase(joinThread);
                     g_GlobalThreadListLock.Unlock_Cli();
 
-                    delete[] (char*)(jt->kernelStack - KernelStackSize);
-                    delete jt;
+                    delete[] (char*)(joinThread->kernelStack - KernelStackSize);
+                    delete joinThread;
 
                     return OK;
                 } else {
@@ -781,7 +783,7 @@ namespace Scheduler {
         ThreadExit(1);
     }
 
-    void ThreadSetupPageFaultHandler(IDT::Registers* regs, const char* msg) {
+    void ThreadSetupFaultHandler(IDT::Registers* regs, const char* msg) {
         auto tInfo = g_CPUData.Get().currentThread;
 
         if(tInfo->faultRip != 0) {
