@@ -13,8 +13,11 @@ constexpr int64 ErrorInvalidDevice = -10;
 constexpr int64 ErrorFileExists = -11;
 constexpr int64 ErrorSeekOffsetOOB = -12;
 constexpr int64 ErrorEncounteredSymlink = -13;
+constexpr int64 ErrorAddressNotPageAligned = -14;
 
 constexpr int64 ErrorThreadNotFound = -100;
+constexpr int64 ErrorDetachSubThread = -101;
+constexpr int64 ErrorThreadNotExited = -102;
 
 constexpr int64 ErrorInterrupted = -200;
 
