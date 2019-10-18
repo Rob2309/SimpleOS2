@@ -7,35 +7,77 @@
 
 namespace Scheduler {
 
+    /**
+     * Initializes the Idle thread of the calling CPU core.
+     * After this call, every function that only works while in a thread context will work normally
+     **/
     void MakeMeIdleThread();
 
+    /**
+     * Creates a KernelThread that will be used as the init thread.
+     * Every orphaned thread will be attached to this thread.
+     **/
     void CreateInitKernelThread(int64 (*func)(uint64, uint64));
 
     /**
-     * Create a new Kernel Thread that is not associated with any Process
-     * @param rip the Entry point of the Thread
-     * @returns the TID of the created Thread
+     * Create a new Kernel Thread
+     * @param func      the Entry point of the Thread
+     * @param arg1      optional argument 1
+     * @param arg2      optional argument 2
+     * @returns         the TID of the created Thread
      **/
     int64 CreateKernelThread(int64 (*func)(uint64, uint64), uint64 arg1 = 0, uint64 arg2 = 0);
 
+    /**
+     * Clones the current Thread
+     * @param subthread     If true, the cloned thread will be a subthread of the current thread
+     * @param shareMemSpace If true, the cloned thread will share the current thread's memory space, else the memory space will be cloned
+     * @param shareFDs      If true, the cloned thread will share the current thread's file descriptors, else the file descriptors will be cloned
+     * @param regs          The initial register state of the new thread
+     * @returns             The new threads tid
+     **/
     int64 CloneThread(bool subthread, bool shareMemSpace, bool shareFDs, IDT::Registers* regs);
 
+    /**
+     * Blocks the thread with the given event until
+     *      1. The event finishes
+     *      2. The blocking state gets interrupted
+     * @returns             Zero if the given event finished successfully, non-zero otherwise
+     **/
     int64 ThreadBlock(ThreadState::Type type, uint64 arg);
 
     /**
-     * Detaches a thread from the current thread
+     * Detaches a thread from the current thread.
+     * After detaching a thread, it cannot be joined anymore.
+     * @param tid           The tid of a child thread to detach.
+     * @returns             OK if successful, error otherwise
+     * @note In a multithreaded program, any thread can detach a child thread, no matter which thread created it.
+     * @note Subthreads of a program cannot be detached.
      **/
     int64 ThreadDetach(int64 tid);
 
     /**
-     * Joins a thread.
-     * This function blocks until the specified thread is joined
-     * @returns false if the specified thread does not exist, true otherwise
+     * Joins a child thread.
+     * @param tid           The tid of a child thread to join
+     * @returns             OK if successful, error otherwise
+     * @note In a multithreaded program, any thread can join a child thread, no matter which thread created it.
      **/
     int64 ThreadJoin(int64 tid, int64& exitCode);
 
+    /**
+     * Joins a child thread without blocking.
+     * @param tid           The tid of a child thread to join
+     * @returns             OK if successful, error otherwise
+     * @note In a multithreaded program, any thread can join a child thread, no matter which thread created it.
+     **/
     int64 ThreadTryJoin(int64 tid, int64& exitCode);
 
+    /**
+     * Requests a thread to terminate
+     * @param tid           The tid of a thread to terminate. Has to be a thread owned by the same user (if current user is not root).
+     * @returns             OK if successful, error otherwise
+     * @note A thread can kill itself
+     **/
     int64 ThreadKill(int64 tid);
 
     /**
@@ -48,18 +90,15 @@ namespace Scheduler {
 
     /**
      * Gives the processor to another thread.
-     * Can be called from a KernelThread.
      **/
     void ThreadYield();
     /**
      * Suspends the active thread for *at least* [ms] milliseconds.
-     * Can be called from a KernelThread
      **/
     int64 ThreadSleep(uint64 ms);
 
     /**
-     * Destroys the current Thread.
-     * Can be called from a KernelThread
+     * Exits the current Thread.
      **/
     void ThreadExit(uint64 code);
 
@@ -108,6 +147,9 @@ namespace Scheduler {
     void ThreadDisableInterrupts();
     void ThreadEnableInterrupts();
 
+    /**
+     * Checks if the current thread was requested to terminate itself, exits if true
+     **/
     void ThreadCheckFlags();
 
     /**
@@ -117,7 +159,7 @@ namespace Scheduler {
      **/
     extern "C" void ThreadSetPageFaultRip(uint64 rip);
     /**
-     * Called by the page fault interrupt handler to let a thread know it caused a page fault.
+     * Called by the fault interrupt handlers to let a thread know it caused a fault.
      **/
     void ThreadSetupPageFaultHandler(IDT::Registers* regs, const char* msg);
 
