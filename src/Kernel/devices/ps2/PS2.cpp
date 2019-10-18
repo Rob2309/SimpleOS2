@@ -12,58 +12,61 @@
 
 #include "devices/DevFS.h"
 
+#include "PS2Keys.h"
+
 namespace PS2 {
 
-    static StickyLock g_BufferLock;
-    static uint8 g_Buffer[1024];
+    constexpr uint64 QUEUE_SIZE = 128;
+
+    static StickyLock g_QueueLock;
+    static uint16 g_Queue[QUEUE_SIZE];
     static uint64 g_ReadIndex = 0;
     static uint64 g_WriteIndex = 0;
-    static bool g_LeftShift = false;
-    static bool g_RightShift = false;
-    static bool g_LeftControl = false;
-    static bool g_RightControl = false;
 
     static bool g_E0Key = false;
+
+    static void WriteKey(uint16 key) {
+        g_QueueLock.Spinlock_Raw();
+        if(g_WriteIndex - g_ReadIndex < QUEUE_SIZE)
+            g_Queue[g_WriteIndex++ % QUEUE_SIZE] = key;
+        g_QueueLock.Unlock_Raw();
+    }
 
     static void KeyHandler(IDT::Registers* regs) {
         uint8 scan = Port::InByte(REG_DATA);
 
         if(g_E0Key) {
             if(scan == 0x48) {
-                g_BufferLock.Spinlock_Raw();
-                g_Buffer[g_WriteIndex++ % sizeof(g_Buffer)] = '\1';
-                g_BufferLock.Unlock_Raw();
+                WriteKey(KEY_UP);
             } else if(scan == 0x50) {
-                g_BufferLock.Spinlock_Raw();
-                g_Buffer[g_WriteIndex++ % sizeof(g_Buffer)] = '\2';
-                g_BufferLock.Unlock_Raw();      
+                WriteKey(KEY_DOWN);     
             }
 
             g_E0Key = false;
         }
 
         if(scan == 0x2A) {
-            g_LeftShift = true;
+            WriteKey(KEY_SHIFT_LEFT);
             return;
         }
         if(scan == 0x36) {
-            g_RightShift = true;
+            WriteKey(KEY_SHIFT_RIGHT);
             return;
         }
         if(scan == 0xAA) {
-            g_LeftShift = false;
+            WriteKey(KEY_SHIFT_LEFT | KEY_RELEASED);
             return;
         }
         if(scan == 0xB6) {
-            g_RightShift = false;
+            WriteKey(KEY_SHIFT_RIGHT | KEY_RELEASED);
             return;
         }
         if(scan == 0x1D) {
-            g_LeftControl = true;
+            WriteKey(KEY_CTRL_LEFT);
             return;
         }
         if(scan == 0x9D) {
-            g_LeftControl = false;
+            WriteKey(KEY_CTRL_LEFT | KEY_RELEASED);
             return;
         }
 
@@ -72,27 +75,19 @@ namespace PS2 {
             return;
         } 
         
-        if(scan & 0x80)
+        uint16 key = 0;
+        if(scan & 0x80) {
+            key |= KEY_RELEASED;
+            scan &= 0x7F;
+        }
+
+        uint16 k = g_ScanMap[scan];
+        if(k == '\0')
             return;
 
-        if(g_LeftControl || g_RightControl) {
-            char esc = g_ScanMap[scan];
-            if(esc == 'c') {
-                g_BufferLock.Spinlock_Raw();
-                g_Buffer[g_WriteIndex++ % sizeof(g_Buffer)] = '\3';
-                g_BufferLock.Unlock_Raw();
-            }
+        key |= k;
 
-            return;constexpr uint64 syscall_try_join = 11;
-        } 
-
-        char c = (g_LeftShift || g_RightShift) ? g_ScanMapShift[scan] : g_ScanMap[scan];
-        if(c == '\0')
-            return;
-
-        g_BufferLock.Spinlock_Raw();
-        g_Buffer[g_WriteIndex++ % sizeof(g_Buffer)] = c;
-        g_BufferLock.Unlock_Raw();
+        WriteKey(key);
     }
 
     PS2Driver::PS2Driver()
@@ -103,28 +98,32 @@ namespace PS2 {
         DevFS::RegisterCharDevice("keyboard", GetDriverID(), DeviceKeyboard);
     }
 
+    int64 PS2Driver::DeviceCommand(uint64 subID, int64 command, void* arg) {
+        return OK;
+    }
+
     uint64 PS2Driver::Read(uint64 subID, void* buffer, uint64 bufferSize) {
-        g_BufferLock.Spinlock_Cli();
+        g_QueueLock.Spinlock_Cli();
 
         if(g_ReadIndex > g_WriteIndex) {
             klog_error("PS2", "Buffer underflow");
         }
 
         uint64 rem = g_WriteIndex - g_ReadIndex;
-        if(rem > bufferSize)
-            rem = bufferSize;
+        if(rem > bufferSize / 2)
+            rem = bufferSize / 2;
 
         for(uint64 i = 0; i < rem; i++) {
-            ((char*)buffer)[i] = g_Buffer[(g_ReadIndex + i) % sizeof(g_Buffer)];
+            ((uint16*)buffer)[i] = g_Queue[(g_ReadIndex + i) % QUEUE_SIZE];
         }
 
         g_ReadIndex += rem;
-        g_BufferLock.Unlock_Cli();
-        return rem;
+        g_QueueLock.Unlock_Cli();
+        return rem * 2;
     }
 
     uint64 PS2Driver::Write(uint64 subID, const void* buffer, uint64 bufferSize) {
-        return bufferSize;
+        return ErrorPermissionDenied;
     }
 
     static void Init() {

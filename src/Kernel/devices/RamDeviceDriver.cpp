@@ -28,6 +28,10 @@ uint64 RamDeviceDriver::GetBlockSize(uint64 subID) const {
     return m_Devices[subID].blockSize;
 }
 
+int64 RamDeviceDriver::DeviceCommand(uint64 subID, int64 command, void* buffer) {
+    return OK;
+}
+
 void RamDeviceDriver::ScheduleOperation(uint64 subID, uint64 startBlock, uint64 numBlocks, bool write, void* buffer, Atomic<uint64>* finishFlag) {
     const DevInfo& dev = m_Devices[subID];
 

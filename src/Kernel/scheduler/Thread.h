@@ -18,7 +18,7 @@ struct ThreadState {
     enum Type {
         READY,
 
-        WAIT,
+        SLEEP,
         QUEUE_LOCK,
         JOIN,
 
@@ -41,7 +41,6 @@ struct ThreadFileDescriptor {
 
 struct ThreadFileDescriptors {
     Atomic<uint64> refCount;
-
     StickyLock lock;
     ktl::vector<ThreadFileDescriptor> fds;
 };
@@ -51,10 +50,10 @@ struct ThreadInfo {
     ktl::Anchor<ThreadInfo> globalListAnchor;
     ktl::Anchor<ThreadInfo> joinListAnchor;
 
-    ThreadInfo* mainThread;
+    ThreadInfo* mainThread;                     // never changes, safe to access lockless
 
-    StickyLock joinThreadsLock;
-    ktl::AnchorList<ThreadInfo, &ThreadInfo::joinListAnchor> joinThreads;
+    StickyLock childThreadsLock;
+    ktl::AnchorList<ThreadInfo, &ThreadInfo::joinListAnchor> childThreads;
 
     int64 tid;
     

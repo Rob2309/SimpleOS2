@@ -1438,6 +1438,36 @@ namespace VFS {
         return res;
     }
 
+    int64 DeviceCommand(uint64 descID, int64 command, void* buffer) {
+        auto desc = (FileDescriptor*)descID;
+        if(desc == nullptr)
+            return ErrorInvalidFD;
+
+        if(desc->node->type != Node::TYPE_DEVICE_BLOCK && desc->node->type != Node::TYPE_DEVICE_CHAR)
+            return ErrorInvalidFD;
+
+        if(!(desc->permissions & Permissions::Write))
+            return ErrorPermissionDenied;
+
+        auto driver = DeviceDriverRegistry::GetDriver(desc->node->infoDevice.driverID);
+        if(driver == nullptr)
+            return ErrorInvalidFD;
+
+        return driver->DeviceCommand(desc->node->infoDevice.subID, command, buffer);
+    }
+    SYSCALL_DEFINE3(syscall_dev_cmd, int64 desc, int64 command, void* buffer) {
+        uint64 sysDesc;
+        int64 error = Scheduler::ThreadGetSystemFileDescriptor(desc, sysDesc);
+        if(error != OK)
+            return error;
+
+        int64 res = VFS::DeviceCommand(sysDesc, command, buffer);
+        if(res == ErrorInvalidBuffer)
+            Scheduler::ThreadExit(1);
+        
+        return res;
+    }
+
     int64 Seek(uint64 descID, SeekMode mode, uint64 offs) {
         FileDescriptor* desc = (FileDescriptor*)descID;
         if(desc == nullptr)

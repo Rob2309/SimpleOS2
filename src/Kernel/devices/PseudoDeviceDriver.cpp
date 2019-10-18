@@ -17,6 +17,10 @@ PseudoDeviceDriver::PseudoDeviceDriver()
     DevFS::RegisterCharDevice("zero", GetDriverID(), DeviceZero);
 }
 
+int64 PseudoDeviceDriver::DeviceCommand(uint64 subID, int64 command, void* arg) {
+    return OK;
+}
+
 uint64 PseudoDeviceDriver::Read(uint64 subID, void* buffer, uint64 bufferSize) {
     if(subID == DeviceZero) {
         if(!kmemset_usersafe(buffer, 0, bufferSize))

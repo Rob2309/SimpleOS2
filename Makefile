@@ -32,7 +32,7 @@ depcheck: FORCE
 run: FORCE
 	@ $(MAKE) -s disk
 	@ printf "\e[32mStarting SimpleOS2 in Qemu\e[0m\n"
-	@ $(QEMU_X64) -m 1024 -cpu qemu64 -smp 4 -net none -drive if=pflash,unit=0,format=raw,file=dep/ovmf/x64/OVMF_CODE.fd,readonly=on -drive if=pflash,unit=1,format=raw,file=dep/ovmf/x64/OVMF_VARS.fd,readonly=on -drive file=$(bin_dir)/SimpleOS2.img,if=ide
+	@ $(QEMU_X64) -machine q35 -m 1024 -cpu qemu64 -smp 1 -net none -drive if=pflash,unit=0,format=raw,file=dep/ovmf/x64/OVMF_CODE.fd,readonly=on -drive if=pflash,unit=1,format=raw,file=dep/ovmf/x64/OVMF_VARS.fd,readonly=on -drive file=$(bin_dir)/SimpleOS2.img,if=ide
 runkvm: FORCE
 	@ $(MAKE) -s disk
 	@ printf "\e[32mStarting SimpleOS2 in Qemu (KVM)\e[0m\n"

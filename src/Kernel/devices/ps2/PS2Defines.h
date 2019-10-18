@@ -17,7 +17,7 @@ namespace PS2 {
     #define CONFIG_PORTA_INT 0x1
     #define CONFIG_PORTB_INT 0x2
 
-    static char g_ScanMap[256] =
+    static uint16 g_ScanMap[256] =
 	{
 		0, 0,
 		'1', '2', '3', '4', '5', '6', '7', '8', '9', '0',
@@ -30,7 +30,7 @@ namespace PS2 {
 		0, 0, 0,
 		' ',
 	};
-	static char g_ScanMapShift[256] =
+	/*static char g_ScanMapShift[256] =
 	{
 		0, 0,
 		'!', '"', 0, '$', '%', '&', '/', '(', ')', '=',
@@ -42,6 +42,6 @@ namespace PS2 {
 		'Y', 'X', 'C', 'V', 'B', 'N', 'M', ';', ':', '_',
 		0, 0, 0,
 		' ',
-	};
+	};*/
 
 }

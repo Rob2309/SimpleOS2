@@ -323,6 +323,35 @@ static void BuiltinRM(int argc, char** argv) {
         puts("Failed to delete path\n");
 }
 
+static int64 ParseInt64(const char* str) {
+    int64 res = 0;
+
+    while(*str != '\0') {
+        char c = *str;
+        str++;
+
+        if(c >= '0' && c <= '9') {
+            res *= 10;
+            res += c - '0';
+        } else {
+            break;
+        }
+    }
+
+    return res;
+}
+
+static void BuiltinKill(int argc, char** argv) {
+    if(argc < 2) {
+        puts("Usage: kill <tid...>\n");
+        return;
+    }
+
+    int64 error = kill(ParseInt64(argv[1]));
+    if(error != 0)
+        puts("Failed to kill Thread\n");
+}
+
 static void InvokeCommand() {
     int argc = 0;
     char* argv[100];
@@ -353,6 +382,8 @@ static void InvokeCommand() {
         BuiltinLN(argc, argv);
     } else if(strcmp(argv[0], "tail") == 0) {
         BuiltinTail(argc, argv);
+    } else if(strcmp(argv[0], "kill") == 0) {
+        BuiltinKill(argc, argv);
     } else {
         exec(argv[0], argc, argv);
         puts("Command not found\n");
@@ -378,20 +409,9 @@ static void HandleCommand() {
     } else {
         int64 tid;
         if(tid = fork()) {
-            while(true) {
-                char c;
-                int64 count = read(stdinfd, &c, 1);
-                if(count != 0) {
-                    if(c == '\3') {
-                        kill(tid);
-                        join(tid);
-                        break;
-                    }
-                }
-
-                if(try_join(tid) == 0)
-                    break;
-            }
+            devcmd(stdoutfd, 1, (void*)tid);
+            join(tid);
+            devcmd(stdoutfd, 1, (void*)gettid());
         } else {
             InvokeCommand();
             exit(0);
@@ -404,6 +424,8 @@ static void HandleCommand() {
 }
 
 int main(int argc, char** argv) {
+
+    devcmd(stdoutfd, 1, (void*)gettid());
 
     if(argc >= 3 && strcmp(argv[1], "-c") == 0) {
         exec(argv[2], argc - 2, &argv[2]);
@@ -461,6 +483,7 @@ int main(int argc, char** argv) {
                 }
             } else {
                 g_HistoryIndex = 1024;
+                
                 g_CmdBuffer[g_CmdBufferIndex++] = c;
                 write(stdoutfd, &c, 1);
             }

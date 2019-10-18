@@ -35,6 +35,8 @@ int64 seekfd(int64 fd, int64 mode, uint64 pos);
 int64 read(int64 fd, void* buffer, uint64 bufferSize);
 int64 write(int64 fd, const void* buffer, uint64 bufferSize);
 
+int64 devcmd(int64 fd, int64 cmd, void* arg);
+
 int64 mount(const char* mountPoint, const char* fsID);
 int64 mount(const char* mountPoint, const char* fsID, const char* dev);
 
