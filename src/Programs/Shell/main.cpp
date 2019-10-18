@@ -4,8 +4,6 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include "Keys.h"
-
 static char g_History[1024][128];
 static int g_HistoryMinIndex = 1024;
 static int g_HistoryIndex = 1024;
@@ -325,6 +323,35 @@ static void BuiltinRM(int argc, char** argv) {
         puts("Failed to delete path\n");
 }
 
+static int64 ParseInt64(const char* str) {
+    int64 res = 0;
+
+    while(*str != '\0') {
+        char c = *str;
+        str++;
+
+        if(c >= '0' && c <= '9') {
+            res *= 10;
+            res += c - '0';
+        } else {
+            break;
+        }
+    }
+
+    return res;
+}
+
+static void BuiltinKill(int argc, char** argv) {
+    if(argc < 2) {
+        puts("Usage: kill <tid...>\n");
+        return;
+    }
+
+    int64 error = kill(ParseInt64(argv[1]));
+    if(error != 0)
+        puts("Failed to kill Thread\n");
+}
+
 static void InvokeCommand() {
     int argc = 0;
     char* argv[100];
@@ -355,6 +382,8 @@ static void InvokeCommand() {
         BuiltinLN(argc, argv);
     } else if(strcmp(argv[0], "tail") == 0) {
         BuiltinTail(argc, argv);
+    } else if(strcmp(argv[0], "kill") == 0) {
+        BuiltinKill(argc, argv);
     } else {
         exec(argv[0], argc, argv);
         puts("Command not found\n");
