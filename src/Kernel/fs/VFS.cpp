@@ -308,7 +308,7 @@ namespace VFS {
                 ReleaseNode(outNode);
                 ReleaseNode(outParent);
                 ReleaseMountPoint(mp);
-                return ErrorInvalidPath;
+                return ErrorPathTooLong;
             }
 
             if(lB > 0) {
@@ -686,7 +686,7 @@ namespace VFS {
         if(linkFileNode->type == Node::TYPE_DIRECTORY) {
             ReleaseNode(linkFileNode);
             ReleaseMountPoint(linkMP);
-            return ErrorPermissionDenied;
+            return ErrorHardlinkToFolder;
         }
 
         if(!kpathcpy_usersafe(cleanBuffer, path)) {
@@ -738,7 +738,7 @@ namespace VFS {
             ReleaseMountPoint(linkMP);
             ReleaseNode(parentNode);
             ReleaseMountPoint(mp);
-            return ErrorPermissionDenied;
+            return ErrorHardlinkToDifferentFS;
         }
 
         linkFileNode->linkCount.Inc();
@@ -788,7 +788,7 @@ namespace VFS {
         if(parentNode == nullptr) {
             ReleaseNode(fileNode);
             ReleaseMountPoint(mp);
-            return ErrorPermissionDenied;
+            return ErrorDeleteMountPoint;
         }
         if(!CheckPermissions(uid, gid, parentNode, Permissions::Write)) {
             ReleaseNode(parentNode);
@@ -804,7 +804,7 @@ namespace VFS {
                 ReleaseNode(fileNode);
                 ReleaseNode(parentNode);
                 ReleaseMountPoint(mp);
-                return ErrorPermissionDenied;
+                return ErrorFolderNotEmpty;
             }
             fileNode->dirLock.Unlock();
         }
@@ -1000,7 +1000,7 @@ namespace VFS {
         if(node->type != Node::TYPE_DIRECTORY) {
             ReleaseNode(node);
             ReleaseMountPoint(mp);
-            return ErrorFileNotFound;
+            return ErrorNotAFolder;
         }
 
         node->dirLock.Spinlock();
@@ -1063,7 +1063,7 @@ namespace VFS {
         if(folderNode == nullptr) {
             ReleaseNode(fileNode);
             ReleaseMountPoint(mp);
-            return ErrorPermissionDenied;
+            return ErrorFolderAlreadyMounted;
         }
 
         ReleaseNode(folderNode);
@@ -1071,7 +1071,7 @@ namespace VFS {
         if(fileNode->type != Node::TYPE_DIRECTORY) {
             ReleaseNode(fileNode);
             ReleaseMountPoint(mp);
-            return ErrorFileNotFound;
+            return ErrorNotAFolder;
         } 
         if(!CheckPermissions(uid, gid, fileNode, Permissions::Write)) {
             ReleaseNode(fileNode);
@@ -1139,7 +1139,7 @@ namespace VFS {
         if(fileNode->type != Node::TYPE_DEVICE_BLOCK) {
             ReleaseNode(fileNode);
             ReleaseMountPoint(mp);
-            return ErrorInvalidDevice;
+            return ErrorNotABlockDevice;
         }
         if(!CheckPermissions(uid, gid, fileNode, Permissions::Read)) {
             ReleaseNode(fileNode);
@@ -1164,7 +1164,7 @@ namespace VFS {
     int64 Mount(const char* mountPoint, const char* fsID, uint64 driverID, uint64 devID) {
         DeviceDriver* driver = DeviceDriverRegistry::GetDriver(driverID);
         if(driver->GetType() != DeviceDriver::TYPE_BLOCK)
-            return ErrorInvalidDevice;
+            return ErrorNotABlockDevice;
 
         FileSystem* fs = FileSystemRegistry::CreateFileSystem(fsID, (BlockDeviceDriver*)driver, devID);
         if(fs == nullptr)
@@ -1187,9 +1187,13 @@ namespace VFS {
 
         auto mp = FindMountPoint(cleanBuffer);
         auto path = AdvancePath(cleanBuffer, mp->path);
-        if(mp == g_RootMount || *path != '\0') {
+        if(mp == g_RootMount) {
             ReleaseMountPoint(mp);
-            return ErrorPermissionDenied;
+            return ErrorUnmountRoot;
+        } 
+        if(*path != '\0') {
+            ReleaseMountPoint(mp);
+            return ErrorNotAMountPoint;
         }
 
         mp->parent->childMountLock.Spinlock();
@@ -1204,7 +1208,7 @@ namespace VFS {
         } else {
             mp->parent->childMountLock.Unlock();
             ReleaseMountPoint(mp);
-            return ErrorPermissionDenied;
+            return ErrorMountPointBusy;
         }
     }
     SYSCALL_DEFINE1(syscall_unmount, const char* path) {
@@ -1269,7 +1273,7 @@ namespace VFS {
         if(fileNode->type == Node::TYPE_DIRECTORY) {
             ReleaseNode(fileNode);
             ReleaseMountPoint(mp);
-            return ErrorFileNotFound;
+            return ErrorOpenFolder;
         }
         
         if((openMode & OpenMode_Clear) && fileNode->type == Node::TYPE_FILE) {
@@ -1444,7 +1448,7 @@ namespace VFS {
             return ErrorInvalidFD;
 
         if(desc->node->type != Node::TYPE_DEVICE_BLOCK && desc->node->type != Node::TYPE_DEVICE_CHAR)
-            return ErrorInvalidFD;
+            return ErrorNotADevice;
 
         if(!(desc->permissions & Permissions::Write))
             return ErrorPermissionDenied;
