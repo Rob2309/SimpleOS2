@@ -334,7 +334,11 @@ namespace Scheduler {
 
         mainThread->childThreadsLock.Spinlock();
         for(auto a = mainThread->childThreads.begin(); a != mainThread->childThreads.end(); ++a) {
-            if(a->tid == tid && a->mainThread == &*a) {
+            if(a->tid == tid) {
+                if(a->mainThread != &*a) {
+                    mainThread->childThreadsLock.Unlock();
+                    return ErrorDetachSubThread;
+                }
                 detachThread = &*a;
                 mainThread->childThreads.erase(a);
                 break;
@@ -372,12 +376,13 @@ namespace Scheduler {
         if(joinThread == nullptr)
             return ErrorThreadNotFound;
 
-        if(ThreadBlock(ThreadState::JOIN, (uint64)joinThread) != OK) {
+        int64 error = ThreadBlock(ThreadState::JOIN, (uint64)joinThread);
+        if(error != OK) {
             mainThread->childThreadsLock.Spinlock();
             mainThread->childThreads.push_back(joinThread);
             mainThread->childThreadsLock.Unlock();
 
-            return ErrorInterrupted;
+            return error;
         }
 
         g_GlobalThreadListLock.Spinlock_Cli();
@@ -421,7 +426,7 @@ namespace Scheduler {
                     return OK;
                 } else {
                     mainThread->childThreadsLock.Unlock();
-                    return ErrorThreadNotFound;
+                    return ErrorThreadNotExited;
                 }
             }
         }

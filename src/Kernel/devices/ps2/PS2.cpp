@@ -123,7 +123,7 @@ namespace PS2 {
     }
 
     uint64 PS2Driver::Write(uint64 subID, const void* buffer, uint64 bufferSize) {
-        return ErrorPermissionDenied;
+        return 0;
     }
 
     static void Init() {
