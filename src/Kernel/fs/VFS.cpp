@@ -357,7 +357,7 @@ namespace VFS {
         mp->refCount = 2; // Can never be unmounted again
         rootFS->GetSuperBlock(&mp->sb);
         rootFS->SetMountPoint(mp);
-        kstrcpy(mp->path, "/");
+        kstrcpy(mp->path, "");
         g_RootMount = mp;
 
         g_PipeMount = new MountPoint();
@@ -982,6 +982,8 @@ namespace VFS {
             return ErrorInvalidBuffer;
         if(!CleanPath(cleanBuffer))
             return ErrorInvalidPath;
+
+        klog_info("VFS", "List: path=%s cleanPath=%s", path, cleanBuffer);
 
         auto tInfo = Scheduler::GetCurrentThreadInfo();
         uint64 uid = tInfo->uid;
