@@ -353,11 +353,15 @@ static void BuiltinKill(int argc, char** argv) {
 }
 
 static void BuiltinCD(int argc, char** argv) {
+    int64 error;
     if(argc == 1) {
-        changedir("/");
+        error = changedir("/");
     } else {
-        changedir(argv[1]);
+        error = changedir(argv[1]);
     }
+
+    if(error != 0)
+        puts("No such file or directory\n");
 }
 
 static void BuiltinPWD(int argc, char** argv) {

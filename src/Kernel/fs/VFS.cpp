@@ -1619,6 +1619,24 @@ namespace VFS {
         if((error = PreparePath(pathBuffer, path)) != OK)
             return error;
 
+        MountPoint* mp;
+        char* tmpPath = pathBuffer;
+        Node* node;
+        Node* parent;
+        error = AcquirePath(tInfo->uid, tInfo->gid, mp, tmpPath, true, false, node, parent);
+        if(error != 0)
+            return error;
+
+        auto type = node->type;
+
+        ReleaseNode(node);
+        if(parent != nullptr)
+            ReleaseNode(parent);
+        ReleaseMountPoint(mp);
+
+        if(type != Node::TYPE_DIRECTORY)
+            return ErrorNotAFolder;
+
         kstrcpy(tInfo->cwd, pathBuffer);
         return OK;
     }
