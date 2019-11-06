@@ -455,7 +455,11 @@ int main(int argc, char** argv) {
     }
 
     while(true) {
-        puts("Test Shell > ");
+        char cwdBuffer[256] = { '/' };
+        pwd(cwdBuffer + 1);
+
+        puts(cwdBuffer);
+        puts(" > ");
 
         while(true) {
             char c;
