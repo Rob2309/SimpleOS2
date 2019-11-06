@@ -147,6 +147,8 @@ namespace Ext2 {
         BlockDeviceDriver* m_Driver;
         uint64 m_Dev;
         SuperBlock m_SB;
+        uint64 m_BlockSize;
+        uint64 m_BlockGroupDescTableOffset;
     };
 
 }
