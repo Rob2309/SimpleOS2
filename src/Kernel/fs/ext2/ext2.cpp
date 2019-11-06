@@ -17,6 +17,11 @@ namespace Ext2 {
 
         klog_info("Ext2", "Ramdisk has version %i.%i", m_SB.versionMajor, m_SB.versionMinor);
         klog_info("Ext2", "Volume name: %s", m_SB.volumeName);
+
+        m_BlockSize = 1024 << m_SB.blockSizeShift;
+
+        uint64 blockAfterSuperBlock = m_BlockSize == 1024 ? 2 : 1;
+        m_BlockGroupDescTableOffset = blockAfterSuperBlock * m_BlockSize;
     }
 
     void Ext2Driver::GetSuperBlock(VFS::SuperBlock* sb) {
@@ -40,11 +45,11 @@ namespace Ext2 {
         uint64 group = (id - 1) / m_SB.inodesPerGroup;
         
         BlockGroupDesc desc;
-        m_Driver->GetData(m_Dev, group * 32 + 2048, &desc, sizeof(BlockGroupDesc));
+        m_Driver->GetData(m_Dev, group * 32 + m_BlockGroupDescTableOffset, &desc, sizeof(BlockGroupDesc));
 
         uint64 relID = (id - 1) % m_SB.inodesPerGroup;
 
-        uint64 inodePos = desc.inodeTableBlock * (1024 << m_SB.blockSizeShift) + relID * m_SB.inodeSize;
+        uint64 inodePos = desc.inodeTableBlock * m_BlockSize + relID * m_SB.inodeSize;
         INode* inode = new INode();
         m_Driver->GetData(m_Dev, inodePos, inode, sizeof(INode));
 
@@ -62,9 +67,9 @@ namespace Ext2 {
 
             uint64 pos = 0;
             while(pos < inode->size) {
-                uint64 entryBlock = pos / (1024 << m_SB.blockSizeShift);
-                uint64 entryBlockPos = inode->directPointers[entryBlock] * (1024 << m_SB.blockSizeShift);
-                uint64 entryOffset = pos % (1024 << m_SB.blockSizeShift);
+                uint64 entryBlock = pos / m_BlockSize;
+                uint64 entryBlockPos = inode->directPointers[entryBlock] * m_BlockSize;
+                uint64 entryOffset = pos % m_BlockSize;
                 
                 DirEntry ext2Entry;
                 m_Driver->GetData(m_Dev, entryBlockPos + entryOffset, &ext2Entry, sizeof(DirEntry));
@@ -116,24 +121,24 @@ namespace Ext2 {
         uint8* indirectBuffer = nullptr;
 
         while(rem > 0) {
-            uint64 blockIndex = pos / (1024 << m_SB.blockSizeShift);
+            uint64 blockIndex = pos / m_BlockSize;
             uint64 blockID;
 
             if(blockIndex < 12) {
                 blockID = inode->directPointers[blockIndex];
             } else {
                 if(!indirectBufferLoaded) {
-                    indirectBuffer = new uint8[1024 << m_SB.blockSizeShift];
-                    m_Driver->GetData(m_Dev, inode->indirectPointer * (1024 << m_SB.blockSizeShift), indirectBuffer, 1024 << m_SB.blockSizeShift);
+                    indirectBuffer = new uint8[m_BlockSize];
+                    m_Driver->GetData(m_Dev, inode->indirectPointer * (m_BlockSize), indirectBuffer, m_BlockSize);
                     indirectBufferLoaded = true;
                 }
                 blockID = ((uint32*)indirectBuffer)[blockIndex - 12];
             }
 
-            uint64 blockPos = blockID * (1024 << m_SB.blockSizeShift);
-            uint64 offset = pos % (1024 << m_SB.blockSizeShift);
+            uint64 blockPos = blockID * m_BlockSize;
+            uint64 offset = pos % m_BlockSize;
 
-            uint64 leftInBlock = (1024 << m_SB.blockSizeShift) - offset;
+            uint64 leftInBlock = m_BlockSize - offset;
             if(leftInBlock > rem)
                 leftInBlock = rem;
 
