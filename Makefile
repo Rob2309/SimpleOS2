@@ -64,14 +64,14 @@ kernel: FORCE
 	@ $(MAKE) -s acpica
 	@ printf "\e[32mBuilding Kernel\e[0m\n"
 	@ $(MAKE) -s -C src/Kernel
-libc: FORCE
-	@ printf "\e[32mBuilding LibC\e[0m\n"
-	@ $(MAKE) -s -C src/libc
+libsimpleos2: FORCE
+	@ printf "\e[32mBuilding LibSimpleOS2\e[0m\n"
+	@ $(MAKE) -s -C src/libsimpleos2
 acpica: FORCE
 	@ printf "\e[32mBuilding ACPICA\e[0m\n"
 	@ $(MAKE) -s -C src/acpica
 programs: FORCE
-	@ $(MAKE) -s libc
+	@ $(MAKE) -s libsimpleos2
 	@ printf "\e[32mBuilding Init\e[0m\n"
 	@ $(MAKE) -s -C src/Programs/Init
 	@ printf "\e[32mBuilding Shell\e[0m\n"
