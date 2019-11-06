@@ -27,4 +27,6 @@ int main(int argc, char** argv) {
             thread_waitms(1000);
         }
     }
+
+    return 0;
 }

@@ -17,7 +17,7 @@ void thread_exit(uint64 code) {
     syscall_invoke(syscall_exit, code);
 }
 int64 thread_movecore(uint64 coreID) {
-    syscall_invoke(syscall_move_core, coreID);
+    return syscall_invoke(syscall_move_core, coreID);
 }
 
 uint64 fork() {
