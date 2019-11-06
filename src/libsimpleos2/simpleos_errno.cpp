@@ -36,4 +36,5 @@ const char* ErrorToString(int64 error) {
     case ErrorInterrupted: return "Interrupted";
 
     default: return "unknown error";
+    }
 }

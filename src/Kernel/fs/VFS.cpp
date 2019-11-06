@@ -1384,6 +1384,13 @@ namespace VFS {
         if(folderNode != nullptr)
             ReleaseNode(folderNode);
 
+        uint8 reqPerms = openMode & (OpenMode_Read | OpenMode_Write);
+        if(!CheckPermissions(uid, gid, fileNode, reqPerms)) {
+            ReleaseNode(fileNode);
+            ReleaseMountPoint(mp);
+            return ErrorPermissionDenied;
+        }
+
         if(fileNode->type == Node::TYPE_DIRECTORY) {
             ReleaseNode(fileNode);
             ReleaseMountPoint(mp);

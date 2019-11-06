@@ -598,6 +598,20 @@ namespace Scheduler {
         return tInfo->gid;
     }
 
+    int64 ThreadSetUser(uint64 uid, uint64 gid) {
+        auto tInfo = g_CPUData.Get().currentThread;
+
+        if(tInfo->uid != 0)
+            return ErrorPermissionDenied;
+
+        tInfo->uid = uid;
+        tInfo->gid = gid;
+        return OK;
+    }
+    SYSCALL_DEFINE2(syscall_change_user, uint64 uid, uint64 gid) {
+        return ThreadSetUser(uid, gid);
+    }
+
     static ThreadFileDescriptor* FindFreeFD(ThreadInfo* tInfo) {
         int64 lastFD = -1;
         for(auto a = tInfo->fds->fds.begin(); a != tInfo->fds->fds.end(); ++a) {

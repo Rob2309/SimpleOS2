@@ -33,8 +33,8 @@ int main(int argc, char** argv)
 
     puts("Hello World from Init process\n");
 
-    puts("Starting shell\n");
-    exec("/boot/Shell.elf", 0, nullptr);
+    puts("Starting login\n");
+    exec("/boot/Login.elf", 0, nullptr);
 
     return 0;
 }
