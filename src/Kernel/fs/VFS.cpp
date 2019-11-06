@@ -39,6 +39,10 @@ namespace VFS {
         int lengthA = kstrlen(pathBuffer);
         int lengthB = kstrlen(tInfo->cwd);
 
+        // relative path == absolute path (thread cwd is /)
+        if(lengthB == 0)
+            return OK;
+
         if(lengthA + lengthB + 2 > 256)
             return ErrorPathTooLong;
         
@@ -50,6 +54,22 @@ namespace VFS {
         return OK;
     }
 
+    static int64 PrepareAbsolutePath(char* pathBuffer) {
+        int numSlashes = 0;
+        while(pathBuffer[numSlashes] == '/')
+            numSlashes++;
+
+        kmemcpy(pathBuffer, pathBuffer + numSlashes, kstrlen(pathBuffer) + 1);
+        return OK;
+    }
+
+    /**
+     * Prepares a path for use with the VFS system by
+     *      1. Copying untrusted userPath into pathBuffer
+     *      2. Making path absolute (if it is relative)
+     *      3. Removing unnecessary / . ..
+     * Output format: dir/dir2/file (absolute path without leading or trailing slash)
+     **/
     static int64 PreparePath(char* pathBuffer, const char* userPath) {
         if(!kpathcpy_usersafe(pathBuffer, userPath))
             return ErrorInvalidBuffer;
@@ -58,25 +78,35 @@ namespace VFS {
             auto err = PrepareRelativePath(pathBuffer);
             if(err != OK)
                 return err;
+        } else {
+            auto err = PrepareAbsolutePath(pathBuffer);
+            if(err != OK)
+                return err;
         }
 
-        int length = kstrlen(pathBuffer);
-        
-        // should never happen
-        if(pathBuffer[0] != '/')
-            return false;
+        // At this point pathBuffer contains an absolute path without leading slash
 
-        int writePos = 1;
-        for(int i = 1; i < length; i++) {
+        int length = kstrlen(pathBuffer);
+
+        int writePos = 0;
+        bool lastWasSlash = false;
+
+        for(int i = 0; i < length; i++) {
             char c = pathBuffer[i];
-            if(c == '/' && pathBuffer[writePos - 1] == '/') {
+            if(c == '/') {
+                if(!lastWasSlash) {
+                    lastWasSlash = true;
+                    pathBuffer[writePos] = '/';
+                    writePos++;
+                }
             } else {
+                lastWasSlash = false;
                 pathBuffer[writePos] = c;
                 writePos++;
             }
         }
 
-        if(pathBuffer[writePos-1] == '/')
+        if(lastWasSlash)
             pathBuffer[writePos - 1] = '\0';
         else
             pathBuffer[writePos] = '\0';
