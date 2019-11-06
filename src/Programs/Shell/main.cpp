@@ -423,7 +423,7 @@ static void HandleCommand() {
     if(argc == 0)
         return;
 
-    if(strcmp(argv[0], "thread_exit") == 0) {
+    if(strcmp(argv[0], "exit") == 0) {
         thread_exit(0);
     } else if(strcmp(argv[0], "cd") == 0) {
         BuiltinCD(argc, argv);
