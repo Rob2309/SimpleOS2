@@ -1,7 +1,6 @@
 #pragma once
 
-#include "types.h"
-#include "errno.h"
+#include "simpleos_types.h"
 
 int64 delete_file(const char* path);
 
@@ -79,3 +78,7 @@ int64 statl(const char* path, Stats* stats);
 
 int64 changedir(const char* path);
 int64 pwd(char* pathBuffer);
+
+constexpr int64 stdinfd = 0;
+constexpr int64 stdoutfd = 1;
+constexpr int64 stderrfd = 2;

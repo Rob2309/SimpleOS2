@@ -1,24 +1,27 @@
-#include "string.h"
+#include "simpleos_string.h"
 
-void* memcpy(void* dest, const void* src, uint64 num) {
+void* memcpy(void* dest, const void* src, int64 num) {
     if(num == 0)
         return dest;
-    for(uint64 i = 0; i < num; i++)
+    for(int64 i = 0; i < num; i++)
         ((char*)dest)[i] = ((char*)src)[i];
     return dest;
 }
-void* memmove(void* dest, const char* src, uint64 num) {
-    if(dest == src)
-        return dest;
-    if(num == 0)
+void* memmove(void* vDest, const void* vSrc, int64 num) {
+    char* dest = (char*)vDest;
+    const char* src = (const char*)vSrc;
+
+    if(dest == src || num == 0)
         return dest;
 
-    if(dest > src) {
-        for(uint64 i = num - 1; i >= 0; i--)
+    if(dest > src && (src + num) > dest) {
+        for(int64 i = num - 1; i >= 0; i--)
             ((char*)dest)[i] = ((char*)src)[i];
     } else {
-        return memcpy(dest, src, num);
+        memcpy(dest, src, num);
     }
+
+    return dest;
 }
 
 char* strcpy(char* dest, const char* src) {

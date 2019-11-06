@@ -1,8 +1,8 @@
 #include <simpleos_vfs.h>
 #include <simpleos_process.h>
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
+#include <simpleos_inout.h>
+#include <simpleos_string.h>
+#include <simpleos_alloc.h>
 
 static char g_History[1024][128];
 static int g_HistoryMinIndex = 1024;
@@ -85,7 +85,7 @@ static void BuiltinCat(int argc, char** argv) {
     puts("\n");
 
     close(fd);
-    exit(0);
+    thread_exit(0);
 }
 
 static void BuiltinTail(int argc, char** argv) {
@@ -395,7 +395,7 @@ static void InvokeCommand(int argc, char** argv) {
         puts("Command not found\n");
     }
 
-    exit(0);
+    thread_exit(0);
 }
 
 static void HandleCommand() {
@@ -423,8 +423,8 @@ static void HandleCommand() {
     if(argc == 0)
         return;
 
-    if(strcmp(argv[0], "exit") == 0) {
-        exit(0);
+    if(strcmp(argv[0], "thread_exit") == 0) {
+        thread_exit(0);
     } else if(strcmp(argv[0], "cd") == 0) {
         BuiltinCD(argc, argv);
     } else if(strcmp(argv[0], "pwd") == 0) {
@@ -437,7 +437,7 @@ static void HandleCommand() {
             devcmd(stdoutfd, 1, (void*)gettid());
         } else {
             InvokeCommand(argc, argv);
-            exit(0);
+            thread_exit(0);
         }
     }
     
@@ -455,7 +455,7 @@ int main(int argc, char** argv) {
 
         puts("Command not found: ");
         puts(argv[2]);
-        exit(1);
+        thread_exit(1);
     }
 
     while(true) {

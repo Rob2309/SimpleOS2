@@ -1,8 +1,8 @@
-#include "ELFProgramInfo.h"
+#include "./internal/ELFProgramInfo.h"
 
 #include "simpleos_process.h"
-#include "stdlib.h"
-#include "thread.h"
+#include "simpleos_thread.h"
+#include "simpleos_alloc.h"
 
 #include "simpleos_raw.h"
 
@@ -27,5 +27,5 @@ extern "C" void __start(ELFProgramInfo* info) {
     }
 
     int res = main(g_ProgInfo->argc, g_ProgInfo->argv);
-    exit(res);
+    thread_exit(res);
 };

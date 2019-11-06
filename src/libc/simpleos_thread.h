@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ELFProgramInfo.h"
+#include "./internal/ELFProgramInfo.h"
 
 extern ELFProgramInfo* g_ProgInfo;
 

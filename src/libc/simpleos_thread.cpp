@@ -1,6 +1,6 @@
-#include "thread.h"
+#include "simpleos_thread.h"
 
-#include "stdlib.h"
+#include "simpleos_alloc.h"
 #include "simpleos_process.h"
 
 ELFProgramInfo* g_ProgInfo;

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "types.h"
+#include "simpleos_types.h"
 
 // The system call numbers below should be kept in sync with the Kernel's SyscallFunctions.h file
 

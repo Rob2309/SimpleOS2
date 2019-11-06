@@ -1,7 +1,6 @@
 #include <simpleos_process.h>
-#include <stdio.h>
-#include <thread.h>
-#include <stdlib.h>
+#include <simpleos_thread.h>
+#include <simpleos_inout.h>
 
 int Thread1() {
     while(true) {
@@ -21,7 +20,7 @@ int main(int argc, char** argv) {
 
         thread_waitms(5000);
 
-        exit(0);
+        thread_exit(0);
     } else {
         while(true) {
             puts("Fork alive...\n");

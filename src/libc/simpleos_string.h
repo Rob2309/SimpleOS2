@@ -1,9 +1,9 @@
 #pragma once
 
-#include "types.h"
+#include "simpleos_types.h"
 
-void* memcpy(void* dest, const void* src, uint64 num);
-void* memmove(void* dest, const char* src, uint64 num);
+void* memcpy(void* dest, const void* src, int64 num);
+void* memmove(void* dest, const void* src, int64 num);
 
 char* strcpy(char* dest, const char* src);
 

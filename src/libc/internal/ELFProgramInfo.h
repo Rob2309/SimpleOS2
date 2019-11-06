@@ -1,6 +1,6 @@
 #pragma once
 
-#include "types.h"
+#include "../simpleos_types.h"
 
 struct ELFProgramInfo;
 
