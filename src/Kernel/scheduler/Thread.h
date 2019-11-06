@@ -56,6 +56,8 @@ struct ThreadInfo {
     ktl::AnchorList<ThreadInfo, &ThreadInfo::joinListAnchor> childThreads;
 
     int64 tid;
+
+    char cwd[256];
     
     int64 exitCode;
 

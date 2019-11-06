@@ -164,6 +164,8 @@ namespace Scheduler {
         cpuData.idleThread.faultRip = 0;
         cpuData.idleThread.fpuBuffer = nullptr;
 
+        kstrcpy(cpuData.idleThread.cwd, "/");
+
         cpuData.currentThread = &cpuData.idleThread;
     }
 
@@ -189,6 +191,7 @@ namespace Scheduler {
         tInfo->cliCount = 0;
         tInfo->faultRip = 0;
         tInfo->fpuBuffer = nullptr;
+        kstrcpy(tInfo->cwd, "/");
 
         tInfo->registers.cs = GDT::KernelCode;
         tInfo->registers.ds = GDT::KernelData;
@@ -272,6 +275,7 @@ namespace Scheduler {
         newT->stickyCount = 0;
         newT->cliCount = 0;
         newT->faultRip = 0;
+        kstrcpy(newT->cwd, tInfo->cwd);
         newT->registers = *regs;
         newT->registers.rflags |= CPU::FLAGS_IF;
         newT->fpuBuffer = new char[SSE::GetFPUBlockSize()];

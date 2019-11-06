@@ -352,20 +352,15 @@ static void BuiltinKill(int argc, char** argv) {
         puts("Failed to kill Thread\n");
 }
 
-static void InvokeCommand() {
-    int argc = 0;
-    char* argv[100];
-
-    char* buf = g_CmdBuffer;
-    char* arg;
-    while((arg = GetToken(buf)) != nullptr) {
-        argv[argc] = arg;
-        argc++;
+static void BuiltinCD(int argc, char** argv) {
+    if(argc == 1) {
+        changedir("/");
+    } else {
+        changedir(argv[1]);
     }
+}
 
-    if(argc == 0)
-        return;
-
+static void InvokeCommand(int argc, char** argv) {
     if(strcmp(argv[0], "echo") == 0) {
         BuiltinEcho(argc, argv);
     } else if(strcmp(argv[0], "cat") == 0) {
@@ -398,14 +393,29 @@ static void HandleCommand() {
     if(g_CmdBufferIndex == 0)
         return;
 
+    int argc = 0;
+    char* argv[100];
+
+    char* buf = g_CmdBuffer;
+    char* arg;
+    while((arg = GetToken(buf)) != nullptr) {
+        argv[argc] = arg;
+        argc++;
+    }
+
+    if(argc == 0)
+        return;
+
     if(g_HistoryMinIndex == 1024 || strcmp(g_History[1023], g_CmdBuffer) != 0) {
         memcpy(&g_History[g_HistoryMinIndex - 1], &g_History[g_HistoryMinIndex], 128 * (1024 - g_HistoryMinIndex));
         strcpy(g_History[1023], g_CmdBuffer);
         g_HistoryMinIndex--;
     }
 
-    if(strcmp(g_CmdBuffer, "exit") == 0) {
+    if(strcmp(argv[0], "exit") == 0) {
         exit(0);
+    } else if(strcmp(argv[0], "cd") == 0) {
+        BuiltinCD(argc, argv);
     } else {
         int64 tid;
         if(tid = fork()) {
@@ -413,7 +423,7 @@ static void HandleCommand() {
             join(tid);
             devcmd(stdoutfd, 1, (void*)gettid());
         } else {
-            InvokeCommand();
+            InvokeCommand(argc, argv);
             exit(0);
         }
     }

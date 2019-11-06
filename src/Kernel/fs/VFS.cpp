@@ -29,28 +29,59 @@ namespace VFS {
     static MountPoint* g_RootMount = nullptr;
     static MountPoint* g_PipeMount = nullptr;
 
-    static bool CleanPath(char* cleanBuffer) {
-        int length = kstrlen(cleanBuffer);
+    static bool IsPathRelative(const char* path) {
+        return *path != '/';
+    }
+
+    static int64 PrepareRelativePath(char* pathBuffer) {
+        auto tInfo = Scheduler::GetCurrentThreadInfo();
+
+        int lengthA = kstrlen(pathBuffer);
+        int lengthB = kstrlen(tInfo->cwd);
+
+        if(lengthA + lengthB + 2 > 256)
+            return ErrorPathTooLong;
         
-        if(cleanBuffer[0] != '/')
+        kmemmove(pathBuffer + lengthB + 1, pathBuffer, lengthA);
+        kmemcpy(pathBuffer, tInfo->cwd, lengthB);
+        pathBuffer[lengthB] = '/';
+        pathBuffer[lengthA + lengthB + 1] = '\0';
+
+        return OK;
+    }
+
+    static int64 PreparePath(char* pathBuffer, const char* userPath) {
+        if(!kpathcpy_usersafe(pathBuffer, userPath))
+            return ErrorInvalidBuffer;
+
+        if(IsPathRelative(pathBuffer)) {
+            auto err = PrepareRelativePath(pathBuffer);
+            if(err != OK)
+                return err;
+        }
+
+        int length = kstrlen(pathBuffer);
+        
+        // should never happen
+        if(pathBuffer[0] != '/')
             return false;
 
         int writePos = 1;
         for(int i = 1; i < length; i++) {
-            char c = cleanBuffer[i];
-            if(c == '/' && cleanBuffer[writePos - 1] == '/') {
+            char c = pathBuffer[i];
+            if(c == '/' && pathBuffer[writePos - 1] == '/') {
             } else {
-                cleanBuffer[writePos] = c;
+                pathBuffer[writePos] = c;
                 writePos++;
             }
         }
 
-        if(cleanBuffer[writePos-1] == '/')
-            cleanBuffer[writePos - 1] = '\0';
+        if(pathBuffer[writePos-1] == '/')
+            pathBuffer[writePos - 1] = '\0';
         else
-            cleanBuffer[writePos] = '\0';
+            pathBuffer[writePos] = '\0';
 
-        return true;
+        return OK;
     }
 
     static bool MountCmp(const char* path, const char* mount) {
@@ -366,10 +397,10 @@ namespace VFS {
 
     int64 CreateFile(const char* path, const Permissions& perms) {
         char cleanBuffer[255];
-        if(!kpathcpy_usersafe(cleanBuffer, path))
-            return ErrorInvalidBuffer;
-        if(!CleanPath(cleanBuffer))
-            return ErrorInvalidPath;
+
+        int64 error;
+        if((error = PreparePath(cleanBuffer, path)) != OK)
+            return error;
 
         auto tInfo = Scheduler::GetCurrentThreadInfo();
         uint64 uid = tInfo->uid;
@@ -379,7 +410,7 @@ namespace VFS {
         char* tmpPath = cleanBuffer;
         Node* parentNode;
         Node* fileNode;
-        int64 error = AcquirePath(uid, gid, mp, tmpPath, false, false, fileNode, parentNode);
+        error = AcquirePath(uid, gid, mp, tmpPath, false, false, fileNode, parentNode);
         if(error != OK)
             return error;
         if(parentNode == nullptr) {
@@ -432,10 +463,10 @@ namespace VFS {
 
     int64 CreateFolder(const char* path, const Permissions& perms) {
         char cleanBuffer[255];
-        if(!kpathcpy_usersafe(cleanBuffer, path))
-            return ErrorInvalidBuffer;
-        if(!CleanPath(cleanBuffer))
-            return ErrorInvalidPath;
+
+        int64 error;
+        if((error = PreparePath(cleanBuffer, path)) != OK)
+            return error;
 
         auto tInfo = Scheduler::GetCurrentThreadInfo();
         uint64 uid = tInfo->uid;
@@ -445,7 +476,7 @@ namespace VFS {
         char* tmpPath = cleanBuffer;
         Node* parentNode;
         Node* fileNode;
-        int64 error = AcquirePath(uid, gid, mp, tmpPath, false, false, fileNode, parentNode);
+        error = AcquirePath(uid, gid, mp, tmpPath, false, false, fileNode, parentNode);
         if(error != OK)
             return error;
         if(parentNode == nullptr) {
@@ -498,10 +529,10 @@ namespace VFS {
 
     int64 CreateDeviceFile(const char* path, const Permissions& perms, uint64 driverID, uint64 subID) {
         char cleanBuffer[255];
-        if(!kpathcpy_usersafe(cleanBuffer, path))
-            return ErrorInvalidBuffer;
-        if(!CleanPath(cleanBuffer))
-            return ErrorInvalidPath;
+
+        int64 error;
+        if((error = PreparePath(cleanBuffer, path)) != OK)
+            return error;
 
         auto tInfo = Scheduler::GetCurrentThreadInfo();
         uint64 uid = tInfo->uid;
@@ -511,7 +542,7 @@ namespace VFS {
         char* tmpPath = cleanBuffer;
         Node* parentNode;
         Node* fileNode;
-        int64 error = AcquirePath(uid, gid, mp, tmpPath, false, false, fileNode, parentNode);
+        error = AcquirePath(uid, gid, mp, tmpPath, false, false, fileNode, parentNode);
         if(error != OK)
             return error;
         if(parentNode == nullptr) {
@@ -597,10 +628,10 @@ namespace VFS {
 
     int64 CreateSymLink(const char* path, const Permissions& permissions, const char* linkPath) {
         char cleanBuffer[255];
-        if(!kpathcpy_usersafe(cleanBuffer, path))
-            return ErrorInvalidBuffer;
-        if(!CleanPath(cleanBuffer))
-            return ErrorInvalidPath;
+
+        int64 error;
+        if((error = PreparePath(cleanBuffer, path)) != OK)
+            return error;
 
         auto tInfo = Scheduler::GetCurrentThreadInfo();
         uint64 uid = tInfo->uid;
@@ -610,7 +641,7 @@ namespace VFS {
         char* tmpPath = cleanBuffer;
         Node* parentNode;
         Node* linkNode;
-        int64 error = AcquirePath(uid, gid, mp, tmpPath, false, false, linkNode, parentNode);
+        error = AcquirePath(uid, gid, mp, tmpPath, false, false, linkNode, parentNode);
         if(error != OK)
             return error;
         if(parentNode == nullptr) {
@@ -664,10 +695,10 @@ namespace VFS {
 
     int64 CreateHardLink(const char* path, const Permissions& permissions, const char* linkPath) {
         char cleanBuffer[255];
-        if(!kpathcpy_usersafe(cleanBuffer, linkPath))
-            return ErrorInvalidBuffer;
-        if(!CleanPath(cleanBuffer))
-            return ErrorInvalidPath;
+
+        int64 error;
+        if((error = PreparePath(cleanBuffer, linkPath)) != OK)
+            return error;
 
         auto tInfo = Scheduler::GetCurrentThreadInfo();
         uint64 uid = tInfo->uid;
@@ -677,7 +708,7 @@ namespace VFS {
         char* tmpPath = cleanBuffer;
         Node* linkParentNode;
         Node* linkFileNode;
-        int64 error = AcquirePath(uid, gid, linkMP, tmpPath, true, false, linkFileNode, linkParentNode);
+        error = AcquirePath(uid, gid, linkMP, tmpPath, true, false, linkFileNode, linkParentNode);
         if(error != OK)
             return error;
         if(linkParentNode != nullptr)
@@ -689,15 +720,10 @@ namespace VFS {
             return ErrorHardlinkToFolder;
         }
 
-        if(!kpathcpy_usersafe(cleanBuffer, path)) {
+        if((error = PreparePath(cleanBuffer, path)) != OK) {
             ReleaseNode(linkFileNode);
             ReleaseMountPoint(linkMP);
-            return ErrorInvalidBuffer;
-        }
-        if(!CleanPath(cleanBuffer)) {
-            ReleaseNode(linkFileNode);
-            ReleaseMountPoint(linkMP);
-            return ErrorInvalidPath;
+            return error;
         }
 
         MountPoint* mp;
@@ -768,10 +794,10 @@ namespace VFS {
 
     int64 Delete(const char* path) {
         char cleanBuffer[255];
-        if(!kpathcpy_usersafe(cleanBuffer, path))
-            return ErrorInvalidBuffer;
-        if(!CleanPath(cleanBuffer))
-            return ErrorInvalidPath;
+
+        int64 error;
+        if((error = PreparePath(cleanBuffer, path)) != OK)
+            return error;
 
         auto tInfo = Scheduler::GetCurrentThreadInfo();
         uint64 uid = tInfo->uid;
@@ -781,7 +807,7 @@ namespace VFS {
         char* tmpPath = cleanBuffer;
         Node* fileNode;
         Node* parentNode;
-        int64 error = AcquirePath(uid, gid, mp, tmpPath, true, true, fileNode, parentNode);
+        error = AcquirePath(uid, gid, mp, tmpPath, true, true, fileNode, parentNode);
         if(error != OK)
             return error;
         // attempting to delete mountpoint
@@ -838,10 +864,10 @@ namespace VFS {
 
     int64 ChangeOwner(const char* path, uint64 newUID, uint64 newGID) {
         char cleanBuffer[255];
-        if(!kpathcpy_usersafe(cleanBuffer, path))
-            return ErrorInvalidBuffer;
-        if(!CleanPath(cleanBuffer))
-            return ErrorInvalidPath;
+
+        int64 error;
+        if((error = PreparePath(cleanBuffer, path)) != OK)
+            return error;
 
         auto tInfo = Scheduler::GetCurrentThreadInfo();
         uint64 uid = tInfo->uid;
@@ -851,7 +877,7 @@ namespace VFS {
         char* tmpPath = cleanBuffer;
         Node* fileNode;
         Node* folderNode;
-        int64 error = AcquirePath(uid, gid, mp, tmpPath, true, false, fileNode, folderNode);
+        error = AcquirePath(uid, gid, mp, tmpPath, true, false, fileNode, folderNode);
         if(error != OK)
             return error;
         if(folderNode != nullptr)
@@ -878,10 +904,10 @@ namespace VFS {
 
     int64 ChangePermissions(const char* path, const Permissions& permissions) {
         char cleanBuffer[255];
-        if(!kpathcpy_usersafe(cleanBuffer, path))
-            return ErrorInvalidBuffer;
-        if(!CleanPath(cleanBuffer))
-            return ErrorInvalidPath;
+
+        int64 error;
+        if((error = PreparePath(cleanBuffer, path)) != OK)
+            return error;
 
         auto tInfo = Scheduler::GetCurrentThreadInfo();
         uint64 uid = tInfo->uid;
@@ -891,7 +917,7 @@ namespace VFS {
         char* tmpPath = cleanBuffer;
         Node* fileNode;
         Node* folderNode;
-        int64 error = AcquirePath(uid, gid, mp, tmpPath, true, false, fileNode, folderNode);
+        error = AcquirePath(uid, gid, mp, tmpPath, true, false, fileNode, folderNode);
         if(error != OK)
             return error;
         if(folderNode != nullptr)
@@ -917,10 +943,10 @@ namespace VFS {
 
     int64 Stat(const char* path, NodeStats& outStats, bool followSymlink) {
         char cleanBuffer[255];
-        if(!kpathcpy_usersafe(cleanBuffer, path))
-            return ErrorInvalidBuffer;
-        if(!CleanPath(cleanBuffer))
-            return ErrorInvalidPath;
+
+        int64 error;
+        if((error = PreparePath(cleanBuffer, path)) != OK)
+            return error;
 
         auto tInfo = Scheduler::GetCurrentThreadInfo();
         uint64 uid = tInfo->uid;
@@ -930,7 +956,7 @@ namespace VFS {
         char* tmpPath = cleanBuffer;
         Node* fileNode;
         Node* folderNode;
-        int64 error = AcquirePath(uid, gid, mp, tmpPath, true, !followSymlink, fileNode, folderNode);
+        error = AcquirePath(uid, gid, mp, tmpPath, true, !followSymlink, fileNode, folderNode);
         if(error != OK)
             return error;
         if(folderNode != nullptr)
@@ -978,10 +1004,10 @@ namespace VFS {
 
     int64 List(const char* path, int& numEntries, ListEntry* entries) {
         char cleanBuffer[255];
-        if(!kpathcpy_usersafe(cleanBuffer, path))
-            return ErrorInvalidBuffer;
-        if(!CleanPath(cleanBuffer))
-            return ErrorInvalidPath;
+
+        int64 error;
+        if((error = PreparePath(cleanBuffer, path)) != OK)
+            return error;
 
         klog_info("VFS", "List: path=%s cleanPath=%s", path, cleanBuffer);
 
@@ -993,7 +1019,7 @@ namespace VFS {
         char* tmpPath = cleanBuffer;
         Node* node;
         Node* parentNode;
-        int64 error = AcquirePath(uid, gid, mp, tmpPath, true, false, node, parentNode);
+        error = AcquirePath(uid, gid, mp, tmpPath, true, false, node, parentNode);
         if(error != OK)
             return error;
         if(parentNode != nullptr)
@@ -1045,10 +1071,10 @@ namespace VFS {
 
     int64 Mount(const char* mountPoint, FileSystem* fs) {
         char cleanBuffer[255];
-        if(!kpathcpy_usersafe(cleanBuffer, mountPoint))
-            return ErrorInvalidBuffer;
-        if(!CleanPath(cleanBuffer))
-            return ErrorInvalidPath;
+
+        int64 error;
+        if((error = PreparePath(cleanBuffer, mountPoint)) != OK)
+            return error;
 
         auto tInfo = Scheduler::GetCurrentThreadInfo();
         uint64 uid = tInfo->uid;
@@ -1058,7 +1084,7 @@ namespace VFS {
         char* tmpPath = cleanBuffer;
         Node* folderNode;
         Node* fileNode;
-        int64 error = AcquirePath(uid, gid, mp, tmpPath, true, false, fileNode, folderNode);
+        error = AcquirePath(uid, gid, mp, tmpPath, true, false, fileNode, folderNode);
         if(error != OK)
             return error;
         // Trying to mount onto a mountPoint
@@ -1120,10 +1146,10 @@ namespace VFS {
     }
     int64 Mount(const char* mountPoint, const char* fsID, const char* devFile) {
         char cleanBuffer[255];
-        if(!kpathcpy_usersafe(cleanBuffer, devFile))
-            return ErrorInvalidBuffer;
-        if(!CleanPath(cleanBuffer))
-            return ErrorInvalidPath;
+
+        int64 error;
+        if((error = PreparePath(cleanBuffer, devFile)) != OK)
+            return error;
 
         auto tInfo = Scheduler::GetCurrentThreadInfo();
         uint64 uid = tInfo->uid;
@@ -1133,7 +1159,7 @@ namespace VFS {
         char* tmpPath = cleanBuffer;
         Node* folderNode;
         Node* fileNode;
-        int64 error = AcquirePath(uid, gid, mp, tmpPath, true, false, fileNode, folderNode);
+        error = AcquirePath(uid, gid, mp, tmpPath, true, false, fileNode, folderNode);
         if(error != OK)
             return error;
         if(folderNode != nullptr)
@@ -1182,10 +1208,10 @@ namespace VFS {
 
     int64 Unmount(const char* mountPoint) {
         char cleanBuffer[255];
-        if(!kpathcpy_usersafe(cleanBuffer, mountPoint))
-            return ErrorInvalidBuffer;
-        if(!CleanPath(cleanBuffer))
-            return ErrorInvalidPath;
+
+        int64 error;
+        if((error = PreparePath(cleanBuffer, mountPoint)) != OK)
+            return error;
 
         auto mp = FindMountPoint(cleanBuffer);
         auto path = AdvancePath(cleanBuffer, mp->path);
@@ -1221,10 +1247,10 @@ namespace VFS {
 
     int64 Open(const char* path, uint64 openMode, uint64& fileDesc) {
         char cleanBuffer[255];
-        if(!kpathcpy_usersafe(cleanBuffer, path))
-            return ErrorInvalidBuffer;
-        if(!CleanPath(cleanBuffer))
-            return ErrorInvalidPath;
+
+        int64 error;
+        if((error = PreparePath(cleanBuffer, path)) != OK)
+            return error;
 
         auto tInfo = Scheduler::GetCurrentThreadInfo();
         uint64 uid = tInfo->uid;
@@ -1234,7 +1260,7 @@ namespace VFS {
         char* tmpPath = cleanBuffer;
         Node* folderNode;
         Node* fileNode;
-        int64 error = AcquirePath(uid, gid, mp, tmpPath, (openMode & OpenMode_Create) ? false : true, false, fileNode, folderNode);
+        error = AcquirePath(uid, gid, mp, tmpPath, (openMode & OpenMode_Create) ? false : true, false, fileNode, folderNode);
         if(error != OK)
             return error;
 
@@ -1496,6 +1522,22 @@ namespace VFS {
         }
 
         return Seek(sysDesc, mode, offs);
+    }
+
+    int64 CD(const char* path) {
+        auto tInfo = Scheduler::GetCurrentThreadInfo();
+
+        char pathBuffer[256];
+
+        int64 error;
+        if((error = PreparePath(pathBuffer, path)) != OK)
+            return error;
+
+        kstrcpy(tInfo->cwd, pathBuffer);
+        return OK;
+    }
+    SYSCALL_DEFINE1(syscall_cd, const char* userPath) {
+        return CD(userPath);
     }
 
 }
