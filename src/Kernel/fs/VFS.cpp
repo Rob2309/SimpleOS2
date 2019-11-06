@@ -63,6 +63,62 @@ namespace VFS {
         return OK;
     }
 
+    static int64 NormalizePath(char* pathBuffer) {
+        int stackSize = 0;
+        char* stack[128];
+        char* currentDir = pathBuffer;
+
+        for(int i = 0; pathBuffer[i] != '\0'; i++) {
+            char c = pathBuffer[i];
+
+            if(c == '/') {
+                pathBuffer[i] = '\0';
+                stack[stackSize] = currentDir;
+                currentDir = &pathBuffer[i+1];
+                stackSize++;
+            }
+        }
+        stack[stackSize++] = currentDir;
+
+        for(int i = 0; i < stackSize; ) {
+            char* dir = stack[i];
+            if(kstrcmp(dir, ".") == 0) {
+                for(int j = i+1; j < stackSize; j++)
+                    stack[j-1] = stack[j];
+                stackSize--;
+            } else if(kstrcmp(dir, "..") == 0) {
+                if(i == 0) {
+                    for(int j = i+1; j < stackSize; j++)
+                        stack[j-1] = stack[j];
+                    stackSize--;
+                } else {
+                    for(int j = i+1; j < stackSize; j++)
+                        stack[j-2] = stack[j];
+                    stackSize -= 2;
+                    i--;
+                }
+            } else {
+                i++;
+            }
+        }
+
+        int pos = 0;
+        for(int i = 0; i < stackSize; i++) {
+            int l = kstrlen(stack[i]);
+
+            if(i != 0) {
+                pathBuffer[pos] = '/';
+                pos++;
+            }
+
+            kmemcpy(&pathBuffer[pos], stack[i], l);
+            pos += l;
+        }
+        pathBuffer[pos] = '\0';
+
+        return OK;
+    }
+
     /**
      * Prepares a path for use with the VFS system by
      *      1. Copying untrusted userPath into pathBuffer
@@ -111,7 +167,7 @@ namespace VFS {
         else
             pathBuffer[writePos] = '\0';
 
-        return OK;
+        return NormalizePath(pathBuffer);
     }
 
     static bool MountCmp(const char* path, const char* mount) {
