@@ -400,6 +400,12 @@ static void HandleCommand() {
     if(g_CmdBufferIndex == 0)
         return;
 
+    if(g_HistoryMinIndex == 1024 || strcmp(g_History[1023], g_CmdBuffer) != 0) {
+        memcpy(&g_History[g_HistoryMinIndex - 1], &g_History[g_HistoryMinIndex], 128 * (1024 - g_HistoryMinIndex));
+        strcpy(g_History[1023], g_CmdBuffer);
+        g_HistoryMinIndex--;
+    }
+
     int argc = 0;
     char* argv[100];
 
@@ -412,12 +418,6 @@ static void HandleCommand() {
 
     if(argc == 0)
         return;
-
-    if(g_HistoryMinIndex == 1024 || strcmp(g_History[1023], g_CmdBuffer) != 0) {
-        memcpy(&g_History[g_HistoryMinIndex - 1], &g_History[g_HistoryMinIndex], 128 * (1024 - g_HistoryMinIndex));
-        strcpy(g_History[1023], g_CmdBuffer);
-        g_HistoryMinIndex--;
-    }
 
     if(strcmp(argv[0], "exit") == 0) {
         exit(0);
