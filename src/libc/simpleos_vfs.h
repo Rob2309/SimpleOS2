@@ -78,3 +78,4 @@ int64 stat(const char* path, Stats* stats);
 int64 statl(const char* path, Stats* stats);
 
 int64 changedir(const char* path);
+int64 pwd(char* pathBuffer);

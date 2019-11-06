@@ -1540,4 +1540,13 @@ namespace VFS {
         return CD(userPath);
     }
 
+    SYSCALL_DEFINE1(syscall_pwd, char* userBuffer) {
+        auto tInfo = Scheduler::GetCurrentThreadInfo();
+
+        if(!kpathcpy_usersafe(userBuffer, tInfo->cwd))
+            return ErrorInvalidBuffer;
+
+        return OK;
+    }
+
 }

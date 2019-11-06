@@ -86,3 +86,7 @@ int64 statl(const char* path, Stats* stats) {
 int64 changedir(const char* path) {
     return syscall_invoke(syscall_cd, (uint64)path);
 }
+
+int64 pwd(char* pathBuffer) {
+    return syscall_invoke(syscall_pwd, (uint64)pathBuffer);
+}

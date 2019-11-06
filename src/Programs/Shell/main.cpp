@@ -360,6 +360,13 @@ static void BuiltinCD(int argc, char** argv) {
     }
 }
 
+static void BuiltinPWD(int argc, char** argv) {
+    char buffer[256];
+    pwd(buffer);
+    puts(buffer);
+    puts("\n");
+}
+
 static void InvokeCommand(int argc, char** argv) {
     if(strcmp(argv[0], "echo") == 0) {
         BuiltinEcho(argc, argv);
@@ -416,6 +423,8 @@ static void HandleCommand() {
         exit(0);
     } else if(strcmp(argv[0], "cd") == 0) {
         BuiltinCD(argc, argv);
+    } else if(strcmp(argv[0], "pwd") == 0) {
+        BuiltinPWD(argc, argv);
     } else {
         int64 tid;
         if(tid = fork()) {
