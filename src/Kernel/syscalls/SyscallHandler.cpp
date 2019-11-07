@@ -131,6 +131,7 @@ namespace SyscallHandler {
         delete[] argPtrBuffer;
 
         Scheduler::ThreadExec(pml4Entry, &regs);
+        return 1;
     }
     SYSCALL_DEFINE3(syscall_exec, const char* path, int argc, const char* const* argv) {
         return DoExec(path, argc, argv);
@@ -147,7 +148,7 @@ namespace SyscallHandler {
             Scheduler::ThreadExit(1);
         }
 
-        Scheduler::ThreadCheckFlags();
+        Scheduler::ThreadCheckFlags(state, res);
         return res;
     }
 

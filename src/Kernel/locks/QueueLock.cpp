@@ -24,12 +24,8 @@ void QueueLock::Lock() {
         m_Queue.push_back(&entry);
         m_Lock.Unlock();
 
-        if(Scheduler::ThreadBlock(ThreadState::QUEUE_LOCK, 0)) {
-            m_Lock.Spinlock();
-            m_Queue.erase(&entry);
-            m_Lock.Unlock();
-            Scheduler::ThreadCheckFlags();
-        }
+        // no need to check for error, QUEUE_LOCK is uninterruptible
+        Scheduler::ThreadBlock(ThreadState::QUEUE_LOCK, 0);
 
         Scheduler::ThreadUnsetSticky();
     }

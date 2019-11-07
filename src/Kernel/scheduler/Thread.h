@@ -5,6 +5,7 @@
 #include "atomic/Atomics.h"
 #include "locks/StickyLock.h"
 #include "ktl/AnchorList.h"
+#include "syscalls/SyscallDefine.h"
 
 #include <vector>
 
@@ -19,7 +20,7 @@ struct ThreadState {
     enum Type {
         READY,
 
-        WAIT,
+        SLEEP,
         QUEUE_LOCK,
         JOIN,
 
@@ -42,7 +43,6 @@ struct ThreadFileDescriptor {
 
 struct ThreadFileDescriptors {
     Atomic<uint64> refCount;
-
     StickyLock lock;
     std::vector<ThreadFileDescriptor> fds;
 };
@@ -50,18 +50,26 @@ struct ThreadFileDescriptors {
 struct ThreadInfo {
     ktl::Anchor<ThreadInfo> activeListAnchor;
     ktl::Anchor<ThreadInfo> globalListAnchor;
+    ktl::Anchor<ThreadInfo> joinListAnchor;
 
-    ThreadInfo* mainThread;
+    ThreadInfo* mainThread;                     // never changes, safe to access lockless
 
-    StickyLock joinThreadsLock;
-    std::vector<ThreadInfo*> joinThreads;
+    StickyLock childThreadsLock;
+    ktl::AnchorList<ThreadInfo, &ThreadInfo::joinListAnchor> childThreads;
 
     int64 tid;
+
+    char cwd[256];
     
     int64 exitCode;
 
     bool killPending;                       // Set this flag to inform a thread that it should kill itself
-    
+    uint64 killHandlerRip;
+    uint64 killHandlerRsp;
+    IDT::Registers killHandlerReturnState;
+
+    bool abortPending;
+
     ThreadMemSpace* memSpace;
     ThreadFileDescriptors* fds;
 

@@ -25,6 +25,8 @@ public:
 
     const char* GetName() const { return m_Name; }
 
+    virtual int64 DeviceCommand(uint64 subID, int64 command, void* arg) = 0;
+
 public:
     ktl::Anchor<DeviceDriver> m_Anchor;
 

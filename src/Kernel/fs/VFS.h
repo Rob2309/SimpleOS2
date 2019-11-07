@@ -135,6 +135,8 @@ namespace VFS {
      **/
     int64 Write(uint64 desc, const void* buffer, uint64 bufferSize);
 
+    int64 DeviceCommand(uint64 desc, int64 command, void* buffer);
+
     enum SeekMode {
         SEEK_SET,
         SEEK_REL,
@@ -145,5 +147,7 @@ namespace VFS {
      * Returns 0 on success, error otherwise
      **/
     int64 Seek(uint64 desc, SeekMode mode, uint64 offs);
+
+    int64 CD(const char* path);
 
 }

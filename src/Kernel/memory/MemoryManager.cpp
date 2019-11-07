@@ -446,7 +446,7 @@ namespace MemoryManager {
     }
     SYSCALL_DEFINE2(syscall_alloc, char* base, uint64 numPages) {
         if((uint64)base & 0xFFF != 0)
-            return ErrorInvalidBuffer;
+            return ErrorAddressNotPageAligned;
         for(uint64 i = 0; i < numPages; i++) {
             if(!MemoryManager::IsUserPtr(base + i * 4096))
                 Scheduler::ThreadExit(1);
@@ -489,7 +489,7 @@ namespace MemoryManager {
     }
     SYSCALL_DEFINE2(syscall_free, char* base, uint64 numPages) {
         if((uint64)base & 0xFFF != 0)
-            return ErrorInvalidBuffer;
+            return ErrorAddressNotPageAligned;
         for(uint64 i = 0; i < numPages; i++) {
             if(!MemoryManager::IsUserPtr(base + i * 4096))
                 Scheduler::ThreadExit(1);

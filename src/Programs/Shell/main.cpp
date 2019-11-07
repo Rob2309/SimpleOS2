@@ -1,8 +1,9 @@
 #include <simpleos_vfs.h>
 #include <simpleos_process.h>
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
+#include <simpleos_inout.h>
+#include <simpleos_string.h>
+#include <simpleos_alloc.h>
+#include <simpleos_kill.h>
 
 static char g_History[1024][128];
 static int g_HistoryMinIndex = 1024;
@@ -85,7 +86,7 @@ static void BuiltinCat(int argc, char** argv) {
     puts("\n");
 
     close(fd);
-    exit(0);
+    thread_exit(0);
 }
 
 static void BuiltinTail(int argc, char** argv) {
@@ -323,20 +324,55 @@ static void BuiltinRM(int argc, char** argv) {
         puts("Failed to delete path\n");
 }
 
-static void InvokeCommand() {
-    int argc = 0;
-    char* argv[100];
+static int64 ParseInt64(const char* str) {
+    int64 res = 0;
 
-    char* buf = g_CmdBuffer;
-    char* arg;
-    while((arg = GetToken(buf)) != nullptr) {
-        argv[argc] = arg;
-        argc++;
+    while(*str != '\0') {
+        char c = *str;
+        str++;
+
+        if(c >= '0' && c <= '9') {
+            res *= 10;
+            res += c - '0';
+        } else {
+            break;
+        }
     }
 
-    if(argc == 0)
-        return;
+    return res;
+}
 
+static void BuiltinKill(int argc, char** argv) {
+    if(argc < 2) {
+        puts("Usage: kill <tid...>\n");
+        return;
+    }
+
+    int64 error = kill(ParseInt64(argv[1]));
+    if(error != 0)
+        puts("Failed to kill Thread\n");
+}
+
+static void BuiltinCD(int argc, char** argv) {
+    int64 error;
+    if(argc == 1) {
+        error = changedir("/");
+    } else {
+        error = changedir(argv[1]);
+    }
+
+    if(error != 0)
+        puts("No such file or directory\n");
+}
+
+static void BuiltinPWD(int argc, char** argv) {
+    char buffer[256];
+    pwd(buffer);
+    puts(buffer);
+    puts("\n");
+}
+
+static void InvokeCommand(int argc, char** argv) {
     if(strcmp(argv[0], "echo") == 0) {
         BuiltinEcho(argc, argv);
     } else if(strcmp(argv[0], "cat") == 0) {
@@ -353,12 +389,14 @@ static void InvokeCommand() {
         BuiltinLN(argc, argv);
     } else if(strcmp(argv[0], "tail") == 0) {
         BuiltinTail(argc, argv);
+    } else if(strcmp(argv[0], "kill") == 0) {
+        BuiltinKill(argc, argv);
     } else {
         exec(argv[0], argc, argv);
         puts("Command not found\n");
     }
 
-    exit(0);
+    thread_exit(0);
 }
 
 static void HandleCommand() {
@@ -373,27 +411,34 @@ static void HandleCommand() {
         g_HistoryMinIndex--;
     }
 
-    if(strcmp(g_CmdBuffer, "exit") == 0) {
-        exit(0);
+    int argc = 0;
+    char* argv[100];
+
+    char* buf = g_CmdBuffer;
+    char* arg;
+    while((arg = GetToken(buf)) != nullptr) {
+        argv[argc] = arg;
+        argc++;
+    }
+
+    if(argc == 0)
+        return;
+
+    if(strcmp(argv[0], "exit") == 0) {
+        thread_exit(0);
+    } else if(strcmp(argv[0], "cd") == 0) {
+        BuiltinCD(argc, argv);
+    } else if(strcmp(argv[0], "pwd") == 0) {
+        BuiltinPWD(argc, argv);
     } else {
         int64 tid;
         if(tid = fork()) {
-            while(true) {
-                char c;
-                int64 count = read(stdinfd, &c, 1);
-                if(count != 0) {
-                    if(c == '\3') {
-                        kill(tid);
-                        break;
-                    }
-                }
-
-                if(try_join(tid) == 0)
-                    break;
-            }
+            devcmd(stdoutfd, 1, (void*)tid);
+            join(tid);
+            devcmd(stdoutfd, 1, (void*)gettid());
         } else {
-            InvokeCommand();
-            exit(0);
+            InvokeCommand(argc, argv);
+            thread_exit(0);
         }
     }
     
@@ -402,20 +447,45 @@ static void HandleCommand() {
     g_CmdBufferIndex = 0;
 }
 
-int main(int argc, char** argv) {
+static bool killed = false;
 
+static void HandleKill() {
+    killed = true;
+}
+
+int main(int argc, char** argv) {
+    setkillhandler(HandleKill);
+    devcmd(stdoutfd, 1, (void*)gettid());
+   
     if(argc >= 3 && strcmp(argv[1], "-c") == 0) {
         exec(argv[2], argc - 2, &argv[2]);
 
         puts("Command not found: ");
         puts(argv[2]);
-        exit(1);
+        thread_exit(1);
     }
 
     while(true) {
-        puts("Test Shell > ");
+        char cwdBuffer[256] = { '/' };
+        pwd(cwdBuffer + 1);
+
+        puts(cwdBuffer);
+        puts(" > ");
 
         while(true) {
+            if(killed) {
+                g_HistoryIndex = 1024;
+
+                puts("\n");
+                
+                for(int i = 0; i < 128; i++)
+                    g_CmdBuffer[i] = 0;
+                g_CmdBufferIndex = 0;
+
+                killed = false;
+                break;
+            }
+
             char c;
             int64 count = read(stdinfd, &c, 1);
             if(count == 0)
@@ -460,6 +530,7 @@ int main(int argc, char** argv) {
                 }
             } else {
                 g_HistoryIndex = 1024;
+                
                 g_CmdBuffer[g_CmdBufferIndex++] = c;
                 write(stdoutfd, &c, 1);
             }

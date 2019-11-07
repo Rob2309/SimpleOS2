@@ -19,6 +19,8 @@ public:
 
     uint64 GetBlockSize(uint64 subID) const override;
 
+    int64 DeviceCommand(uint64 subID, int64 command, void* buffer) override;
+
 protected:
     void ScheduleOperation(uint64 subID, uint64 startBlock, uint64 numBlocks, bool write, void* buffer, Atomic<uint64>* finishFlag) override;
 

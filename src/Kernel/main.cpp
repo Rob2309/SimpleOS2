@@ -42,6 +42,8 @@
 
 #include "acpi/ACPI.h"
 
+#include "klib/GlobalConstructors.h"
+
 extern "C" {
     #include "acpica/acpi.h"
 }
@@ -83,6 +85,7 @@ static int64 SetupInitProcess(uint64, uint64) {
 
     klog_info("Init", "Executing init program");
     Scheduler::ThreadExec(pml4Entry, &regs);
+    return 1;
 }
 
 static KernelHeader* g_KernelHeader;
@@ -91,6 +94,8 @@ Terminal::TerminalInfo g_TerminalInfo;
 static int64 SpamThread(uint64, uint64) {
     uint64 fd;
     int64 error = VFS::Open("/spam.txt", VFS::OpenMode_Write | VFS::OpenMode_Create | VFS::OpenMode_Clear, fd); 
+
+    VFS::ChangePermissions("/spam.txt", { 3, 1, 0 });
 
     int i = 0;
 
@@ -164,6 +169,8 @@ static int64 InitThread(uint64, uint64) {
 }
 
 extern "C" void __attribute__((noreturn)) main(KernelHeader* info) {
+    GlobalConstructors::Run();
+
     g_KernelHeader = info;
 
     Terminal::InitTerminalInfo(&g_TerminalInfo, info->screenBuffer, info->screenWidth, info->screenHeight, info->screenScanlineWidth, info->screenColorsInverted);
