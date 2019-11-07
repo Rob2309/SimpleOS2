@@ -2,6 +2,7 @@
 
 #include "types.h"
 #include "interrupts/IDT.h"
+#include "syscalls/SyscallDefine.h"
 
 #include "Thread.h"
 
@@ -150,7 +151,7 @@ namespace Scheduler {
     /**
      * Checks if the current thread was requested to terminate itself, exits if true
      **/
-    void ThreadCheckFlags();
+    void ThreadCheckFlags(SyscallState* state);
 
     /**
      * If this function is called with a non zero value, the thread will not be killed when a page fault occurs.

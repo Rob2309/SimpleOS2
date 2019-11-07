@@ -3,6 +3,7 @@
 #include <simpleos_inout.h>
 #include <simpleos_string.h>
 #include <simpleos_alloc.h>
+#include <simpleos_kill.h>
 
 static char g_History[1024][128];
 static int g_HistoryMinIndex = 1024;
@@ -446,9 +447,14 @@ static void HandleCommand() {
     g_CmdBufferIndex = 0;
 }
 
+static void Kill() {
+    puts("Kill handler called\n");
+}
+
 int main(int argc, char** argv) {
 
     devcmd(stdoutfd, 1, (void*)gettid());
+    setkillhandler(Kill);
 
     if(argc >= 3 && strcmp(argv[1], "-c") == 0) {
         exec(argv[2], argc - 2, &argv[2]);

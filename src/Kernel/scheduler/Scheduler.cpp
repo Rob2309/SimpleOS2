@@ -154,6 +154,7 @@ namespace Scheduler {
         cpuData.idleThread.mainThread = &cpuData.idleThread;
         cpuData.idleThread.tid = 0;
         cpuData.idleThread.killPending = false;
+        cpuData.idleThread.killHandlerRip = 0;
         cpuData.idleThread.memSpace = &cpuData.idleThreadMemSpace;
         cpuData.idleThread.fds = &cpuData.idleThreadFDs;
         cpuData.idleThread.uid = 0;
@@ -181,6 +182,7 @@ namespace Scheduler {
         tInfo->mainThread = tInfo;
         tInfo->tid = g_TIDCounter++;
         tInfo->killPending = false;
+        tInfo->killHandlerRip = 0;
         tInfo->memSpace = memSpace;
         tInfo->fds = fds;
         tInfo->uid = 0;
@@ -266,6 +268,7 @@ namespace Scheduler {
         newT->mainThread = subthread ? tInfo->mainThread : newT;
         newT->tid = g_TIDCounter++;
         newT->killPending = false;
+        newT->killHandlerRip = 0;
         newT->memSpace = memSpace;
         newT->fds = fds;
         newT->uid = tInfo->uid;
@@ -778,9 +781,35 @@ namespace Scheduler {
             IDT::EnableInterrupts();
     }
 
-    void ThreadCheckFlags() {
-        if(g_CPUData.Get().currentThread->killPending)
+    static void SetupKillHandler(SyscallState* state) {
+        auto tInfo = GetCurrentThreadInfo();
+
+        if(tInfo->killHandlerRip != 0) {
+            tInfo->killHandlerReturnState = *state;
+            state->userrip = tInfo->killHandlerRip;
+            state->userrsp = tInfo->killHandlerRsp;
+        } else {
             ThreadExit(1);
+        }
+    }
+
+    void ThreadCheckFlags(SyscallState* state) {
+        auto tInfo = GetCurrentThreadInfo();
+        if(tInfo->killPending) {
+            tInfo->killPending = false;
+            SetupKillHandler(state);
+        }
+    }
+
+    SYSCALL_DEFINE2(syscall_handle_kill, uint64 rip, uint64 rsp) {
+        auto tInfo = GetCurrentThreadInfo();
+
+        tInfo->killHandlerRip = rip;
+        tInfo->killHandlerRsp = rsp;
+    }
+    SYSCALL_DEFINE0(syscall_finish_kill) {
+        auto tInfo = GetCurrentThreadInfo();
+        *state = tInfo->killHandlerReturnState;
     }
 
     extern "C" void ThreadSetPageFaultRip(uint64 rip) {
