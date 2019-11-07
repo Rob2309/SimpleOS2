@@ -70,7 +70,15 @@ namespace Scheduler {
                 klog_info_isr("Scheduler", "Thread %i has exited with code %i", tInfo.tid, tInfo.exitCode);
             } else {
                 if(tInfo.state.type == ThreadState::READY) {
-
+                    bool kernelMode = (tInfo.registers.cs & 0x3) == 0;
+                    if(!kernelMode && tInfo.killPending) {
+                        tInfo.registers.cs = GDT::KernelCode;
+                        tInfo.registers.ds = GDT::KernelData;
+                        tInfo.registers.ss = GDT::KernelData;
+                        tInfo.registers.rip = (uint64)&ThreadExit;
+                        tInfo.registers.userrsp = tInfo.kernelStack;
+                        tInfo.registers.rdi = 1;
+                    }
                 } else if(tInfo.state.type == ThreadState::QUEUE_LOCK) {
                     
                 } else if(tInfo.killPending) {
