@@ -1,7 +1,8 @@
 #pragma once
 
 #include "DeviceDriver.h"
-#include "ktl/vector.h"
+
+#include <vector>
 
 /**
  * This device driver is used for devices that reside directly in RAM (e.g. the initial ramdisk)
@@ -30,5 +31,5 @@ private:
         uint64 numBlocks;
     };
 
-    ktl::vector<DevInfo> m_Devices;
+    std::vector<DevInfo> m_Devices;
 };

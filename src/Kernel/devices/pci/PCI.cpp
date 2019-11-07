@@ -6,7 +6,7 @@
 
 #include "klib/stdio.h"
 
-#include "ktl/vector.h"
+#include <vector>
 
 #include "arch/APIC.h"
 #include "arch/IOAPIC.h"
@@ -50,8 +50,8 @@ namespace PCI {
         uint16 data;
     };
 
-    static ktl::vector<Group> g_Groups;
-    static ktl::vector<Device> g_Devices;
+    static std::vector<Group> g_Groups;
+    static std::vector<Device> g_Devices;
 
     static uint8 g_VectCounter = ISRNumbers::PCIBase;
 

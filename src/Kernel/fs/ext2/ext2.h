@@ -2,8 +2,6 @@
 
 #include "../FileSystem.h"
 
-#include "ktl/vector.h"
-
 namespace Ext2 {
 
     struct __attribute__((packed)) SuperBlock {

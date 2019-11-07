@@ -1,11 +1,13 @@
 #include "DeviceDriver.h"
 
 #include "ktl/AnchorList.h"
-#include "ktl/new.h"
 #include "scheduler/Scheduler.h"
 #include "locks/QueueLock.h"
 #include "fs/VFS.h"
 #include "klib/string.h"
+#include "klib/memory.h"
+
+#include <new>
 
 DeviceDriver::DeviceDriver(Type type, const char* name) 
     : m_Type(type), m_Name(name)
@@ -30,7 +32,7 @@ struct CachedBlock {
     char data[];
 };
 
-static bool GetCachedBlock(uint64 subID, uint64 blockID, uint64 blockSize, ktl::vector<CachedBlock*>& cache, CachedBlock** block) {
+static bool GetCachedBlock(uint64 subID, uint64 blockID, uint64 blockSize, std::vector<CachedBlock*>& cache, CachedBlock** block) {
     for(CachedBlock* cb : cache) {
         if(cb->subID == subID && cb->blockID == blockID) {
             cb->refCount++;
@@ -48,7 +50,7 @@ static bool GetCachedBlock(uint64 subID, uint64 blockID, uint64 blockSize, ktl::
     *block = cb;
     return false;
 }
-static void ReleaseCachedBlock(CachedBlock* cb, ktl::vector<CachedBlock*>& cache) {
+static void ReleaseCachedBlock(CachedBlock* cb, std::vector<CachedBlock*>& cache) {
     cb->refCount--;
     if(cb->refCount == 0) {
         // TODO: Cache clean logic

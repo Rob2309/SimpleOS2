@@ -2,7 +2,8 @@
 
 #include "FileSystem.h"
 #include "locks/StickyLock.h"
-#include "ktl/vector.h"
+
+#include <vector>
 
 namespace VFS {
 
@@ -35,7 +36,7 @@ namespace VFS {
 
     private:
         StickyLock m_PipesLock;
-        ktl::vector<Pipe*> m_Pipes;
+        std::vector<Pipe*> m_Pipes;
     };
 
 }
