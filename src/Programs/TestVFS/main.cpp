@@ -253,6 +253,8 @@ static void Test11() {
 
 int main(int argc, char** argv)
 {
+    while(true);
+
     Test1();
     Test2();
     Test3();
