@@ -44,6 +44,7 @@ namespace ktl {
                 if(seg.size >= size)
                     return &seg;
             }
+            return nullptr;
         }
 
         /**

@@ -7,7 +7,7 @@
 
 #include "devices/DevFS.h"
 
-#include "ktl/vector.h"
+#include <vector>
 
 #include "scheduler/Scheduler.h"
 #include "devices/ps2/PS2Keys.h"
@@ -28,7 +28,7 @@ struct ConsoleInfo {
     bool leftCtrl;
     bool rightCtrl;
 };
-static ktl::vector<ConsoleInfo> g_Consoles;
+static std::vector<ConsoleInfo> g_Consoles;
 
 static void WriteChar(char c) {
     auto& con = g_Consoles[0];
