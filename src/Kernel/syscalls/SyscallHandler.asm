@@ -18,8 +18,6 @@ SyscallEntry:
     mov r10, rsp            ; Save user stack
     mov rsp, [gs:0]         ; Load Kernel rsp
 
-    push r10
-
     push r15
     push r14
     push r13
@@ -46,7 +44,6 @@ SyscallEntry:
     pop r14
     pop r15
 
-    pop r10
     mov rsp, r10
 
     cli

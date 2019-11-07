@@ -2,6 +2,7 @@
 
 #include "types.h"
 #include "interrupts/IDT.h"
+#include "syscalls/SyscallDefine.h"
 
 #include "Thread.h"
 
@@ -80,6 +81,8 @@ namespace Scheduler {
      **/
     int64 ThreadKill(int64 tid);
 
+    int64 ThreadAbort(int64 tid);
+
     /**
      * Suspends the currently active Thread and starts the next one.
      * @param regs [in]  The register state of the currently running Thread; 
@@ -115,6 +118,13 @@ namespace Scheduler {
      * Get the GID of the process owner
      **/
     uint64 ThreadGetGID();
+
+    /**
+     * Changes the threads userinfo.
+     * Can only be called from a root thread.
+     **/
+    int64 ThreadSetUser(uint64 uid, uint64 gid);
+
     /**
      * Get the username of the process owner
      **/
@@ -150,7 +160,7 @@ namespace Scheduler {
     /**
      * Checks if the current thread was requested to terminate itself, exits if true
      **/
-    void ThreadCheckFlags();
+    void ThreadCheckFlags(SyscallState* state, uint64 retVal);
 
     /**
      * If this function is called with a non zero value, the thread will not be killed when a page fault occurs.

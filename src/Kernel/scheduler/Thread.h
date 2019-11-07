@@ -6,6 +6,7 @@
 #include "atomic/Atomics.h"
 #include "locks/StickyLock.h"
 #include "ktl/AnchorList.h"
+#include "syscalls/SyscallDefine.h"
 
 constexpr uint64 KernelStackPages = 3;
 constexpr uint64 KernelStackSize = KernelStackPages * 4096;
@@ -56,11 +57,18 @@ struct ThreadInfo {
     ktl::AnchorList<ThreadInfo, &ThreadInfo::joinListAnchor> childThreads;
 
     int64 tid;
+
+    char cwd[256];
     
     int64 exitCode;
 
     bool killPending;                       // Set this flag to inform a thread that it should kill itself
-    
+    uint64 killHandlerRip;
+    uint64 killHandlerRsp;
+    IDT::Registers killHandlerReturnState;
+
+    bool abortPending;
+
     ThreadMemSpace* memSpace;
     ThreadFileDescriptors* fds;
 

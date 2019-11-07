@@ -148,4 +148,6 @@ namespace VFS {
      **/
     int64 Seek(uint64 desc, SeekMode mode, uint64 offs);
 
+    int64 CD(const char* path);
+
 }

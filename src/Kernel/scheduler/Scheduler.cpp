@@ -51,6 +51,22 @@ namespace Scheduler {
         Tick(regs);
     }
 
+    static void SetupKillHandlerFromTick(ThreadInfo* tInfo) {
+        if(tInfo->killHandlerRip != 0) {
+            tInfo->killHandlerReturnState = tInfo->registers;
+
+            tInfo->registers.rip = tInfo->killHandlerRip;
+            tInfo->registers.userrsp = tInfo->killHandlerRsp;
+        } else {
+            tInfo->registers.cs = GDT::KernelCode;
+            tInfo->registers.ds = GDT::KernelData;
+            tInfo->registers.ss = GDT::KernelData;
+            tInfo->registers.rip = (uint64)&ThreadExit;
+            tInfo->registers.userrsp = tInfo->kernelStack;
+            tInfo->registers.rdi = 1;
+        }
+    }
+
     static void UpdateEvents() {
         auto& cpuData = g_CPUData.Get();
 
@@ -70,10 +86,23 @@ namespace Scheduler {
                 klog_info_isr("Scheduler", "Thread %i has exited with code %i", tInfo.tid, tInfo.exitCode);
             } else {
                 if(tInfo.state.type == ThreadState::READY) {
-
+                    bool kernelMode = (tInfo.registers.cs & 0x3) == 0;
+                    if(!kernelMode && tInfo.killPending) {
+                        tInfo.killPending = false;
+                        SetupKillHandlerFromTick(&tInfo);
+                    }
+                    if(!kernelMode && tInfo.abortPending) {
+                        tInfo.abortPending = false;
+                        tInfo.registers.cs = GDT::KernelCode;
+                        tInfo.registers.ds = GDT::KernelData;
+                        tInfo.registers.ss = GDT::KernelData;
+                        tInfo.registers.rip = (uint64)&ThreadExit;
+                        tInfo.registers.userrsp = tInfo.kernelStack;
+                        tInfo.registers.rdi = 1;
+                    }
                 } else if(tInfo.state.type == ThreadState::QUEUE_LOCK) {
                     
-                } else if(tInfo.killPending) {
+                } else if(tInfo.killPending || tInfo.abortPending) {
                     tInfo.state.type = ThreadState::READY;
                     tInfo.registers.rax = ErrorInterrupted;
                 } else if(tInfo.state.type == ThreadState::SLEEP) {
@@ -154,6 +183,8 @@ namespace Scheduler {
         cpuData.idleThread.mainThread = &cpuData.idleThread;
         cpuData.idleThread.tid = 0;
         cpuData.idleThread.killPending = false;
+        cpuData.idleThread.abortPending = false;
+        cpuData.idleThread.killHandlerRip = 0;
         cpuData.idleThread.memSpace = &cpuData.idleThreadMemSpace;
         cpuData.idleThread.fds = &cpuData.idleThreadFDs;
         cpuData.idleThread.uid = 0;
@@ -163,6 +194,8 @@ namespace Scheduler {
         cpuData.idleThread.cliCount = 1;
         cpuData.idleThread.faultRip = 0;
         cpuData.idleThread.fpuBuffer = nullptr;
+
+        kstrcpy(cpuData.idleThread.cwd, "");
 
         cpuData.currentThread = &cpuData.idleThread;
     }
@@ -179,6 +212,8 @@ namespace Scheduler {
         tInfo->mainThread = tInfo;
         tInfo->tid = g_TIDCounter++;
         tInfo->killPending = false;
+        tInfo->abortPending = false;
+        tInfo->killHandlerRip = 0;
         tInfo->memSpace = memSpace;
         tInfo->fds = fds;
         tInfo->uid = 0;
@@ -189,6 +224,7 @@ namespace Scheduler {
         tInfo->cliCount = 0;
         tInfo->faultRip = 0;
         tInfo->fpuBuffer = nullptr;
+        kstrcpy(tInfo->cwd, "");
 
         tInfo->registers.cs = GDT::KernelCode;
         tInfo->registers.ds = GDT::KernelData;
@@ -263,6 +299,8 @@ namespace Scheduler {
         newT->mainThread = subthread ? tInfo->mainThread : newT;
         newT->tid = g_TIDCounter++;
         newT->killPending = false;
+        newT->abortPending = false;
+        newT->killHandlerRip = 0;
         newT->memSpace = memSpace;
         newT->fds = fds;
         newT->uid = tInfo->uid;
@@ -272,6 +310,7 @@ namespace Scheduler {
         newT->stickyCount = 0;
         newT->cliCount = 0;
         newT->faultRip = 0;
+        kstrcpy(newT->cwd, tInfo->cwd);
         newT->registers = *regs;
         newT->registers.rflags |= CPU::FLAGS_IF;
         newT->fpuBuffer = new char[SSE::GetFPUBlockSize()];
@@ -445,10 +484,6 @@ namespace Scheduler {
         auto tInfo = g_CPUData.Get().currentThread;
         auto uid = tInfo->uid;
 
-        // Thread suicide
-        if(tid == tInfo->tid)
-            ThreadExit(1);
-
         ThreadInfo* killThread = nullptr;
         g_GlobalThreadListLock.Spinlock();
         for(auto& tInfo : g_GlobalThreadList) {
@@ -473,6 +508,36 @@ namespace Scheduler {
     }
     SYSCALL_DEFINE1(syscall_kill, int64 tid) {
         return ThreadKill(tid);
+    }
+
+    int64 ThreadAbort(int64 tid) {
+        auto tInfo = g_CPUData.Get().currentThread;
+        auto uid = tInfo->uid;
+
+        ThreadInfo* killThread = nullptr;
+        g_GlobalThreadListLock.Spinlock();
+        for(auto& tInfo : g_GlobalThreadList) {
+            if(tInfo.tid == tid) {
+                killThread = &tInfo;
+                break;
+            }
+        }
+
+        if(killThread == nullptr) {
+            g_GlobalThreadListLock.Unlock();
+            return ErrorThreadNotFound;
+        }
+        if(uid != 0 && uid != killThread->uid) {
+            g_GlobalThreadListLock.Unlock();
+            return ErrorPermissionDenied;
+        }
+
+        killThread->abortPending = true;
+        g_GlobalThreadListLock.Unlock();
+        return OK;
+    }
+    SYSCALL_DEFINE1(syscall_abort, int64 tid) {
+        return ThreadAbort(tid);
     }
 
     void Tick(IDT::Registers* regs) {
@@ -533,7 +598,7 @@ namespace Scheduler {
             if(jt == nullptr)
                 break;
 
-            jt->killPending = true;
+            jt->abortPending = true;
             
             if(ThreadBlock(ThreadState::JOIN, (uint64)jt) != OK) {
                 tInfo->childThreadsLock.Spinlock();
@@ -592,6 +657,20 @@ namespace Scheduler {
         auto tInfo = g_CPUData.Get().currentThread;
 
         return tInfo->gid;
+    }
+
+    int64 ThreadSetUser(uint64 uid, uint64 gid) {
+        auto tInfo = g_CPUData.Get().currentThread;
+
+        if(tInfo->uid != 0)
+            return ErrorPermissionDenied;
+
+        tInfo->uid = uid;
+        tInfo->gid = gid;
+        return OK;
+    }
+    SYSCALL_DEFINE2(syscall_change_user, uint64 uid, uint64 gid) {
+        return ThreadSetUser(uid, gid);
     }
 
     static ThreadFileDescriptor* FindFreeFD(ThreadInfo* tInfo) {
@@ -774,9 +853,61 @@ namespace Scheduler {
             IDT::EnableInterrupts();
     }
 
-    void ThreadCheckFlags() {
-        if(g_CPUData.Get().currentThread->killPending)
+    static void SetupKillHandlerFromSyscall(SyscallState* state, uint64 retVal) {
+        auto tInfo = GetCurrentThreadInfo();
+
+        if(tInfo->killHandlerRip != 0) {
+            tInfo->killHandlerReturnState = {
+                GDT::UserData,
+                state->userr15,
+                state->userr14,
+                state->userr13,
+                state->userr12,
+                0, 0, 0, 0,
+                0, 0, state->userrbp, state->userrbx,
+                0, 0, retVal,
+                0, 0,
+                state->userrip, GDT::UserCode,
+                state->userflags, state->userrsp, GDT::UserData
+            };
+
+            state->userrip = tInfo->killHandlerRip;
+            state->userrsp = tInfo->killHandlerRsp;
+        } else {
             ThreadExit(1);
+        }
+    }
+
+    void ThreadCheckFlags(SyscallState* state, uint64 retVal) {
+        auto tInfo = GetCurrentThreadInfo();
+        if(tInfo->killPending) {
+            tInfo->killPending = false;
+            SetupKillHandlerFromSyscall(state, retVal);
+        }
+        if(tInfo->abortPending) {
+            ThreadExit(1);
+        }
+    }
+
+    SYSCALL_DEFINE2(syscall_handle_kill, uint64 rip, uint64 rsp) {
+        auto tInfo = GetCurrentThreadInfo();
+
+        tInfo->killHandlerRip = rip;
+        tInfo->killHandlerRsp = rsp;
+
+        return OK;
+    }
+    SYSCALL_DEFINE0(syscall_finish_kill) {
+        auto tInfo = GetCurrentThreadInfo();
+        
+        IDT::DisableInterrupts();
+
+        SaveThreadState(tInfo);
+        tInfo->registers = tInfo->killHandlerReturnState;
+        LoadThreadState(tInfo);
+        GoToThread(&tInfo->registers);
+
+        return OK;
     }
 
     extern "C" void ThreadSetPageFaultRip(uint64 rip) {

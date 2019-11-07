@@ -1,5 +1,5 @@
-#include <stdlib.h>
-#include <stdio.h>
+#include <simpleos_vfs.h>
+#include <simpleos_inout.h>
 
 int main(int argc, char** argv) {
     if(argc < 2) {

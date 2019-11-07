@@ -95,6 +95,8 @@ static int64 SpamThread(uint64, uint64) {
     uint64 fd;
     int64 error = VFS::Open("/spam.txt", VFS::OpenMode_Write | VFS::OpenMode_Create | VFS::OpenMode_Clear, fd); 
 
+    VFS::ChangePermissions("/spam.txt", { 3, 1, 0 });
+
     int i = 0;
 
     while(true) {
