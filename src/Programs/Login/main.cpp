@@ -2,6 +2,7 @@
 #include <simpleos_string.h>
 #include <simpleos_inout.h>
 #include <simpleos_vfs.h>
+#include <simpleos_kill.h>
 
 struct UserInfo {
     uint64 uid;
@@ -61,8 +62,14 @@ static void RunUser(uint64 uid, uint64 gid) {
     }
 }
 
+static void HandleKill() {
+    puts("\n");
+    exec("/boot/Login.elf", 0, nullptr);
+}
+
 int main(int argc, char** argv)
 {
+    setkillhandler(HandleKill);
     devcmd(stdoutfd, 1, (void*)gettid());
 
     while(true) {

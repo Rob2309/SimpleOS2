@@ -894,6 +894,8 @@ namespace Scheduler {
 
         tInfo->killHandlerRip = rip;
         tInfo->killHandlerRsp = rsp;
+
+        return OK;
     }
     SYSCALL_DEFINE0(syscall_finish_kill) {
         auto tInfo = GetCurrentThreadInfo();
@@ -904,6 +906,8 @@ namespace Scheduler {
         tInfo->registers = tInfo->killHandlerReturnState;
         LoadThreadState(tInfo);
         GoToThread(&tInfo->registers);
+
+        return OK;
     }
 
     extern "C" void ThreadSetPageFaultRip(uint64 rip) {

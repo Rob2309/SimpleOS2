@@ -447,8 +447,14 @@ static void HandleCommand() {
     g_CmdBufferIndex = 0;
 }
 
-int main(int argc, char** argv) {
+static bool killed = false;
 
+static void HandleKill() {
+    killed = true;
+}
+
+int main(int argc, char** argv) {
+    setkillhandler(HandleKill);
     devcmd(stdoutfd, 1, (void*)gettid());
    
     if(argc >= 3 && strcmp(argv[1], "-c") == 0) {
@@ -467,6 +473,19 @@ int main(int argc, char** argv) {
         puts(" > ");
 
         while(true) {
+            if(killed) {
+                g_HistoryIndex = 1024;
+
+                puts("\n");
+                
+                for(int i = 0; i < 128; i++)
+                    g_CmdBuffer[i] = 0;
+                g_CmdBufferIndex = 0;
+
+                killed = false;
+                break;
+            }
+
             char c;
             int64 count = read(stdinfd, &c, 1);
             if(count == 0)
