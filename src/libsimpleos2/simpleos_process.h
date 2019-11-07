@@ -71,6 +71,8 @@ int64 try_join(int64 tid);
  **/
 int64 kill(int64 tid);
 
+int64 abort(int64 tid);
+
 /**
  * Returns the username of the user that owns this thread.
  **/

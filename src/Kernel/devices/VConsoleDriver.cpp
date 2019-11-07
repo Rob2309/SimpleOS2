@@ -89,6 +89,10 @@ static int64 VConsoleThread(uint64, uint64) {
             if(con.foregroundTid != 0) {
                 Scheduler::ThreadKill(con.foregroundTid);
             }
+        } else if(con.leftCtrl && key == PS2::KEY_A) {
+            if(con.foregroundTid != 0) {
+                Scheduler::ThreadAbort(con.foregroundTid);
+            }
         } else {
             if(key & PS2::KEY_RELEASED)
                 continue;

@@ -91,9 +91,18 @@ namespace Scheduler {
                         tInfo.killPending = false;
                         SetupKillHandlerFromTick(&tInfo);
                     }
+                    if(!kernelMode && tInfo.abortPending) {
+                        tInfo.abortPending = false;
+                        tInfo.registers.cs = GDT::KernelCode;
+                        tInfo.registers.ds = GDT::KernelData;
+                        tInfo.registers.ss = GDT::KernelData;
+                        tInfo.registers.rip = (uint64)&ThreadExit;
+                        tInfo.registers.userrsp = tInfo.kernelStack;
+                        tInfo.registers.rdi = 1;
+                    }
                 } else if(tInfo.state.type == ThreadState::QUEUE_LOCK) {
                     
-                } else if(tInfo.killPending) {
+                } else if(tInfo.killPending || tInfo.abortPending) {
                     tInfo.state.type = ThreadState::READY;
                     tInfo.registers.rax = ErrorInterrupted;
                 } else if(tInfo.state.type == ThreadState::SLEEP) {
@@ -174,6 +183,7 @@ namespace Scheduler {
         cpuData.idleThread.mainThread = &cpuData.idleThread;
         cpuData.idleThread.tid = 0;
         cpuData.idleThread.killPending = false;
+        cpuData.idleThread.abortPending = false;
         cpuData.idleThread.killHandlerRip = 0;
         cpuData.idleThread.memSpace = &cpuData.idleThreadMemSpace;
         cpuData.idleThread.fds = &cpuData.idleThreadFDs;
@@ -202,6 +212,7 @@ namespace Scheduler {
         tInfo->mainThread = tInfo;
         tInfo->tid = g_TIDCounter++;
         tInfo->killPending = false;
+        tInfo->abortPending = false;
         tInfo->killHandlerRip = 0;
         tInfo->memSpace = memSpace;
         tInfo->fds = fds;
@@ -288,6 +299,7 @@ namespace Scheduler {
         newT->mainThread = subthread ? tInfo->mainThread : newT;
         newT->tid = g_TIDCounter++;
         newT->killPending = false;
+        newT->abortPending = false;
         newT->killHandlerRip = 0;
         newT->memSpace = memSpace;
         newT->fds = fds;
@@ -472,10 +484,6 @@ namespace Scheduler {
         auto tInfo = g_CPUData.Get().currentThread;
         auto uid = tInfo->uid;
 
-        // Thread suicide
-        if(tid == tInfo->tid)
-            ThreadExit(1);
-
         ThreadInfo* killThread = nullptr;
         g_GlobalThreadListLock.Spinlock();
         for(auto& tInfo : g_GlobalThreadList) {
@@ -500,6 +508,36 @@ namespace Scheduler {
     }
     SYSCALL_DEFINE1(syscall_kill, int64 tid) {
         return ThreadKill(tid);
+    }
+
+    int64 ThreadAbort(int64 tid) {
+        auto tInfo = g_CPUData.Get().currentThread;
+        auto uid = tInfo->uid;
+
+        ThreadInfo* killThread = nullptr;
+        g_GlobalThreadListLock.Spinlock();
+        for(auto& tInfo : g_GlobalThreadList) {
+            if(tInfo.tid == tid) {
+                killThread = &tInfo;
+                break;
+            }
+        }
+
+        if(killThread == nullptr) {
+            g_GlobalThreadListLock.Unlock();
+            return ErrorThreadNotFound;
+        }
+        if(uid != 0 && uid != killThread->uid) {
+            g_GlobalThreadListLock.Unlock();
+            return ErrorPermissionDenied;
+        }
+
+        killThread->abortPending = true;
+        g_GlobalThreadListLock.Unlock();
+        return OK;
+    }
+    SYSCALL_DEFINE1(syscall_abort, int64 tid) {
+        return ThreadAbort(tid);
     }
 
     void Tick(IDT::Registers* regs) {
@@ -560,7 +598,7 @@ namespace Scheduler {
             if(jt == nullptr)
                 break;
 
-            jt->killPending = true;
+            jt->abortPending = true;
             
             if(ThreadBlock(ThreadState::JOIN, (uint64)jt) != OK) {
                 tInfo->childThreadsLock.Spinlock();
@@ -831,6 +869,9 @@ namespace Scheduler {
         if(tInfo->killPending) {
             tInfo->killPending = false;
             SetupKillHandlerFromSyscall(state, retVal);
+        }
+        if(tInfo->abortPending) {
+            ThreadExit(1);
         }
     }
 

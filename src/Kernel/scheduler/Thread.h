@@ -67,6 +67,8 @@ struct ThreadInfo {
     uint64 killHandlerRsp;
     IDT::Registers killHandlerReturnState;
 
+    bool abortPending;
+
     ThreadMemSpace* memSpace;
     ThreadFileDescriptors* fds;
 

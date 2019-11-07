@@ -43,6 +43,9 @@ int64 try_join(int64 tid) {
 int64 kill(int64 tid) {
     return syscall_invoke(syscall_kill, tid);
 }
+int64 abort(int64 tid) {
+    return syscall_invoke(syscall_abort, tid);
+}
 
 void whoami(char* buffer) {
     syscall_invoke(syscall_whoami, (uint64)buffer);

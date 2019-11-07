@@ -81,6 +81,8 @@ namespace Scheduler {
      **/
     int64 ThreadKill(int64 tid);
 
+    int64 ThreadAbort(int64 tid);
+
     /**
      * Suspends the currently active Thread and starts the next one.
      * @param regs [in]  The register state of the currently running Thread; 

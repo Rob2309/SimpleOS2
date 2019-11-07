@@ -19,6 +19,7 @@ constexpr uint64 syscall_kill = 12;
 constexpr uint64 syscall_statl = 13;
 constexpr uint64 syscall_cd = 14;
 constexpr uint64 syscall_pwd = 15;
+constexpr uint64 syscall_abort = 16;
 
 constexpr uint64 syscall_handle_kill = 20;
 constexpr uint64 syscall_finish_kill = 21;
