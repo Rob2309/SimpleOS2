@@ -118,6 +118,13 @@ namespace Scheduler {
      * Get the GID of the process owner
      **/
     uint64 ThreadGetGID();
+
+    /**
+     * Changes the threads userinfo.
+     * Can only be called from a root thread.
+     **/
+    int64 ThreadSetUser(uint64 uid, uint64 gid);
+
     /**
      * Get the username of the process owner
      **/

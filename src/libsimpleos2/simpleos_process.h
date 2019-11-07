@@ -77,3 +77,5 @@ int64 abort(int64 tid);
  * Returns the username of the user that owns this thread.
  **/
 void whoami(char* buffer);
+
+int64 changeuser(uint64 uid, uint64 gid);

@@ -50,3 +50,7 @@ int64 abort(int64 tid) {
 void whoami(char* buffer) {
     syscall_invoke(syscall_whoami, (uint64)buffer);
 }
+
+int64 changeuser(uint64 uid, uint64 gid) {
+    return syscall_invoke(syscall_change_user, uid, gid);
+}

@@ -84,6 +84,8 @@ programs: FORCE
 	@ $(MAKE) -s -C src/Programs/Cat
 	@ printf "\e[32mBuilding TestThreading\e[0m\n"
 	@ $(MAKE) -s -C src/Programs/TestThreading
+	@ printf "\e[32mBuilding Login\e[0m\n"
+	@ $(MAKE) -s -C src/Programs/Login
 rdbuilder: FORCE
 	@ printf "\e[32mBuilding initrd tool\e[0m\n"
 	@ $(MAKE) -s -C src/RamdiskBuilder
