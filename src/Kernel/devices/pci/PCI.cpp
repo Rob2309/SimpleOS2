@@ -87,6 +87,10 @@ namespace PCI {
         uint8 subclass = (classVal >> 16) & 0xFF;
         uint8 progif = (classVal >> 8) & 0xFF;
 
+        uint32 subsystemVal = ReadConfigDWord(group, bus, device, func, 0x2C);
+        dev.subsystemVendorID = subsystemVal & 0xFFFF;
+        dev.subsystemID = (subsystemVal >> 16) & 0xFFFF;
+
         dev.classCode = classCode;
         dev.subclassCode = subclass;
         dev.progIf = progif;
@@ -186,6 +190,14 @@ namespace PCI {
     const Device* FindDevice(uint8 classCode, uint8 subclassCode) {
         for(const Device& dev : g_Devices) {
             if(dev.classCode == classCode && dev.subclassCode == subclassCode)
+                return &dev;
+        }
+        return nullptr;
+    }
+
+    const Device* FindDeviceBySubsystem(uint16 vendorID, uint16 subsystemID) {
+        for(const Device& dev : g_Devices) {
+            if(dev.vendorID == vendorID && dev.subsystemID == subsystemID)
                 return &dev;
         }
         return nullptr;

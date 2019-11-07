@@ -22,6 +22,9 @@ namespace PCI {
         int numBARs;
         uint64 BARs[6];
 
+        uint16 subsystemID;
+        uint64 subsystemVendorID;
+
         uint64 memBase;
 
         void* msi;
@@ -32,6 +35,7 @@ namespace PCI {
     void SetInterruptHandler(Device* dev, IDT::ISR handler);
 
     const Device* FindDevice(uint8 classCode, uint8 subclassCode);
+    const Device* FindDeviceBySubsystem(uint16 vendorID, uint16 subsystemID);
 
     uint8 ReadConfigByte(uint16 groupID, uint8 bus, uint8 device, uint8 function, uint32 reg);
     uint16 ReadConfigWord(uint16 groupID, uint8 bus, uint8 device, uint8 function, uint32 reg);
