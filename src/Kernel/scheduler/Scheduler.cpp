@@ -51,6 +51,22 @@ namespace Scheduler {
         Tick(regs);
     }
 
+    static void SetupKillHandlerFromTick(ThreadInfo* tInfo) {
+        if(tInfo->killHandlerRip != 0) {
+            tInfo->killHandlerReturnState = tInfo->registers;
+
+            tInfo->registers.rip = tInfo->killHandlerRip;
+            tInfo->registers.userrsp = tInfo->killHandlerRsp;
+        } else {
+            tInfo->registers.cs = GDT::KernelCode;
+            tInfo->registers.ds = GDT::KernelData;
+            tInfo->registers.ss = GDT::KernelData;
+            tInfo->registers.rip = (uint64)&ThreadExit;
+            tInfo->registers.userrsp = tInfo->kernelStack;
+            tInfo->registers.rdi = 1;
+        }
+    }
+
     static void UpdateEvents() {
         auto& cpuData = g_CPUData.Get();
 
@@ -72,12 +88,8 @@ namespace Scheduler {
                 if(tInfo.state.type == ThreadState::READY) {
                     bool kernelMode = (tInfo.registers.cs & 0x3) == 0;
                     if(!kernelMode && tInfo.killPending) {
-                        tInfo.registers.cs = GDT::KernelCode;
-                        tInfo.registers.ds = GDT::KernelData;
-                        tInfo.registers.ss = GDT::KernelData;
-                        tInfo.registers.rip = (uint64)&ThreadExit;
-                        tInfo.registers.userrsp = tInfo.kernelStack;
-                        tInfo.registers.rdi = 1;
+                        tInfo.killPending = false;
+                        SetupKillHandlerFromTick(&tInfo);
                     }
                 } else if(tInfo.state.type == ThreadState::QUEUE_LOCK) {
                     
@@ -789,12 +801,24 @@ namespace Scheduler {
             IDT::EnableInterrupts();
     }
 
-    static void SetupKillHandler(SyscallState* state, uint64 retVal) {
+    static void SetupKillHandlerFromSyscall(SyscallState* state, uint64 retVal) {
         auto tInfo = GetCurrentThreadInfo();
 
         if(tInfo->killHandlerRip != 0) {
-            tInfo->killHandlerReturnState = *state;
-            tInfo->killHandlerReturnValue = retVal;
+            tInfo->killHandlerReturnState = {
+                GDT::UserData,
+                state->userr15,
+                state->userr14,
+                state->userr13,
+                state->userr12,
+                0, 0, 0, 0,
+                0, 0, state->userrbp, state->userrbx,
+                0, 0, retVal,
+                0, 0,
+                state->userrip, GDT::UserCode,
+                state->userflags, state->userrsp, GDT::UserData
+            };
+
             state->userrip = tInfo->killHandlerRip;
             state->userrsp = tInfo->killHandlerRsp;
         } else {
@@ -806,7 +830,7 @@ namespace Scheduler {
         auto tInfo = GetCurrentThreadInfo();
         if(tInfo->killPending) {
             tInfo->killPending = false;
-            SetupKillHandler(state, retVal);
+            SetupKillHandlerFromSyscall(state, retVal);
         }
     }
 
@@ -818,8 +842,13 @@ namespace Scheduler {
     }
     SYSCALL_DEFINE0(syscall_finish_kill) {
         auto tInfo = GetCurrentThreadInfo();
-        *state = tInfo->killHandlerReturnState;
-        return tInfo->killHandlerReturnValue;
+        
+        IDT::DisableInterrupts();
+
+        SaveThreadState(tInfo);
+        tInfo->registers = tInfo->killHandlerReturnState;
+        LoadThreadState(tInfo);
+        GoToThread(&tInfo->registers);
     }
 
     extern "C" void ThreadSetPageFaultRip(uint64 rip) {

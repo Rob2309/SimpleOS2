@@ -65,8 +65,7 @@ struct ThreadInfo {
     bool killPending;                       // Set this flag to inform a thread that it should kill itself
     uint64 killHandlerRip;
     uint64 killHandlerRsp;
-    SyscallState killHandlerReturnState;
-    uint64 killHandlerReturnValue;
+    IDT::Registers killHandlerReturnState;
 
     ThreadMemSpace* memSpace;
     ThreadFileDescriptors* fds;

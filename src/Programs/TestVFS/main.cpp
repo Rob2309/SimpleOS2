@@ -2,6 +2,7 @@
 #include <simpleos_vfs.h>
 #include <simpleos_inout.h>
 #include <simpleos_string.h>
+#include <simpleos_kill.h>
 
 // Test1: create folder, link to folder, create file using symlink, open file using original folder
 static void Test1() {
@@ -251,10 +252,12 @@ static void Test11() {
     puts("Test 11 successful\n");
 }
 
+static void Kill() {
+    puts("Kill handler called\n");
+}
+
 int main(int argc, char** argv)
 {
-    while(true);
-
     Test1();
     Test2();
     Test3();

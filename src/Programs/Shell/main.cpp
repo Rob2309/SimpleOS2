@@ -447,15 +447,10 @@ static void HandleCommand() {
     g_CmdBufferIndex = 0;
 }
 
-static void Kill() {
-    puts("Kill handler called\n");
-}
-
 int main(int argc, char** argv) {
 
     devcmd(stdoutfd, 1, (void*)gettid());
-    setkillhandler(Kill);
-
+   
     if(argc >= 3 && strcmp(argv[1], "-c") == 0) {
         exec(argv[2], argc - 2, &argv[2]);
 
