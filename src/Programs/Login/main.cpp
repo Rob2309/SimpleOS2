@@ -72,6 +72,17 @@ int main(int argc, char** argv)
     setkillhandler(HandleKill);
     devcmd(stdoutfd, 1, (void*)gettid());
 
+    puts("This is a dummy login agent\n");
+    puts("The following users are available:\n");
+    for(const auto& u : g_Users) {
+        puts(u.username);
+        for(int i = 0; i < 20 - strlen(u.username); i++)
+            puts(" ");
+        puts("password: ");
+        puts(u.pw);
+        puts("\n");
+    }
+
     while(true) {
         puts("Username: ");
 
