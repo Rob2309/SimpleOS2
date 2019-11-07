@@ -148,7 +148,7 @@ namespace SyscallHandler {
             Scheduler::ThreadExit(1);
         }
 
-        Scheduler::ThreadCheckFlags(state);
+        Scheduler::ThreadCheckFlags(state, res);
         return res;
     }
 

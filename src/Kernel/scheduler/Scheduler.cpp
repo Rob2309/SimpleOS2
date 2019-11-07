@@ -781,11 +781,12 @@ namespace Scheduler {
             IDT::EnableInterrupts();
     }
 
-    static void SetupKillHandler(SyscallState* state) {
+    static void SetupKillHandler(SyscallState* state, uint64 retVal) {
         auto tInfo = GetCurrentThreadInfo();
 
         if(tInfo->killHandlerRip != 0) {
             tInfo->killHandlerReturnState = *state;
+            tInfo->killHandlerReturnValue = retVal;
             state->userrip = tInfo->killHandlerRip;
             state->userrsp = tInfo->killHandlerRsp;
         } else {
@@ -793,11 +794,11 @@ namespace Scheduler {
         }
     }
 
-    void ThreadCheckFlags(SyscallState* state) {
+    void ThreadCheckFlags(SyscallState* state, uint64 retVal) {
         auto tInfo = GetCurrentThreadInfo();
         if(tInfo->killPending) {
             tInfo->killPending = false;
-            SetupKillHandler(state);
+            SetupKillHandler(state, retVal);
         }
     }
 
@@ -810,6 +811,7 @@ namespace Scheduler {
     SYSCALL_DEFINE0(syscall_finish_kill) {
         auto tInfo = GetCurrentThreadInfo();
         *state = tInfo->killHandlerReturnState;
+        return tInfo->killHandlerReturnValue;
     }
 
     extern "C" void ThreadSetPageFaultRip(uint64 rip) {

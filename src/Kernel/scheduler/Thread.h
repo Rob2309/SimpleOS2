@@ -66,6 +66,7 @@ struct ThreadInfo {
     uint64 killHandlerRip;
     uint64 killHandlerRsp;
     SyscallState killHandlerReturnState;
+    uint64 killHandlerReturnValue;
 
     ThreadMemSpace* memSpace;
     ThreadFileDescriptors* fds;

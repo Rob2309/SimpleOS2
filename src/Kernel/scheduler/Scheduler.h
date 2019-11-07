@@ -151,7 +151,7 @@ namespace Scheduler {
     /**
      * Checks if the current thread was requested to terminate itself, exits if true
      **/
-    void ThreadCheckFlags(SyscallState* state);
+    void ThreadCheckFlags(SyscallState* state, uint64 retVal);
 
     /**
      * If this function is called with a non zero value, the thread will not be killed when a page fault occurs.
