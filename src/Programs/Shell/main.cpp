@@ -372,6 +372,27 @@ static void BuiltinPWD(int argc, char** argv) {
     puts("\n");
 }
 
+static void BuiltinMount(int argc, char** argv) {
+    if(argc < 3) {
+        puts("Usage: mount <mountpoint> <fsid> [device]\n");
+        return;
+    }
+
+    const char* mp = argv[1];
+    const char* fsID = argv[2];
+
+    if(argc == 3) {
+        int64 err = mount(mp, fsID);
+        if(err)
+            puts("Failed to mount\n");
+    } else {
+        const char* dev = argv[3];
+        int64 err = mount(mp, fsID, dev);
+        if(err)
+            puts("Failed to mount\n");
+    }
+}
+
 static void InvokeCommand(int argc, char** argv) {
     if(strcmp(argv[0], "echo") == 0) {
         BuiltinEcho(argc, argv);
@@ -391,6 +412,8 @@ static void InvokeCommand(int argc, char** argv) {
         BuiltinTail(argc, argv);
     } else if(strcmp(argv[0], "kill") == 0) {
         BuiltinKill(argc, argv);
+    } else if(strcmp(argv[0], "mount") == 0) {
+        BuiltinMount(argc, argv);
     } else {
         exec(argv[0], argc, argv);
         puts("Command not found\n");
