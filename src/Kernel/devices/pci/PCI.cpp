@@ -172,7 +172,7 @@ namespace PCI {
         for(const auto& [info, factory] : g_Drivers) {
             if(info.vendorID != 0xFFFF && info.vendorID != dev.vendorID)
                 continue;
-            if(info.deviceID != 0xFFFF && info.deviceID != dev.deviceID);
+            if(info.deviceID != 0xFFFF && info.deviceID != dev.deviceID)
                 continue;
             if(info.classCode != 0xFF && info.classCode != dev.classCode)
                 continue;
@@ -238,7 +238,7 @@ namespace PCI {
             msi32->data = vect;
         }
 
-        IDT::SetInternalISR(vect, handler);
+        IDT::SetISR(vect, handler);
 
         klog_info("PCIe", "Allocated interrupt %i for device %i:%i:%i:%i", vect, dev.group, dev.bus, dev.device, dev.function);
     }
