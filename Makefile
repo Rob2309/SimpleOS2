@@ -32,11 +32,11 @@ depcheck: FORCE
 run: FORCE
 	@ $(MAKE) -s disk
 	@ printf "\e[32mStarting SimpleOS2 in Qemu\e[0m\n"
-	@ $(QEMU_X64) -machine q35 -m 1024 -cpu qemu64 -smp 1 -net none -drive if=pflash,unit=0,format=raw,file=dep/ovmf/x64/OVMF_CODE.fd,readonly=on -drive if=pflash,unit=1,format=raw,file=dep/ovmf/x64/OVMF_VARS.fd,readonly=on -drive file=$(bin_dir)/SimpleOS2.img,if=ide
+	@ $(QEMU_X64) -machine q35 -m 1024 -cpu qemu64 -smp 1 -device virtio-net-pci -drive if=pflash,unit=0,format=raw,file=dep/ovmf/x64/OVMF_CODE.fd,readonly=on -drive if=pflash,unit=1,format=raw,file=dep/ovmf/x64/OVMF_VARS.fd,readonly=on -drive file=$(bin_dir)/SimpleOS2.img,if=ide
 runkvm: FORCE
 	@ $(MAKE) -s disk
 	@ printf "\e[32mStarting SimpleOS2 in Qemu (KVM)\e[0m\n"
-	@ sudo $(QEMU_X64) -enable-kvm -machine q35 -m 1024 -cpu host,+invtsc -smp 4 -net none -drive if=pflash,unit=0,format=raw,file=dep/ovmf/x64/OVMF_CODE.fd,readonly=on -drive if=pflash,unit=1,format=raw,file=dep/ovmf/x64/OVMF_VARS.fd,readonly=on -drive file=$(bin_dir)/SimpleOS2.img,if=ide
+	@ sudo $(QEMU_X64) -enable-kvm -machine q35 -m 1024 -cpu host,+invtsc -smp 4 -device virtio-net-pci -drive if=pflash,unit=0,format=raw,file=dep/ovmf/x64/OVMF_CODE.fd,readonly=on -drive if=pflash,unit=1,format=raw,file=dep/ovmf/x64/OVMF_VARS.fd,readonly=on -drive file=$(bin_dir)/SimpleOS2.img,if=ide
 runvbox: FORCE
 	@ $(MAKE) -s diskvbox
 	@ printf "\e[32mStarting SimpleOS2 in VirtualBox\e[0m\n"
@@ -49,7 +49,7 @@ debug: FORCE
 	@ mkdir -p $(build_dir)/dbgSession
 	@ rm -f $(build_dir)/dbgSession/Kernel.sys.dbg
 	@ cp $(bin_dir)/Kernel/Kernel.sys.dbg $(build_dir)/dbgSession/Kernel.sys.dbg
-	@ $(QEMU_X64) -gdb tcp::26000 -m 1024 -machine q35 -cpu qemu64 -net none -drive if=pflash,unit=0,format=raw,file=dep/ovmf/x64/OVMF_CODE.fd,readonly=on -drive if=pflash,unit=1,format=raw,file=dep/ovmf/x64/OVMF_VARS.fd,readonly=on -drive file=$(bin_dir)/SimpleOS2.img,if=ide -S & \
+	@ $(QEMU_X64) -gdb tcp::26000 -m 1024 -machine q35 -cpu qemu64 -device virtio-net-pci -drive if=pflash,unit=0,format=raw,file=dep/ovmf/x64/OVMF_CODE.fd,readonly=on -drive if=pflash,unit=1,format=raw,file=dep/ovmf/x64/OVMF_VARS.fd,readonly=on -drive file=$(bin_dir)/SimpleOS2.img,if=ide -S & \
 	  gdb --command=debug.cmd
 debugkvm: FORCE
 	@ $(MAKE) -s disk

@@ -265,10 +265,11 @@ extern "C" {
 
     ACPI_STATUS AcpiOsReadPciConfiguration(ACPI_PCI_ID* pciID, UINT32 reg, UINT64* val, UINT32 width) {
         switch(width) {
-        case 8:  *val = PCI::ReadConfigByte(pciID->Segment, pciID->Bus, pciID->Device, pciID->Function, reg); break;
+        /*case 8:  *val = PCI::ReadConfigByte(pciID->Segment, pciID->Bus, pciID->Device, pciID->Function, reg); break;
         case 16: *val = PCI::ReadConfigWord(pciID->Segment, pciID->Bus, pciID->Device, pciID->Function, reg); break;
         case 32: *val = PCI::ReadConfigDWord(pciID->Segment, pciID->Bus, pciID->Device, pciID->Function, reg); break;
-        case 64: *val = PCI::ReadConfigQWord(pciID->Segment, pciID->Bus, pciID->Device, pciID->Function, reg); break;
+        case 64: *val = PCI::ReadConfigQWord(pciID->Segment, pciID->Bus, pciID->Device, pciID->Function, reg); break;*/
+        default: return AE_NOT_IMPLEMENTED;
         }
 
         return AE_OK;
@@ -276,10 +277,11 @@ extern "C" {
 
     ACPI_STATUS AcpiOsWritePciConfiguration(ACPI_PCI_ID* pciID, UINT32 reg, UINT64 val, UINT32 width) {
         switch(width) {
-        case 8: PCI::WriteConfigByte(pciID->Segment, pciID->Bus, pciID->Device, pciID->Function, reg, val); break;
+        /*case 8: PCI::WriteConfigByte(pciID->Segment, pciID->Bus, pciID->Device, pciID->Function, reg, val); break;
         case 16: PCI::WriteConfigWord(pciID->Segment, pciID->Bus, pciID->Device, pciID->Function, reg, val); break;
         case 32: PCI::WriteConfigDWord(pciID->Segment, pciID->Bus, pciID->Device, pciID->Function, reg, val); break;
-        case 64: PCI::WriteConfigQWord(pciID->Segment, pciID->Bus, pciID->Device, pciID->Function, reg, val); break;
+        case 64: PCI::WriteConfigQWord(pciID->Segment, pciID->Bus, pciID->Device, pciID->Function, reg, val); break;*/
+        default: return AE_NOT_IMPLEMENTED;
         }
 
         return AE_OK;

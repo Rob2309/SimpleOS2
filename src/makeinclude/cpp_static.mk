@@ -25,7 +25,7 @@ $(int_dir)/%.c.o: ./%.c $(c_headers) $(cross_headers)
 $(int_dir)/%.cpp.o: ./%.cpp $(c_headers) $(cross_headers)
 	@ printf "\e[33mCompiling $<\e[0m\n"
 	@ mkdir -p $(dir $@)
-	@ $(cpp_compiler) $(compile_flags) $(include_flags) -c $< -o $@
+	@ $(cpp_compiler) $(compile_flags) $(include_flags) -std=c++17 -c $< -o $@
 $(int_dir)/%.asm.o: ./%.asm $(cross_headers)
 	@ printf "\e[33mCompiling $<\e[0m\n"
 	@ mkdir -p $(dir $@)

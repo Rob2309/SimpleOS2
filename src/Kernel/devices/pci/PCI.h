@@ -3,6 +3,7 @@
 #include "types.h"
 
 #include "interrupts/IDT.h"
+#include "../DeviceDriver.h"
 
 namespace PCI {
 
@@ -23,28 +24,38 @@ namespace PCI {
         uint64 BARs[6];
 
         uint16 subsystemID;
-        uint64 subsystemVendorID;
+        uint16 subsystemVendorID;
 
         uint64 memBase;
 
         void* msi;
     };
 
-    void SetPinEntry(uint8 dev, uint8 pin, uint8 gsi);
+    struct DriverInfo {
+        uint16 vendorID;
+        uint16 deviceID;
 
-    void SetInterruptHandler(Device* dev, IDT::ISR handler);
+        uint8 classCode;
+        uint8 subclassCode;
+        uint8 progIf;
 
-    const Device* FindDevice(uint8 classCode, uint8 subclassCode);
-    const Device* FindDeviceBySubsystem(uint16 vendorID, uint16 subsystemID);
+        uint16 subsystemID;
+        uint16 subsystemVendorID;
+    };
 
-    uint8 ReadConfigByte(uint16 groupID, uint8 bus, uint8 device, uint8 function, uint32 reg);
-    uint16 ReadConfigWord(uint16 groupID, uint8 bus, uint8 device, uint8 function, uint32 reg);
-    uint32 ReadConfigDWord(uint16 groupID, uint8 bus, uint8 device, uint8 function, uint32 reg);
-    uint64 ReadConfigQWord(uint16 groupID, uint8 bus, uint8 device, uint8 function, uint32 reg);
+    typedef void (*PCIDriverFactory)(const Device& dev);
+    void RegisterDriver(const DriverInfo& info, PCIDriverFactory factory);
 
-    void WriteConfigByte(uint16 groupID, uint8 bus, uint8 device, uint8 function, uint32 reg, uint8 val);
-    void WriteConfigWord(uint16 groupID, uint8 bus, uint8 device, uint8 function, uint32 reg, uint16 val);
-    void WriteConfigDWord(uint16 groupID, uint8 bus, uint8 device, uint8 function, uint32 reg, uint32 val);
-    void WriteConfigQWord(uint16 groupID, uint8 bus, uint8 device, uint8 function, uint32 reg, uint64 val);
+    void SetInterruptHandler(const Device& dev, IDT::ISR handler);
+
+    uint8 ReadConfigByte(const Device& dev, uint32 reg);
+    uint16 ReadConfigWord(const Device& dev, uint32 reg);
+    uint32 ReadConfigDWord(const Device& dev, uint32 reg);
+    uint64 ReadConfigQWord(const Device& dev, uint32 reg);
+
+    void WriteConfigByte(const Device& dev, uint32 reg, uint8 val);
+    void WriteConfigWord(const Device& dev, uint32 reg, uint16 val);
+    void WriteConfigDWord(const Device& dev, uint32 reg, uint32 val);
+    void WriteConfigQWord(const Device& dev, uint32 reg, uint64 val);
 
 }

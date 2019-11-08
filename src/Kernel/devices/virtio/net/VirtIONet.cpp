@@ -68,14 +68,8 @@ namespace VirtIONet {
         Port::OutWord(g_RegBase + REG_QUEUE_NOTIFY, queue.index);
     }
 
-    static void Init() {
-        auto dev = PCI::FindDeviceBySubsystem(0x1AF4, 1);
-        if(dev == nullptr) {
-            klog_warning("VirtIO-Net", "No VirtIO-Net controller found");
-            return;
-        }
-
-        uint16 regBase = dev->BARs[0] & 0xFFFC;
+    static void Factory(const PCI::Device& dev) {
+        uint16 regBase = dev.BARs[0] & 0xFFFC;
         g_RegBase = regBase;
 
         uint8 flags = FLAG_DEV_ACK;
@@ -113,6 +107,15 @@ namespace VirtIONet {
         klog_info("VirtIO-Net", "MAC: %02X:%02X:%02X:%02X:%02X:%02X", g_MAC[0], g_MAC[1], g_MAC[2], g_MAC[3], g_MAC[4], g_MAC[5]);
 
         Scheduler::CreateKernelThread(&TestKThread);
+    }
+
+    static void Init() {
+        PCI::DriverInfo info;
+        kmemset(&info, 0xFF, sizeof(info));
+        info.vendorID = 0x1AF4;
+        info.subsystemID = 1;
+        
+        PCI::RegisterDriver(info, Factory);
     }
     REGISTER_INIT_FUNC(Init, INIT_STAGE_DEVDRIVERS);
 

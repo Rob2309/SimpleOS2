@@ -53,9 +53,13 @@ namespace PCI {
     static ktl::vector<Group> g_Groups;
     static ktl::vector<Device> g_Devices;
 
-    static uint8 g_VectCounter = ISRNumbers::PCIBase;
+    struct DriverReg {
+        DriverInfo info;
+        PCIDriverFactory factory;
+    };
+    static ktl::vector<DriverReg> g_Drivers;
 
-    static uint8 g_PinEntries[255 * 4] = { 0 };
+    static uint8 g_VectCounter = ISRNumbers::PCIBase;
 
     static uint64 GetMemBase(const Group& group, uint32 bus, uint32 device, uint32 func) {
         return group.baseAddr + ((uint64)bus << 20) + ((uint64)device << 15) + ((uint64)func << 12);
@@ -64,6 +68,34 @@ namespace PCI {
     static uint32 ReadConfigDWord(const Group& group, uint32 bus, uint32 slot, uint32 func, uint32 offs) {
         uint64 addr = GetMemBase(group, bus, slot, func) + offs;
         return *(volatile uint32*)addr;
+    }
+
+    static PCIDriverFactory FindDriver(const Device& dev) {
+        for(const auto& [info, factory] : g_Drivers) {
+            if(info.vendorID != 0xFFFF && info.vendorID != dev.vendorID)
+                continue;
+            if(info.deviceID != 0xFFFF && info.deviceID != dev.deviceID)
+                continue;
+            if(info.classCode != 0xFF && info.classCode != dev.classCode)
+                continue;
+            if(info.subclassCode != 0xFF && info.subclassCode != dev.subclassCode)
+                continue;
+            if(info.progIf != 0xFF && info.progIf != dev.progIf)
+                continue;
+            if(info.subsystemID != 0xFFFF && info.subsystemID != dev.subsystemID)
+                continue;
+            if(info.subsystemVendorID != 0xFFFF && info.subsystemVendorID != dev.subsystemVendorID)
+                continue;
+
+            return factory;
+        }
+
+        return nullptr;
+    }
+
+    void RegisterDriver(const DriverInfo& info, PCIDriverFactory factory) {
+        g_Drivers.push_back({ info, factory });
+        klog_info("PCIe", "Registered driver for vendorID=%04X deviceID=%04X class=%02X:%02X:%02X subsystem=%04X subVendor=%04X", info.vendorID, info.deviceID, info.classCode, info.subclassCode, info.progIf, info.subsystemID, info.subsystemVendorID);
     }
 
     static bool CheckFunction(const Group& group, uint32 bus, uint32 device, uint32 func) {
@@ -142,9 +174,11 @@ namespace PCI {
                 if(capPtr == 0)
                     break;
             }
-        }   
+        }
 
-        klog_info("PCIe", "Found device: class=%02X:%02X:%02X, loc=%i:%i:%i:%i", dev.classCode, dev.subclassCode, dev.progIf, dev.group, dev.bus, dev.device, dev.function);
+        auto factory = FindDriver(dev);
+
+        klog_info("PCIe", "Found device: class=%02X:%02X:%02X, loc=%04X:%02X:%02X:%02X, vendor=%04X, subsystem=%04X %s", dev.classCode, dev.subclassCode, dev.progIf, dev.group, dev.bus, dev.device, dev.function, dev.vendorID, dev.subsystemID, factory != nullptr ? "(Driver available)" : "");
         g_Devices.push_back(dev);
 
         return true;
@@ -168,7 +202,7 @@ namespace PCI {
                 CheckDevice(group, i, j);
     }
 
-    void Init() {
+    void ProbeDevices() {
         auto mcfg = ACPI::GetMCFG();
 
         uint64 length = mcfg->GetEntryCount();
@@ -185,33 +219,19 @@ namespace PCI {
 
             CheckGroup(group);
         }
-    }
 
-    const Device* FindDevice(uint8 classCode, uint8 subclassCode) {
-        for(const Device& dev : g_Devices) {
-            if(dev.classCode == classCode && dev.subclassCode == subclassCode)
-                return &dev;
+        for(const auto& dev : g_Devices) {
+            auto factory = FindDriver(dev);
+            if(factory != nullptr)
+                factory(dev);
         }
-        return nullptr;
     }
 
-    const Device* FindDeviceBySubsystem(uint16 vendorID, uint16 subsystemID) {
-        for(const Device& dev : g_Devices) {
-            if(dev.vendorID == vendorID && dev.subsystemID == subsystemID)
-                return &dev;
-        }
-        return nullptr;
-    }
-
-    void SetPinEntry(uint8 dev, uint8 pin, uint8 gsi) {
-        g_PinEntries[dev * 4 + pin] = gsi;
-    }
-
-    static void SetMSI(Device* dev, uint8 apicID, IDT::ISR handler) {
+    static void SetMSI(const Device& dev, uint8 apicID, IDT::ISR handler) {
         uint8 vect = g_VectCounter;
         g_VectCounter++;
 
-        auto msi = (CapMSI*)dev->msi;
+        auto msi = (CapMSI*)dev.msi;
         if(msi->control & MSI_CONTROL_64BIT) {
             auto msi64 = (CapMSI64*)msi;
             uint16 control = msi64->control;
@@ -235,59 +255,60 @@ namespace PCI {
 
         IDT::SetInternalISR(vect, handler);
 
-        klog_info("PCIe", "Allocated interrupt %i for device %i:%i:%i:%i", vect, dev->group, dev->bus, dev->device, dev->function);
+        klog_info("PCIe", "Allocated interrupt %i for device %i:%i:%i:%i", vect, dev.group, dev.bus, dev.device, dev.function);
     }
 
-    void SetInterruptHandler(Device* dev, IDT::ISR handler) {
-        if(dev->msi != nullptr) {
+    void SetInterruptHandler(const Device& dev, IDT::ISR handler) {
+        if(dev.msi != nullptr) {
             SetMSI(dev, APIC::GetID(), handler);
         } else {
-            uint8 pin = ReadConfigByte(dev->group, dev->bus, dev->device, dev->function, 0x3D);
-            uint8 gsi = g_PinEntries[dev->device * 4 + pin];
-
-            if(gsi == 0) {
-                klog_error("PCI", "Could not find GSI associated with device %04X:%02X:%02X:%02X", dev->group, dev->bus, dev->device, dev->function);
-                return;
+            uint8 pin = ReadConfigByte(dev, 0x3D);
+            ACPI::AcpiIRQInfo irqInfo;
+            if(!ACPI::GetPCIDeviceIRQ(dev.device, pin, irqInfo)) {
+                klog_error("PCI", "Could not find interrupt associated with device %04X:%02X:%02X:%02X", dev.group, dev.bus, dev.device, dev.function);
             }
 
-            IOAPIC::RegisterGSI(gsi, handler);
+            if(irqInfo.isGSI)
+                IOAPIC::RegisterGSI(irqInfo.number, handler);
+            else
+                IOAPIC::RegisterIRQ(irqInfo.number, handler);
         }
     }
 
-    uint8 ReadConfigByte(uint16 groupID, uint8 bus, uint8 device, uint8 function, uint32 reg) {
+    uint8 ReadConfigByte(const Device& dev, uint32 reg) {
         for(const auto& g : g_Groups) {
-            if(g.id == groupID) {
-                uint8* addr = (uint8*)GetMemBase(g, bus, device, function) + reg;
+            if(g.id == dev.group) {
+                uint8* addr = (uint8*)GetMemBase(g, dev.bus, dev.device, dev.function) + reg;
                 return *addr;
             }
         }
 
         return 0;
     }
-    uint16 ReadConfigWord(uint16 groupID, uint8 bus, uint8 device, uint8 function, uint32 reg) {
+    uint16 ReadConfigWord(const Device& dev, uint32 reg) {
         for(const auto& g : g_Groups) {
-            if(g.id == groupID) {
-                uint16* addr = (uint16*)GetMemBase(g, bus, device, function) + reg;
+            if(g.id == dev.group) {
+                uint16* addr = (uint16*)GetMemBase(g, dev.bus, dev.device, dev.function) + reg;
                 return *addr;
             }
         }
 
         return 0;
     }
-    uint32 ReadConfigDWord(uint16 groupID, uint8 bus, uint8 device, uint8 function, uint32 reg) {
+    uint32 ReadConfigDWord(const Device& dev, uint32 reg) {
         for(const auto& g : g_Groups) {
-            if(g.id == groupID) {
-                uint32* addr = (uint32*)GetMemBase(g, bus, device, function) + reg;
+            if(g.id == dev.group) {
+                uint32* addr = (uint32*)GetMemBase(g, dev.bus, dev.device, dev.function) + reg;
                 return *addr;
             }
         }
 
         return 0;
     }
-    uint64 ReadConfigQWord(uint16 groupID, uint8 bus, uint8 device, uint8 function, uint32 reg) {
+    uint64 ReadConfigQWord(const Device& dev, uint32 reg) {
         for(const auto& g : g_Groups) {
-            if(g.id == groupID) {
-                uint64* addr = (uint64*)GetMemBase(g, bus, device, function) + reg;
+            if(g.id == dev.group) {
+                uint64* addr = (uint64*)GetMemBase(g, dev.bus, dev.device, dev.function) + reg;
                 return *addr;
             }
         }
@@ -295,37 +316,37 @@ namespace PCI {
         return 0;
     }
 
-    void WriteConfigByte(uint16 groupID, uint8 bus, uint8 device, uint8 function, uint32 reg, uint8 val) {
+    void WriteConfigByte(const Device& dev, uint32 reg, uint8 val) {
         for(const auto& g : g_Groups) {
-            if(g.id == groupID) {
-                uint8* addr = (uint8*)GetMemBase(g, bus, device, function) + reg;
+            if(g.id == dev.group) {
+                uint8* addr = (uint8*)GetMemBase(g, dev.bus, dev.device, dev.function) + reg;
                 *addr = val;
                 break;
             }
         }
     }
-    void WriteConfigWord(uint16 groupID, uint8 bus, uint8 device, uint8 function, uint32 reg, uint16 val) {
+    void WriteConfigWord(const Device& dev, uint32 reg, uint16 val) {
         for(const auto& g : g_Groups) {
-            if(g.id == groupID) {
-                uint16* addr = (uint16*)GetMemBase(g, bus, device, function) + reg;
+            if(g.id == dev.group) {
+                uint16* addr = (uint16*)GetMemBase(g, dev.bus, dev.device, dev.function) + reg;
                 *addr = val;
                 break;
             }
         }
     }
-    void WriteConfigDWord(uint16 groupID, uint8 bus, uint8 device, uint8 function, uint32 reg, uint32 val) {
+    void WriteConfigDWord(const Device& dev, uint32 reg, uint32 val) {
         for(const auto& g : g_Groups) {
-            if(g.id == groupID) {
-                uint32* addr = (uint32*)GetMemBase(g, bus, device, function) + reg;
+            if(g.id == dev.group) {
+                uint32* addr = (uint32*)GetMemBase(g, dev.bus, dev.device, dev.function) + reg;
                 *addr = val;
                 break;
             }
         }
     }
-    void WriteConfigQWord(uint16 groupID, uint8 bus, uint8 device, uint8 function, uint32 reg, uint64 val) {
+    void WriteConfigQWord(const Device& dev, uint32 reg, uint64 val) {
         for(const auto& g : g_Groups) {
-            if(g.id == groupID) {
-                uint64* addr = (uint64*)GetMemBase(g, bus, device, function) + reg;
+            if(g.id == dev.group) {
+                uint64* addr = (uint64*)GetMemBase(g, dev.bus, dev.device, dev.function) + reg;
                 *addr = val;
                 break;
             }
