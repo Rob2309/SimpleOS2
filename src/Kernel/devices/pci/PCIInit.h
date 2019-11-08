@@ -5,5 +5,5 @@
 #include "KernelHeader.h"
 
 namespace PCI {
-    void Init();
+    void ProbeDevices();
 }

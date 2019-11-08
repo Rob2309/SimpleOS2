@@ -108,8 +108,6 @@ static int64 SpamThread(uint64, uint64) {
 }
 
 static int64 InitThread(uint64, uint64) {
-    PCI::Init();
-
     klog_info("Boot", "Init KernelThread starting");
 
     VFS::FileSystem* rootFS = new TempFS();
@@ -130,6 +128,8 @@ static int64 InitThread(uint64, uint64) {
     CallInitFuncs(INIT_STAGE_DEVDRIVERS);
     CallInitFuncs(INIT_STAGE_FSDRIVERS);
     CallInitFuncs(INIT_STAGE_EXECHANDLERS);
+
+    PCI::ProbeDevices();
 
     if(g_KernelHeader->ramdiskImage.numPages != 0) {
         RamDeviceDriver* driver = (RamDeviceDriver*)DeviceDriverRegistry::GetDriver("ram");
