@@ -70,7 +70,7 @@ AHCIDriver::AHCIDriver(const PCI::Device& dev)
             case HBA_PORT::SIGNATURE_ATAPI: klog_info("AHCI", "SATAPI Disk on port %i", i); break;
             case HBA_PORT::SIGNATURE_EMB: klog_info("AHCI", "Enclosure management bridge on port %i", i); break;
             case HBA_PORT::SIGNATURE_PM: klog_info("AHCI", "Port Multiplier on port %i", i); break;
-            default: klog_warning("AHCI", "Unknown device on port %i", i); break;
+            default: continue;
             }
 
             m_Disks[i].present = true;
@@ -92,7 +92,8 @@ AHCIDriver::AHCIDriver(const PCI::Device& dev)
 
             SetupPort(i, cmdListBuffer, fisBuffer, cmdTableBuffer);
 
-            DevFS::RegisterBlockDevice("ahci0", GetDriverID(), i);
+            if(i == 0)
+                DevFS::RegisterBlockDevice("ahci0", GetDriverID(), i);
         }
     }
 
