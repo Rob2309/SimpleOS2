@@ -70,6 +70,34 @@ namespace PCI {
         return *(volatile uint32*)addr;
     }
 
+    static PCIDriverFactory FindDriver(const Device& dev) {
+        for(const auto& [info, factory] : g_Drivers) {
+            if(info.vendorID != 0xFFFF && info.vendorID != dev.vendorID)
+                continue;
+            if(info.deviceID != 0xFFFF && info.deviceID != dev.deviceID)
+                continue;
+            if(info.classCode != 0xFF && info.classCode != dev.classCode)
+                continue;
+            if(info.subclassCode != 0xFF && info.subclassCode != dev.subclassCode)
+                continue;
+            if(info.progIf != 0xFF && info.progIf != dev.progIf)
+                continue;
+            if(info.subsystemID != 0xFFFF && info.subsystemID != dev.subsystemID)
+                continue;
+            if(info.subsystemVendorID != 0xFFFF && info.subsystemVendorID != dev.subsystemVendorID)
+                continue;
+
+            return factory;
+        }
+
+        return nullptr;
+    }
+
+    void RegisterDriver(const DriverInfo& info, PCIDriverFactory factory) {
+        g_Drivers.push_back({ info, factory });
+        klog_info("PCIe", "Registered driver for vendorID=%04X deviceID=%04X class=%02X:%02X:%02X subsystem=%04X subVendor=%04X", info.vendorID, info.deviceID, info.classCode, info.subclassCode, info.progIf, info.subsystemID, info.subsystemVendorID);
+    }
+
     static bool CheckFunction(const Group& group, uint32 bus, uint32 device, uint32 func) {
         uint32 id = ReadConfigDWord(group, bus, device, func, 0);
         if((id & 0xFFFF) == 0xFFFF)
@@ -90,6 +118,10 @@ namespace PCI {
         uint8 classCode = classVal >> 24;
         uint8 subclass = (classVal >> 16) & 0xFF;
         uint8 progif = (classVal >> 8) & 0xFF;
+
+        uint32 subsystemVal = ReadConfigDWord(group, bus, device, func, 0x2C);
+        dev.subsystemVendorID = subsystemVal & 0xFFFF;
+        dev.subsystemID = (subsystemVal >> 16) & 0xFFFF;
 
         dev.classCode = classCode;
         dev.subclassCode = subclass;
@@ -142,9 +174,11 @@ namespace PCI {
                 if(capPtr == 0)
                     break;
             }
-        }   
+        }
 
-        klog_info("PCIe", "Found device: class=%02X:%02X:%02X, loc=%i:%i:%i:%i", dev.classCode, dev.subclassCode, dev.progIf, dev.group, dev.bus, dev.device, dev.function);
+        auto factory = FindDriver(dev);
+
+        klog_info("PCIe", "Found device: class=%02X:%02X:%02X, loc=%04X:%02X:%02X:%02X, vendor=%04X, subsystem=%04X %s", dev.classCode, dev.subclassCode, dev.progIf, dev.group, dev.bus, dev.device, dev.function, dev.vendorID, dev.subsystemID, factory != nullptr ? "(Driver available)" : "");
         g_Devices.push_back(dev);
 
         return true;
@@ -168,25 +202,6 @@ namespace PCI {
                 CheckDevice(group, i, j);
     }
 
-    static PCIDriverFactory FindDriver(const Device& dev) {
-        for(const auto& [info, factory] : g_Drivers) {
-            if(info.vendorID != 0xFFFF && info.vendorID != dev.vendorID)
-                continue;
-            if(info.deviceID != 0xFFFF && info.deviceID != dev.deviceID);
-                continue;
-            if(info.classCode != 0xFF && info.classCode != dev.classCode)
-                continue;
-            if(info.subclassCode != 0xFF && info.subclassCode != dev.subclassCode)
-                continue;
-            if(info.progIf != 0xFF && info.progIf != dev.progIf)
-                continue;
-
-            return factory;
-        }
-
-        return nullptr;
-    }
-
     void ProbeDevices() {
         auto mcfg = ACPI::GetMCFG();
 
@@ -205,7 +220,7 @@ namespace PCI {
             CheckGroup(group);
         }
 
-        for(const Device& dev : g_Devices) {
+        for(const auto& dev : g_Devices) {
             auto factory = FindDriver(dev);
             if(factory != nullptr)
                 factory(dev);
@@ -241,10 +256,6 @@ namespace PCI {
         IDT::SetInternalISR(vect, handler);
 
         klog_info("PCIe", "Allocated interrupt %i for device %i:%i:%i:%i", vect, dev.group, dev.bus, dev.device, dev.function);
-    }
-
-    void RegisterDriver(const DriverInfo& info, PCIDriverFactory factory) {
-        g_Drivers.push_back({ info, factory });
     }
 
     void SetInterruptHandler(const Device& dev, IDT::ISR handler) {

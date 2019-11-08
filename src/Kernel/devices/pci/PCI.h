@@ -23,6 +23,9 @@ namespace PCI {
         int numBARs;
         uint64 BARs[6];
 
+        uint16 subsystemID;
+        uint16 subsystemVendorID;
+
         uint64 memBase;
 
         void* msi;
@@ -35,6 +38,9 @@ namespace PCI {
         uint8 classCode;
         uint8 subclassCode;
         uint8 progIf;
+
+        uint16 subsystemID;
+        uint16 subsystemVendorID;
     };
 
     typedef void (*PCIDriverFactory)(const Device& dev);
