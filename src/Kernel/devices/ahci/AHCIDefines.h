@@ -12,12 +12,12 @@ constexpr uint8 FIS_TYPE_PIO_SETUP = 0x5F;
 constexpr uint8 FIS_TYPE_DEV_BITS = 0xA1;
 
 struct __attribute__((packed)) FIS_REG_H2D {
-    constexpr static uint8 PM_MASK = 0x0F;
-    constexpr static uint8 CMD_MASK = 0x80;
-
     uint8 fisType;
 
-    uint8 pmt; // Port multiplier and command type
+    uint8 portMultiplier : 4;
+    uint8 reserved0 : 3;
+    uint8 c : 1;
+
     uint8 command;
     uint8 featuresLow;
     uint8 lba0;
@@ -31,16 +31,17 @@ struct __attribute__((packed)) FIS_REG_H2D {
     uint16 count;
     uint8 icc;
     uint8 control;
-    uint32 reserved;
+    uint32 reserved1;
 };
 
 struct __attribute__((packed)) FIS_REG_D2H {
-    constexpr static uint8 PM_MASK = 0x0F;
-    constexpr static uint8 INT_MASK = 0x40;
-
     uint8 fisType;
 
-    uint8 pmi; // Port multiplier and interrupt bit
+    uint8 portMultiplier : 4;
+    uint8 reserved0 : 2;
+    uint8 interrupt : 1;
+    uint8 reserved1 : 1;
+
     uint8 status;
     uint8 error;
     uint8 lba0;
@@ -50,30 +51,31 @@ struct __attribute__((packed)) FIS_REG_D2H {
     uint8 lba3;
     uint8 lba4;
     uint8 lba5;
-    uint8 reserved;
+    uint8 reserved2;
     uint16 count;
-    uint16 reserved2;
-    uint32 reserved3;
+    uint16 reserved3;
+    uint32 reserved4;
 };
 
 struct __attribute__((packed)) FIS_DATA {
-    constexpr static uint8 PM_MASK = 0x0F;
-
     uint8 fisType;
 
-    uint8 pm;
-    uint16 reserved;
+    uint8 portMultiplier : 4;
+    uint8 reserved0 : 4;
+
+    uint16 reserved1;
     uint32 data[];
 };
 
 struct __attribute__((packed)) FIS_PIO_SETUP {
-    constexpr static uint8 PM_MASK = 0x0F;
-    constexpr static uint8 DIR_MASK = 0x20;
-    constexpr static uint8 INT_MASK = 0x40;
-
     uint8 fisType;
 
-    uint8 pmdi; // Port multiplier, direction, interrupt
+    uint8 portMultiplier : 4;
+    uint8 reserved0 : 1;
+    uint8 direction : 1;
+    uint8 interrupt : 1;
+    uint8 reserved1 : 1;
+
     uint8 status;
     uint8 error;
     uint8 lba0;
@@ -83,24 +85,24 @@ struct __attribute__((packed)) FIS_PIO_SETUP {
     uint8 lba3;
     uint8 lba4;
     uint8 lba5;
-    uint8 reserved;
-    uint16 count;
     uint8 reserved2;
+    uint16 count;
+    uint8 reserved3;
     uint8 newStatus;
     uint16 tc;
-    uint32 reserved3;
+    uint32 reserved4;
 };
 
 struct __attribute__((packed)) FIS_DMA_SETUP {
-    constexpr static uint8 PM_MASK = 0x0F;
-    constexpr static uint8 DIR_MASK = 0x20;
-    constexpr static uint8 INT_MASK = 0x40;
-    constexpr static uint8 AUTOACT_MASK = 0x80;
-
     uint8 fisType;
 
-    uint8 pmdia;
-    uint16 reserved;
+    uint8 portMultiplier : 4;
+    uint8 reserved0 : 1;
+    uint8 direction : 1;
+    uint8 interrupt : 1;
+    uint8 autoActivate : 1;
+
+    uint16 reserved1;
     uint64 dmaBufferID;
     uint32 reserved2;
     uint32 dmaBufferOffs;

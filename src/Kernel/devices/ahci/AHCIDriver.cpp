@@ -67,9 +67,9 @@ AHCIDriver::AHCIDriver(const PCI::Device& dev)
             uint32 signature = m_Mem->ports[i].signature;
             switch(signature) {
             case HBA_PORT::SIGNATURE_ATA: klog_info("AHCI", "SATA Disk on port %i", i); break;
-            case HBA_PORT::SIGNATURE_ATAPI: klog_info("AHCI", "SATAPI Disk on port %i", i); break;
+            /*case HBA_PORT::SIGNATURE_ATAPI: klog_info("AHCI", "SATAPI Disk on port %i", i); break;
             case HBA_PORT::SIGNATURE_EMB: klog_info("AHCI", "Enclosure management bridge on port %i", i); break;
-            case HBA_PORT::SIGNATURE_PM: klog_info("AHCI", "Port Multiplier on port %i", i); break;
+            case HBA_PORT::SIGNATURE_PM: klog_info("AHCI", "Port Multiplier on port %i", i); break;*/
             default: continue;
             }
 
@@ -137,7 +137,8 @@ void AHCIDriver::ScheduleRead(int portIndex, uint64 startBlock, uint64 numBlocks
     
     FIS_REG_H2D* fis = (FIS_REG_H2D*)(cmd->cmdFIS);
     fis->fisType = FIS_TYPE_REG_H2D;
-    fis->pmt = FIS_REG_H2D::CMD_MASK;
+    fis->portMultiplier = 0;
+    fis->c = 1;
     fis->command = 0x25;
     fis->lba0 = startBlock;
     fis->lba1 = startBlock >> 8;

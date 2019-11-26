@@ -6,6 +6,7 @@
 #include "locks/QueueLock.h"
 #include "fs/VFS.h"
 #include "klib/string.h"
+#include "memory/MemoryManager.h"
 
 DeviceDriver::DeviceDriver(Type type, const char* name) 
     : m_Type(type), m_Name(name)
@@ -39,7 +40,7 @@ static bool GetCachedBlock(uint64 subID, uint64 blockID, uint64 blockSize, ktl::
         }
     }
 
-    char* buffer = new char[sizeof(CachedBlock) + blockSize];
+    char* buffer = (char*)MemoryManager::PhysToKernelPtr(MemoryManager::AllocatePages(NUM_PAGES(sizeof(CachedBlock) + blockSize)));
     CachedBlock* cb = new(buffer) CachedBlock();
     cb->subID = subID;
     cb->blockID = blockID;
