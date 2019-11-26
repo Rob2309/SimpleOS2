@@ -6,6 +6,10 @@ class DevFS : public VFS::FileSystem {
 public:
     static void RegisterCharDevice(const char* name, uint64 driverID, uint64 devID);
     static void RegisterBlockDevice(const char* name, uint64 driverID, uint64 devID);
+
+    static void RegisterUniqueCharDevice(const char* name, uint64 driverID, uint64 devID);
+    static void RegisterUniqueBlockDevice(const char* name, uint64 driverID, uint64 devID);
+
     static void UnregisterDevice(uint64 driverID, uint64 devID);
 
 public:

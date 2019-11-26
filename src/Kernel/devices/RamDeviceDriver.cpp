@@ -19,7 +19,7 @@ uint64 RamDeviceDriver::AddDevice(char* buffer, uint64 blockSize, uint64 numBloc
     uint64 res = m_Devices.size();
     m_Devices.push_back({ buffer, blockSize, numBlocks });
 
-    DevFS::RegisterBlockDevice("ram0", GetDriverID(), res);
+    DevFS::RegisterBlockDevice("ram", GetDriverID(), res);
 
     return res;
 }

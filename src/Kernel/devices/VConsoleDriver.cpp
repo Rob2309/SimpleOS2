@@ -161,7 +161,7 @@ uint64 VConsoleDriver::AddConsole(Terminal::TerminalInfo* info) {
     uint64 res = g_Consoles.size();
     g_Consoles.push_back({ info, 0 });
 
-    DevFS::RegisterCharDevice("tty0", GetDriverID(), res);
+    DevFS::RegisterCharDevice("tty", GetDriverID(), res);
     Scheduler::CreateKernelThread(VConsoleThread);
 
     return res;

@@ -24,38 +24,99 @@ static VFS::MountPoint* g_MP = nullptr;
 static VFS::Directory* g_CurrentDir = nullptr;
 static VFS::Directory* g_NewDir = nullptr;
 
-void DevFS::RegisterCharDevice(const char* name, uint64 driverID, uint64 devID) {
-    g_Lock.Spinlock();
+static const char* AppendNumberToName(const char* name, int number) {
+    int l = kstrlen(name);
+    char* buffer = new char[l + 3 + 1];
+    kstrcpy(buffer, name);
 
+    int i = l;
+    do {
+        buffer[i] = (number % 10) + '0';
+        number /= 10;
+        i++;
+    } while(number > 0);
+
+    buffer[i] = '\0';
+
+    return buffer;
+}
+
+static bool CheckUnique(const char* name) {
+    for(const auto& dev : g_Devices) {
+        if(kstrcmp(dev.name, name) == 0)
+            return false;
+    }
+
+    return true;
+}
+
+static const char* MakeUniqueName(const char* name) {
+    int number = 0;
+
+    const char* uniqueName = nullptr;
+
+    while(true) {
+        const char* tempName = AppendNumberToName(name, number);
+
+        if(CheckUnique(tempName)) {
+            uniqueName = tempName;
+            break;
+        }
+
+        delete[] tempName;
+        number++;
+    }
+
+    return uniqueName;
+}
+
+static void _RegisterDevice(const char* uniqueName, bool blockDev, uint64 driverID, uint64 devID) {
     if(g_NewDir == nullptr)
         g_NewDir = VFS::Directory::Create(10);
 
     VFS::DirectoryEntry* entry;
     VFS::Directory::AddEntry(&g_NewDir, &entry);
 
-    kstrcpy(entry->name, name);
+    kstrcpy(entry->name, uniqueName);
     entry->nodeID = g_Devices.size() + 1;
 
-    g_Devices.push_back({ name, false, driverID, devID, g_Devices.size() });
+    g_Devices.push_back({ uniqueName, blockDev, driverID, devID, g_Devices.size() });
+}
+
+void DevFS::RegisterCharDevice(const char* name, uint64 driverID, uint64 devID) {
+    g_Lock.Spinlock();
+
+    const char* uniqueName = MakeUniqueName(name);
+
+    _RegisterDevice(uniqueName, false, driverID, devID);
 
     g_Lock.Unlock();
 }
 void DevFS::RegisterBlockDevice(const char* name, uint64 driverID, uint64 devID) {
     g_Lock.Spinlock();
 
-    if(g_NewDir == nullptr)
-        g_NewDir = VFS::Directory::Create(10);
+    const char* uniqueName = MakeUniqueName(name);
 
-    VFS::DirectoryEntry* entry;
-    VFS::Directory::AddEntry(&g_NewDir, &entry);
-
-    kstrcpy(entry->name, name);
-    entry->nodeID = g_Devices.size() + 1;
-
-    g_Devices.push_back({ name, true, driverID, devID, g_Devices.size() });
+    _RegisterDevice(uniqueName, true, driverID, devID);
 
     g_Lock.Unlock();
 }
+
+void DevFS::RegisterUniqueCharDevice(const char* uniqueName, uint64 driverID, uint64 devID) {
+    g_Lock.Spinlock();
+
+    _RegisterDevice(uniqueName, false, driverID, devID);
+
+    g_Lock.Unlock();
+}
+void DevFS::RegisterUniqueBlockDevice(const char* uniqueName, uint64 driverID, uint64 devID) {
+    g_Lock.Spinlock();
+
+    _RegisterDevice(uniqueName, true, driverID, devID);
+
+    g_Lock.Unlock();
+}
+
 void DevFS::UnregisterDevice(uint64 driverID, uint64 devID) {
     
 }

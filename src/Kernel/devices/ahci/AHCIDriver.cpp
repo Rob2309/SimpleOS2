@@ -92,8 +92,7 @@ AHCIDriver::AHCIDriver(const PCI::Device& dev)
 
             SetupPort(i, cmdListBuffer, fisBuffer, cmdTableBuffer);
 
-            if(i == 0)
-                DevFS::RegisterBlockDevice("ahci0", GetDriverID(), i);
+            DevFS::RegisterBlockDevice("ahci", GetDriverID(), i);
         }
     }
 

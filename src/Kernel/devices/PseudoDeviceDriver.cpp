@@ -14,7 +14,7 @@ REGISTER_INIT_FUNC(Init, INIT_STAGE_DEVDRIVERS);
 PseudoDeviceDriver::PseudoDeviceDriver()
     : CharDeviceDriver("pseudo")
 {
-    DevFS::RegisterCharDevice("zero", GetDriverID(), DeviceZero);
+    DevFS::RegisterUniqueCharDevice("zero", GetDriverID(), DeviceZero);
 }
 
 int64 PseudoDeviceDriver::DeviceCommand(uint64 subID, int64 command, void* arg) {

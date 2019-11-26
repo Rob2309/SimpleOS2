@@ -95,7 +95,7 @@ namespace PS2 {
     {
         IOAPIC::RegisterIRQ(1, KeyHandler);
 
-        DevFS::RegisterCharDevice("keyboard", GetDriverID(), DeviceKeyboard);
+        DevFS::RegisterUniqueCharDevice("keyboard", GetDriverID(), DeviceKeyboard);
     }
 
     int64 PS2Driver::DeviceCommand(uint64 subID, int64 command, void* arg) {
