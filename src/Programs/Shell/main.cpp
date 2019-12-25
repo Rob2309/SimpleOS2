@@ -4,6 +4,7 @@
 #include <simpleos_string.h>
 #include <simpleos_alloc.h>
 #include <simpleos_kill.h>
+#include <simpleos_errno.h>
 
 static char g_History[1024][128];
 static int g_HistoryMinIndex = 1024;
@@ -70,7 +71,8 @@ static void BuiltinCat(int argc, char** argv) {
 
     int64 fd = open(argv[1], open_mode_read);
     if(fd < 0) {
-        puts("File not found\n");
+        puts(ErrorToString(fd));
+        puts("\n");
         return;
     }
 
@@ -97,7 +99,8 @@ static void BuiltinTail(int argc, char** argv) {
 
     int64 fd = open(argv[1], open_mode_read);
     if(fd < 0) {
-        puts("File not found\n");
+        puts(ErrorToString(fd));
+        puts("\n");
         return;
     }
 
@@ -142,7 +145,8 @@ static void BuiltinPut(int argc, char** argv) {
         mode |= open_mode_clear;
     int64 fd = open(path, mode);
     if(fd < 0) {
-        puts("File not found\n");
+        puts(ErrorToString(fd));
+        puts("\n");
         return;
     }
 
@@ -172,7 +176,8 @@ static void BuiltinLS(int argc, char** argv) {
 
     int64 error = list(argv[1], &numEntries, entries);
     if(error != 0) {
-        puts("File not found\n");
+        puts(ErrorToString(error));
+        puts("\n");
         return;
     }
 
@@ -264,8 +269,11 @@ static void BuiltinMkdir(int argc, char** argv) {
     }
 
     int64 error = create_folder(argv[1]);
-    if(error != 0)
-        puts("Failed to create folder\n");
+    if(error != 0) {
+        puts(ErrorToString(error));
+        puts("\n");
+        return;
+    }
 }
 
 static void BuiltinLN(int argc, char** argv) {
@@ -304,12 +312,18 @@ static void BuiltinLN(int argc, char** argv) {
 
     if(symlink) {
         int64 error = create_symlink(path, linkPath);
-        if(error != 0)
-            puts("Failed to create symlink\n");
+        if(error != 0) {
+            puts(ErrorToString(error));
+            puts("\n");
+            return;
+        }
     } else {
         int64 error = create_hardlink(path, linkPath);
-        if(error != 0)
-            puts("Failed to create hardlink\n");
+        if(error != 0) {
+            puts(ErrorToString(error));
+            puts("\n");
+            return;
+        }
     }
 }
 
@@ -320,8 +334,11 @@ static void BuiltinRM(int argc, char** argv) {
     }
 
     int64 error = delete_file(argv[1]);
-    if(error != 0)
-        puts("Failed to delete path\n");
+    if(error != 0) {
+        puts(ErrorToString(error));
+        puts("\n");
+        return;
+    }
 }
 
 static int64 ParseInt64(const char* str) {
@@ -349,8 +366,11 @@ static void BuiltinKill(int argc, char** argv) {
     }
 
     int64 error = kill(ParseInt64(argv[1]));
-    if(error != 0)
-        puts("Failed to kill Thread\n");
+    if(error != 0) {
+        puts(ErrorToString(error));
+        puts("\n");
+        return;
+    }
 }
 
 static void BuiltinCD(int argc, char** argv) {
@@ -361,8 +381,11 @@ static void BuiltinCD(int argc, char** argv) {
         error = changedir(argv[1]);
     }
 
-    if(error != 0)
-        puts("No such file or directory\n");
+    if(error != 0) {
+        puts(ErrorToString(error));
+        puts("\n");
+        return;
+    }
 }
 
 static void BuiltinPWD(int argc, char** argv) {
