@@ -35,9 +35,10 @@ TempFS::TempFS() {
     node->linkRefCount = 1;
     node->uid = 0;
     node->gid = 0;
-    node->perms.ownerPermissions = Permissions::Read | Permissions::Write;
-    node->perms.groupPermissions = Permissions::Read;
-    node->perms.otherPermissions = Permissions::Read;
+    node->perms.ownerPermissions = Permissions::Read | Permissions::Write | Permissions::Execute;
+    node->perms.groupPermissions = Permissions::Read | Permissions::Execute;
+    node->perms.otherPermissions = Permissions::Read | Permissions::Execute;
+    node->perms.specialFlags = 0;
     
     m_RootNodeID = (uint64)node;
 }
