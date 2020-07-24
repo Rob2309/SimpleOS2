@@ -87,10 +87,14 @@ enum NodeType {
 };
 constexpr uint8 PermRead = 0x1;
 constexpr uint8 PermWrite = 0x2;
+constexpr uint8 PermExecute = 0x4;
+
+constexpr uint8 PermSetUID = 0x1;
 struct Permissions {
     uint8 owner;
     uint8 group;
     uint8 other;
+    uint8 specialFlags;
 };
 struct Stats {
     uint64 nodeID;

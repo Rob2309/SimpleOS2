@@ -114,7 +114,7 @@ static int64 InitThread(uint64, uint64) {
     VFS::Init(rootFS);
 
     VFS::FileSystem* devFS = new DevFS();
-    int64 error = VFS::CreateFolder("/dev", { 1, 1, 1 });
+    int64 error = VFS::CreateFolder("/dev", { 5, 5, 5 });
     if(error < 0) {
         klog_fatal("Init", "Failed to create /dev folder (%s)", ErrorToString(error));
         return 1;

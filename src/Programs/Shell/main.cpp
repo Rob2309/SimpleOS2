@@ -221,6 +221,10 @@ static int64 BuiltinLS(int argc, char** argv) {
             puts("w");
         else
             puts("-");
+        if(stats[i].perms.owner & PermExecute)
+            puts("x");
+        else
+            puts("-");
 
         if(stats[i].perms.group & PermRead)
             puts("r");
@@ -230,6 +234,10 @@ static int64 BuiltinLS(int argc, char** argv) {
             puts("w");
         else
             puts("-");
+        if(stats[i].perms.group & PermExecute)
+            puts("x");
+        else
+            puts("-");
 
         if(stats[i].perms.other & PermRead)
             puts("r");
@@ -237,6 +245,10 @@ static int64 BuiltinLS(int argc, char** argv) {
             puts("-");
         if(stats[i].perms.other & PermWrite)
             puts("w");
+        else
+            puts("-");
+        if(stats[i].perms.other & PermExecute)
+            puts("x");
         else
             puts("-");
 
