@@ -435,6 +435,7 @@ static int64 InvokeCommand(int argc, char** argv) {
     }
 
     thread_exit(0);
+    return 1;
 }
 
 static void HandleCommand() {
