@@ -5,15 +5,16 @@ This is a very simple x86_64 OS I am creating for learning purposes.
 ## Implemented features:
 - Simple UEFI Bootloader (to be replaced by GRUB in the future?)
 - Physical and Virtual memory management
-- Terminal that can print 32-Bit colored text (no input functionality yet)
+- Terminal that can print 32-Bit colored text and receive keyboard input
 - Interrupt handling
 - APIC Timer support
 - IOAPIC support
 - User mode processes
 - Kernel Threads
 - Multitasking & Multithreading
-- System calls via syscall instruction (e.g. fork & exec)
+- System calls via syscall instruction
 - Linux-like virtual file system (with mount support)
+- file system permissions with read, write, execute and setuid permissions
 - FileSystem driver API
 - Character- and BlockDevice driver API
 - Multi-Core support
@@ -21,7 +22,7 @@ This is a very simple x86_64 OS I am creating for learning purposes.
 - Basic shell that can run programs with command line arguments
 - Basic ACPI support using ACPICA (currently only shutdown supported)
 - Basic readonly Ext2 driver (used for ramdisk)
-- Subset of standard c library supported
+- Usermode C++ library for basic interaction with the Kernel (Function definitions for all important syscalls)
 
 ## Planned features:
 - HDD support (SATA)
@@ -54,10 +55,10 @@ This OS should basically run on any x86_64 machine that supports UEFI. If you fi
 - ``make debug``:               run the OS in qemu and debug it in GDB
 
 ## Configurations
-- every command above can be followed by ``config=Release`` to use/build a Release configuration of the OS
+- every command above can be followed by ``config=Release`` or ``config=ReleaseDbg`` to use/build a Release configuration of the OS
 
 ## Running on real Hardware
-I have run SimpleOS2 on my own hardware several times and never encountered any damage. Nevertheless, I do not take any responsibility for any kind of damage to your system!
+I have run SimpleOS2 on my own hardware several times and never encountered any damage. Nevertheless, I do not take any responsibility for any kind of damage to your system! Since SimpleOS2 has no disk writing functionality yet, data corruption is pretty much impossible.
 
 ## Modifying SimpleOS2
 [DEVELOPMENT.md](DEVELOPMENT.md) contains information for developers who want to have fun with SimpleOS2

@@ -12,25 +12,28 @@ The goal is to create a Kernel that is very similar to the POSIX standard, howev
 ### General Structure
 Folder | Purpose
 -------|----------
-[acpi](src/Kernel/acpi) | Everything related to the ACPI standard (currently only detecting the CPU core count)
+[acpi](src/Kernel/acpi) | Everything related to the ACPI standard, including the OS specific layer of the ACPICA system.
 [arch](src/Kernel/arch) | Everything that is very specific to the x64 architecture (mostly initialization code). Admittedly, much more should be in this folder, as large amounts of architecture dependent code is in other folders, will be resolved in the future.
+[atomic](src/Kernel/atomic) | Definition of basic atomic types required by the Kernel.
 [devices](src/Kernel/devices) | All standard device drivers are located in this folder. For the definition of the Device Driver API, see DeviceDriver.h
 [exec](src/Kernel/exec) | All the file execution handlers are located in this folder (currently only the ELF format is supported)
 [fs](src/Kernel/fs) | Everything related to the Virtual File System is located in this folder, as well as the standard filesystem drivers (currently only ext2)
+[init](src/Kernel/init) | Helpers to register Init functions in the Kernel
 [interrupts](src/Kernel/interrupts) | The interrupt handling mechanisms
 [klib](src/Kernel/klib) | Every utility function that is remotely comparable to a C Standard library function is in this folder
 [ktl](src/Kernel/ktl) | Kernel Template Library. Anything that is comparable to a C++ STL header is placed here
 [locks](src/Kernel/locks) | All types of locks (StickyLock, QueueLock, ...)
 [memory](src/Kernel/memory) | The MemoryManager and KernelHeap manager
 [multicore](src/Kernel/multicore) | The startup code for SMP cores
+[percpu](src/Kernel/percpu) | Helper code to declare variables that each processor core has an own copy of (comparable to thread-local storage in usermode)
 [scheduler](src/Kernel/scheduler) | The Process/Thread Scheduler code and struct definitions
 [syscalls](src/Kernel/syscalls) | System call handling code
 [terminal](src/Kernel/terminal) | A very rudimentary terminal that is used by the kernel to draw to the screen
-[user](src/Kernel/user) | Definition of the User struct
+[time](src/Kernel/time) | Basic timekeeping functions
 
 File | Purpose
 -----|----------
-[Config.h](src/Kernel/Config.h) | This file is used to configure the startup sequence of the Kernel. Any drivers and modules needed by the kernel for startup should be configured in this file.
+[Config.h](src/Kernel/Config.h) | This file is used to configure the startup sequence of the Kernel. Here you can specify which device should be mounted to /boot and which file should be executed by the init process.
 [errno.h](src/Kernel/errno.h) | Contains the definitions of all error codes used in the kernel
 [main.cpp](src/Kernel/main.cpp) | Contains the main function of the kernel that is called directly by the bootloader
 
@@ -40,7 +43,7 @@ Device drivers are the main way in which the Kernel communicates with all kinds 
 Device Type | Description
 --|--
 Character Device | A character device is basically any device that does not allow random access. For example, a keyboard driver would be a character device, as the inputs are sent one after the other and cannot be indexed.
-Block Device | A Block device is any device that can be accessed in a random order. Often these devices are access on a block by block basis instead of byte basis. An example would be a hard drive. It can access any block at any time, in no specific order.
+Block Device | A Block device is any device that can be accessed in a random order. Often these devices are accessed on a block by block basis instead of byte basis. An example would be a hard drive. It can access any block at any time, in no specific order.
 
 These two types of devices have slightly different APIs exposed to them. To get a feel for the API, take a look at [RamDeviceDriver.cpp](src/Kernel/devices/RamDeviceDriver.cpp) and [VConsoleDriver.cpp](src/Kernel/devices/VConsoleDriver.cpp)
 
@@ -60,7 +63,6 @@ To get a feel for the API, take a look at the [ELF ExecHandler](src/Kernel/exec/
 
 ### Configuring the Kernel
 The File [Config.h](src/Kernel/Config.h) contains the main configuration options that the Kernel uses on startup. The most important configuration option is the Boot filesystem type, driver and device ID. Those are used to mount the initial root filesystem on which the Init program should be located.
-On top of that, any driver or module that is included in the Kernel should be listed as an init function in the respective init arrays.
 Further information is located directly in the Configuration file.
 
 ## System Calls
