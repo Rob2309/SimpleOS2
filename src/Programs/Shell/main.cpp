@@ -213,6 +213,15 @@ static int64 BuiltinLS(int argc, char** argv) {
     }
 
     for(int i = 0; i < numEntries; i++) {
+        switch(stats[i].type) {
+        case NODE_FILE: puts("-"); break;
+        case NODE_DIRECTORY: puts("d"); break;
+        case NODE_DEVICE_CHAR: puts("c"); break;
+        case NODE_DEVICE_BLOCK: puts("b"); break;
+        case NODE_PIPE: puts("p"); break;
+        case NODE_SYMLINK: puts("l"); break;
+        }
+
         if(stats[i].perms.specialFlags & PermSetUID)
             puts("s");
         else
@@ -264,15 +273,6 @@ static int64 BuiltinLS(int argc, char** argv) {
 
         for(int i = p; i < 20; i++)
             puts(" ");
-
-        switch(stats[i].type) {
-        case NODE_FILE: puts("f "); break;
-        case NODE_DIRECTORY: puts("d "); break;
-        case NODE_DEVICE_CHAR: puts("c "); break;
-        case NODE_DEVICE_BLOCK: puts("b "); break;
-        case NODE_PIPE: puts("p "); break;
-        case NODE_SYMLINK: puts("l "); break;
-        }
 
         if(stats[i].type == NODE_SYMLINK) {
             puts("-> ");
@@ -427,6 +427,36 @@ static int64 BuiltinPWD(int argc, char** argv) {
     return 0;
 }
 
+static const char* Int64ToString(int64 v) {
+    static char s_Buffer[30];
+
+    if(v == 0)
+        return "0";
+
+    s_Buffer[sizeof(s_Buffer)-1] = '\0';
+
+    int i = sizeof(s_Buffer) - 1;
+    while(v != 0) {
+        i--;
+        s_Buffer[i] = '0' + (v % 10);
+        v /= 10;
+    }
+
+    return &s_Buffer[i];
+}
+
+static int64 BuiltinId(int argc, char** argv) {
+    int64 uid = getuid();
+    int64 gid = getgid();
+
+    puts("uid=");
+    puts(Int64ToString(uid));
+    puts(" gid=");
+    puts(Int64ToString(gid));
+    puts("\n");
+    return 0;
+}
+
 static int64 InvokeCommand(int argc, char** argv) {
     if(strcmp(argv[0], "echo") == 0) {
         return BuiltinEcho(argc, argv);
@@ -446,6 +476,8 @@ static int64 InvokeCommand(int argc, char** argv) {
         return BuiltinTail(argc, argv);
     } else if(strcmp(argv[0], "kill") == 0) {
         return BuiltinKill(argc, argv);
+    } else if(strcmp(argv[0], "id") == 0) {
+        return BuiltinId(argc, argv);
     } else {
         exec(argv[0], argc, argv);
         puts("Command not found\n");

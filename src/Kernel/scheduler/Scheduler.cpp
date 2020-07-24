@@ -943,4 +943,11 @@ namespace Scheduler {
         return g_CPUData.Get().currentThread;
     }
 
+    SYSCALL_DEFINE0(syscall_get_uid) {
+        return GetCurrentThreadInfo()->uid;
+    }
+    SYSCALL_DEFINE0(syscall_get_gid) {
+        return GetCurrentThreadInfo()->gid;
+    }
+
 }

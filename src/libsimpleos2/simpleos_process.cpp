@@ -6,6 +6,13 @@ uint64 gettid() {
     return syscall_invoke(syscall_gettid);
 }
 
+int64 getuid() {
+    return syscall_invoke(syscall_get_uid);
+}
+int64 getgid() {
+    return syscall_invoke(syscall_get_gid);
+}
+
 void thread_waitms(uint64 ms) {
     syscall_invoke(syscall_wait, ms);
 }

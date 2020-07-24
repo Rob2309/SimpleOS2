@@ -21,6 +21,8 @@ constexpr uint64 syscall_cd = 14;
 constexpr uint64 syscall_pwd = 15;
 constexpr uint64 syscall_abort = 16;
 constexpr uint64 syscall_change_user = 17;
+constexpr uint64 syscall_get_uid = 18;
+constexpr uint64 syscall_get_gid = 19;
 
 constexpr uint64 syscall_handle_kill = 20;
 constexpr uint64 syscall_finish_kill = 21;

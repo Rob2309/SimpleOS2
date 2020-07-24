@@ -7,6 +7,9 @@
  **/
 uint64 gettid();
 
+int64 getuid();
+int64 getgid();
+
 /**
  * Stops this thread for at least ms milliseconds.
  **/
