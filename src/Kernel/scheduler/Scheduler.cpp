@@ -85,7 +85,6 @@ namespace Scheduler {
             } else if(tInfo.state.type == ThreadState::FINISHED) {
                 cpuData.activeList.erase(a++);
                 tInfo.state.type = ThreadState::EXITED;
-                klog_info_isr("Scheduler", "Thread %i has exited with code %i", tInfo.tid, tInfo.exitCode);
             } else {
                 if(tInfo.state.type == ThreadState::READY) {
                     bool kernelMode = (tInfo.registers.cs & 0x3) == 0;
