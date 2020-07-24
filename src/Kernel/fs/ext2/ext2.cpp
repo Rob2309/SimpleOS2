@@ -90,15 +90,11 @@ namespace Ext2 {
             node->infoFile.fileSize = inode->size;
         node->linkCount = inode->hardlinkCount;
 
-        uint8 perms = Permissions::Read;
-        if(node->type == Node::TYPE_DIRECTORY)
-            perms |= Permissions::Execute;
-
         node->ownerUID = 0;
         node->ownerGID = 0;
-        node->permissions.ownerPermissions = perms;
-        node->permissions.groupPermissions = perms;
-        node->permissions.otherPermissions = perms;
+        node->permissions.ownerPermissions = Permissions::Read | Permissions::Execute;
+        node->permissions.groupPermissions = Permissions::Read | Permissions::Execute;
+        node->permissions.otherPermissions = Permissions::Read | Permissions::Execute;
 
         node->fsData = inode;
     }
