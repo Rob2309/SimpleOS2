@@ -13,6 +13,7 @@
 #include "klib/memory.h"
 
 #include "fs/VFS.h"
+#include "fs/Permissions.h"
 
 #include "exec/ExecHandler.h"
 
@@ -86,17 +87,32 @@ namespace SyscallHandler {
 
         ThreadInfo* tInfo = Scheduler::GetCurrentThreadInfo();
 
-        uint64 file;
-        int64 error = VFS::Open(command, VFS::OpenMode_Read, file);
-        if(error != OK)
-            return error;
-        
         VFS::NodeStats stats;
-        error = VFS::Stat(command, stats, true);
+        int64 error = VFS::Stat(command, stats, true);
         if(error != OK) {
-            VFS::Close(file);
             return error;
         }
+        if(tInfo->uid != 0) {
+            if(stats.ownerUID == tInfo->uid) {
+                if((stats.permissions.ownerPermissions & VFS::Permissions::Execute) == 0)
+                    return ErrorPermissionDenied;
+            } else if(stats.ownerGID == tInfo->gid) {
+                if((stats.permissions.groupPermissions & VFS::Permissions::Execute) == 0)
+                    return ErrorPermissionDenied;
+            } else {
+                if((stats.permissions.otherPermissions & VFS::Permissions::Execute) == 0)
+                    return ErrorPermissionDenied;
+            }
+        }
+
+        bool setUID = false;
+        if(stats.permissions.specialFlags & VFS::Permissions::SetUID)
+            setUID = true;
+
+        uint64 file;
+        error = VFS::Open(command, VFS::OpenMode_Read, file);
+        if(error != OK)
+            return error;
 
         uint8* buffer = new uint8[stats.size];
         VFS::Read(file, buffer, stats.size);
@@ -129,6 +145,11 @@ namespace SyscallHandler {
         for(int i = 0; i < argc; i++)
             delete[] (argPtrBuffer[i]);
         delete[] argPtrBuffer;
+
+        if(setUID) {
+            tInfo->uid = stats.ownerUID;
+            tInfo->gid = stats.ownerGID;
+        }
 
         Scheduler::ThreadExec(pml4Entry, &regs);
         return 1;

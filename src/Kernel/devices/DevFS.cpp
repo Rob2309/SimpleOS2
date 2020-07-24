@@ -92,7 +92,7 @@ void DevFS::ReadNode(uint64 id, VFS::Node* node) {
         node->type = VFS::Node::TYPE_DIRECTORY;
         node->ownerUID = 0;
         node->ownerGID = 0;
-        node->permissions = { 1, 1, 1 };
+        node->permissions = { 5, 5, 5 };
         node->id = 0xFFFF;
         node->linkCount = 1;
 

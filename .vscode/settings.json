@@ -48,6 +48,24 @@
         "thread": "cpp",
         "atomic": "cpp",
         "string": "cpp",
-        "memory_resource": "cpp"
+        "memory_resource": "cpp",
+        "algorithm": "cpp",
+        "bit": "cpp",
+        "bitset": "cpp",
+        "cassert": "cpp",
+        "cerrno": "cpp",
+        "ciso646": "cpp",
+        "climits": "cpp",
+        "cstdarg": "cpp",
+        "list": "cpp",
+        "map": "cpp",
+        "set": "cpp",
+        "iterator": "cpp",
+        "numeric": "cpp",
+        "random": "cpp",
+        "ios": "cpp",
+        "queue": "cpp",
+        "shared_mutex": "cpp",
+        "stack": "cpp"
     }
 }

@@ -213,12 +213,21 @@ static int64 BuiltinLS(int argc, char** argv) {
     }
 
     for(int i = 0; i < numEntries; i++) {
+        if(stats[i].perms.specialFlags & PermSetUID)
+            puts("s");
+        else
+            puts("-");
+
         if(stats[i].perms.owner & PermRead)
             puts("r");
         else
             puts("-");
         if(stats[i].perms.owner & PermWrite)
             puts("w");
+        else
+            puts("-");
+        if(stats[i].perms.owner & PermExecute)
+            puts("x");
         else
             puts("-");
 
@@ -230,6 +239,10 @@ static int64 BuiltinLS(int argc, char** argv) {
             puts("w");
         else
             puts("-");
+        if(stats[i].perms.group & PermExecute)
+            puts("x");
+        else
+            puts("-");
 
         if(stats[i].perms.other & PermRead)
             puts("r");
@@ -237,6 +250,10 @@ static int64 BuiltinLS(int argc, char** argv) {
             puts("-");
         if(stats[i].perms.other & PermWrite)
             puts("w");
+        else
+            puts("-");
+        if(stats[i].perms.other & PermExecute)
+            puts("x");
         else
             puts("-");
 

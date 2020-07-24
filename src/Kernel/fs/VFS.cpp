@@ -353,7 +353,7 @@ namespace VFS {
                 ReleaseNode(currentNode);
                 return ErrorFileNotFound;
             }
-            if(!CheckPermissions(uid, gid, currentNode, Permissions::Read)) {
+            if(!CheckPermissions(uid, gid, currentNode, Permissions::Execute)) {
                 ReleaseNode(currentNode);
                 return ErrorPermissionDenied;
             }
@@ -610,7 +610,7 @@ namespace VFS {
         if(!MemoryManager::IsUserPtr(filePath))
             Scheduler::ThreadExit(1);
 
-        return CreateFolder(filePath, {3, 3, 3});
+        return CreateFolder(filePath, {7, 7, 7});
     }
 
     int64 CreateDeviceFile(const char* path, const Permissions& perms, uint64 driverID, uint64 subID) {
@@ -1095,8 +1095,6 @@ namespace VFS {
         if((error = PreparePath(cleanBuffer, path)) != OK)
             return error;
 
-        klog_info("VFS", "List: path=%s cleanPath=%s", path, cleanBuffer);
-
         auto tInfo = Scheduler::GetCurrentThreadInfo();
         uint64 uid = tInfo->uid;
         uint64 gid = tInfo->gid;
@@ -1115,6 +1113,12 @@ namespace VFS {
             ReleaseNode(node);
             ReleaseMountPoint(mp);
             return ErrorNotAFolder;
+        }
+
+        if(!CheckPermissions(uid, gid, node, Permissions::Read)) {
+            ReleaseNode(node);
+            ReleaseMountPoint(mp);
+            return ErrorPermissionDenied;
         }
 
         node->dirLock.Spinlock();
@@ -1364,6 +1368,10 @@ namespace VFS {
             fileNode->ownerUID = uid;
             fileNode->ownerGID = gid;
             fileNode->permissions = folderNode->permissions;
+            fileNode->permissions.ownerPermissions &= ~Permissions::Execute;
+            fileNode->permissions.groupPermissions &= ~Permissions::Execute;
+            fileNode->permissions.otherPermissions &= ~Permissions::Execute;
+            fileNode->permissions.specialFlags = 0;
 
             folderNode->dirLock.Spinlock();
             auto dir = GetNodeDir(folderNode);
@@ -1643,6 +1651,10 @@ namespace VFS {
 
         if(type != Node::TYPE_DIRECTORY)
             return ErrorNotAFolder;
+
+        if(!CheckPermissions(tInfo->uid, tInfo->gid, node, Permissions::Execute)) {
+            return ErrorPermissionDenied;
+        }
 
         kstrcpy(tInfo->cwd, pathBuffer);
         return OK;

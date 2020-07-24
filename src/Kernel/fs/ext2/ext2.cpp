@@ -92,9 +92,9 @@ namespace Ext2 {
 
         node->ownerUID = 0;
         node->ownerGID = 0;
-        node->permissions.ownerPermissions = Permissions::Read;
-        node->permissions.groupPermissions = Permissions::Read;
-        node->permissions.otherPermissions = Permissions::Read;
+        node->permissions.ownerPermissions = Permissions::Read | Permissions::Execute;
+        node->permissions.groupPermissions = Permissions::Read | Permissions::Execute;
+        node->permissions.otherPermissions = Permissions::Read | Permissions::Execute;
 
         node->fsData = inode;
     }
