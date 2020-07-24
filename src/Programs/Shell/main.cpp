@@ -4,6 +4,7 @@
 #include <simpleos_string.h>
 #include <simpleos_alloc.h>
 #include <simpleos_kill.h>
+#include <simpleos_errno.h>
 
 static char g_History[1024][128];
 static int g_HistoryMinIndex = 1024;
@@ -54,24 +55,26 @@ static char* GetToken(char*& buf) {
     }
 }
 
-static void BuiltinEcho(int argc, char** argv) {
+static int64 BuiltinEcho(int argc, char** argv) {
     for(int i = 1; i < argc; i++) {
         puts(argv[i]);
         puts(" ");
     }
     puts("\n");
+    return 0;
 }
 
-static void BuiltinCat(int argc, char** argv) {
+static int64 BuiltinCat(int argc, char** argv) {
     if(argc != 2) {
         puts("Usage: cat <file>\n");
-        return;
+        return 0;
     }
 
     int64 fd = open(argv[1], open_mode_read);
     if(fd < 0) {
-        puts("File not found\n");
-        return;
+        puts(ErrorToString(fd));
+        puts("\n");
+        return fd;
     }
 
     char buffer[128];
@@ -86,35 +89,36 @@ static void BuiltinCat(int argc, char** argv) {
     puts("\n");
 
     close(fd);
-    thread_exit(0);
+    return 0;
 }
 
-static void BuiltinTail(int argc, char** argv) {
+static int64 BuiltinTail(int argc, char** argv) {
     if(argc != 2) {
         puts("Usage: tail <file>\n");
-        return;
+        return 0;
     }
 
     int64 fd = open(argv[1], open_mode_read);
     if(fd < 0) {
-        puts("File not found\n");
-        return;
+        puts(ErrorToString(fd));
+        puts("\n");
+        return fd;
     }
 
     char buffer[128];
     while(true) {
         int64 count = read(fd, buffer, sizeof(buffer));
         if(count < 0)
-            break;
+            return count;
 
         write(stdoutfd, buffer, count);
     }
 }
 
-static void BuiltinPut(int argc, char** argv) {
+static int64 BuiltinPut(int argc, char** argv) {
     if(argc < 2) {
         puts("Usage: put [-a] <file> ...\n");
-        return;
+        return 0;
     }
 
     bool append = false;
@@ -131,7 +135,7 @@ static void BuiltinPut(int argc, char** argv) {
 
     if(argi == argc) {
         puts("Usage: put [-a] <file> ...\n");
-        return;
+        return 0;
     }
 
     const char* path = argv[argi];
@@ -142,8 +146,9 @@ static void BuiltinPut(int argc, char** argv) {
         mode |= open_mode_clear;
     int64 fd = open(path, mode);
     if(fd < 0) {
-        puts("File not found\n");
-        return;
+        puts(ErrorToString(fd));
+        puts("\n");
+        return fd;
     }
 
     if(append)
@@ -158,22 +163,27 @@ static void BuiltinPut(int argc, char** argv) {
     }
 
     close(fd);
+    return 0;
 }
 
-static void BuiltinLS(int argc, char** argv) {
-    if(argc < 2) {
+static int64 BuiltinLS(int argc, char** argv) {
+    const char* path = ".";
+    if(argc > 2) {
         puts("Usage: ls <folder>\n");
-        return;
+        return 0;
+    } else if(argc == 2) {
+        path = argv[1];
     }
 
     int numEntries = 10;
     ListEntry* entries = (ListEntry*)malloc(numEntries * sizeof(ListEntry));
     Stats* stats = (Stats*)malloc(numEntries * sizeof(Stats));
 
-    int64 error = list(argv[1], &numEntries, entries);
+    int64 error = list(path, &numEntries, entries);
     if(error != 0) {
-        puts("File not found\n");
-        return;
+        puts(ErrorToString(error));
+        puts("\n");
+        return error;
     }
 
     if(numEntries > 10) {
@@ -182,15 +192,16 @@ static void BuiltinLS(int argc, char** argv) {
         entries = (ListEntry*)malloc(numEntries * sizeof(ListEntry));
         stats = (Stats*)malloc(numEntries * sizeof(Stats));
 
-        error = list(argv[1], &numEntries, entries);
+        error = list(path, &numEntries, entries);
         if(error != 0) {
-            puts("File not found\n");
-            return;
+            puts(ErrorToString(error));
+            puts("\n");
+            return error;
         }
     }
 
     char pathBuffer[256];
-    strcpy(pathBuffer, argv[1]);
+    strcpy(pathBuffer, path);
     int l = strlen(pathBuffer);
     pathBuffer[l] = '/';
     l++;
@@ -255,23 +266,28 @@ static void BuiltinLS(int argc, char** argv) {
     }
 
     free(entries);
+    return 0;
 }
 
-static void BuiltinMkdir(int argc, char** argv) {
+static int64 BuiltinMkdir(int argc, char** argv) {
     if(argc < 2) {
         puts("Usage: mkdir <folder>\n");
-        return;
+        return 0;
     }
 
     int64 error = create_folder(argv[1]);
-    if(error != 0)
-        puts("Failed to create folder\n");
+    if(error != 0) {
+        puts(ErrorToString(error));
+        puts("\n");
+        return error;
+    }
+    return 0;
 }
 
-static void BuiltinLN(int argc, char** argv) {
+static int64 BuiltinLN(int argc, char** argv) {
     if(argc < 3) {
         puts("Usage: ln [-s] <file> <link>\n");
-        return;
+        return 0;
     }
 
     bool symlink = false;
@@ -288,7 +304,7 @@ static void BuiltinLN(int argc, char** argv) {
 
     if(argi == argc) {
         puts("Usage: ln [-s] <file> <link>\n");
-        return;
+        return 0;
     }
 
     const char* path = argv[argi];
@@ -296,7 +312,7 @@ static void BuiltinLN(int argc, char** argv) {
 
     if(argi == argc) {
         puts("Usage: ln [-s] <file> <link>\n");
-        return;
+        return 0;
     }
 
     const char* linkPath = argv[argi];
@@ -304,24 +320,36 @@ static void BuiltinLN(int argc, char** argv) {
 
     if(symlink) {
         int64 error = create_symlink(path, linkPath);
-        if(error != 0)
-            puts("Failed to create symlink\n");
+        if(error != 0) {
+            puts(ErrorToString(error));
+            puts("\n");
+            return error;
+        }
+        return 0;
     } else {
         int64 error = create_hardlink(path, linkPath);
-        if(error != 0)
-            puts("Failed to create hardlink\n");
+        if(error != 0) {
+            puts(ErrorToString(error));
+            puts("\n");
+            return error;
+        }
+        return 0;
     }
 }
 
-static void BuiltinRM(int argc, char** argv) {
+static int64 BuiltinRM(int argc, char** argv) {
     if(argc < 2) {
         puts("Usage: rm <path>\n");
-        return;
+        return 0;
     }
 
     int64 error = delete_file(argv[1]);
-    if(error != 0)
-        puts("Failed to delete path\n");
+    if(error != 0) {
+        puts(ErrorToString(error));
+        puts("\n");
+        return error;
+    }
+    return 0;
 }
 
 static int64 ParseInt64(const char* str) {
@@ -342,18 +370,22 @@ static int64 ParseInt64(const char* str) {
     return res;
 }
 
-static void BuiltinKill(int argc, char** argv) {
+static int64 BuiltinKill(int argc, char** argv) {
     if(argc < 2) {
         puts("Usage: kill <tid...>\n");
-        return;
+        return 0;
     }
 
     int64 error = kill(ParseInt64(argv[1]));
-    if(error != 0)
-        puts("Failed to kill Thread\n");
+    if(error != 0) {
+        puts(ErrorToString(error));
+        puts("\n");
+        return error;
+    }
+    return 0;
 }
 
-static void BuiltinCD(int argc, char** argv) {
+static int64 BuiltinCD(int argc, char** argv) {
     int64 error;
     if(argc == 1) {
         error = changedir("/");
@@ -361,42 +393,49 @@ static void BuiltinCD(int argc, char** argv) {
         error = changedir(argv[1]);
     }
 
-    if(error != 0)
-        puts("No such file or directory\n");
+    if(error != 0) {
+        puts(ErrorToString(error));
+        puts("\n");
+        return error;
+    }
+
+    return 0;
 }
 
-static void BuiltinPWD(int argc, char** argv) {
+static int64 BuiltinPWD(int argc, char** argv) {
     char buffer[256];
     pwd(buffer);
     puts(buffer);
     puts("\n");
+    return 0;
 }
 
-static void InvokeCommand(int argc, char** argv) {
+static int64 InvokeCommand(int argc, char** argv) {
     if(strcmp(argv[0], "echo") == 0) {
-        BuiltinEcho(argc, argv);
+        return BuiltinEcho(argc, argv);
     } else if(strcmp(argv[0], "cat") == 0) {
-        BuiltinCat(argc, argv);
+        return BuiltinCat(argc, argv);
     } else if(strcmp(argv[0], "put") == 0) {
-        BuiltinPut(argc, argv);
+        return BuiltinPut(argc, argv);
     } else if(strcmp(argv[0], "ls") == 0) {
-        BuiltinLS(argc, argv);
+        return BuiltinLS(argc, argv);
     } else if(strcmp(argv[0], "mkdir") == 0) {
-        BuiltinMkdir(argc, argv);
+        return BuiltinMkdir(argc, argv);
     } else if(strcmp(argv[0], "rm") == 0) {
-        BuiltinRM(argc, argv);
+        return BuiltinRM(argc, argv);
     } else if(strcmp(argv[0], "ln") == 0) {
-        BuiltinLN(argc, argv);
+        return BuiltinLN(argc, argv);
     } else if(strcmp(argv[0], "tail") == 0) {
-        BuiltinTail(argc, argv);
+        return BuiltinTail(argc, argv);
     } else if(strcmp(argv[0], "kill") == 0) {
-        BuiltinKill(argc, argv);
+        return BuiltinKill(argc, argv);
     } else {
         exec(argv[0], argc, argv);
         puts("Command not found\n");
     }
 
     thread_exit(0);
+    return 1;
 }
 
 static void HandleCommand() {
@@ -437,8 +476,8 @@ static void HandleCommand() {
             join(tid);
             devcmd(stdoutfd, 1, (void*)gettid());
         } else {
-            InvokeCommand(argc, argv);
-            thread_exit(0);
+            int64 code = InvokeCommand(argc, argv);
+            thread_exit(code);
         }
     }
     
