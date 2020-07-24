@@ -3,6 +3,8 @@
 #include "DeviceDriver.h"
 #include "terminal/terminal.h"
 
+#include <vector>
+
 class VConsoleDriver : public CharDeviceDriver {
 public:
     static constexpr int64 COMMAND_SET_FOREGROUND = 1;
