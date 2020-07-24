@@ -57,7 +57,7 @@ namespace PCI {
         DriverInfo info;
         PCIDriverFactory factory;
     };
-    static ktl::vector<DriverReg> g_Drivers;
+    static std::vector<DriverReg> g_Drivers;
 
     static uint8 g_VectCounter = ISRNumbers::PCIBase;
 
