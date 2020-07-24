@@ -105,6 +105,10 @@ namespace SyscallHandler {
             }
         }
 
+        bool setUID = false;
+        if(stats.permissions.specialFlags & VFS::Permissions::SetUID)
+            setUID = true;
+
         uint64 file;
         error = VFS::Open(command, VFS::OpenMode_Read, file);
         if(error != OK)
@@ -141,6 +145,11 @@ namespace SyscallHandler {
         for(int i = 0; i < argc; i++)
             delete[] (argPtrBuffer[i]);
         delete[] argPtrBuffer;
+
+        if(setUID) {
+            tInfo->uid = stats.ownerUID;
+            tInfo->gid = stats.ownerGID;
+        }
 
         Scheduler::ThreadExec(pml4Entry, &regs);
         return 1;

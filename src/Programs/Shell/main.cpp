@@ -213,6 +213,11 @@ static int64 BuiltinLS(int argc, char** argv) {
     }
 
     for(int i = 0; i < numEntries; i++) {
+        if(stats[i].perms.specialFlags & PermSetUID)
+            puts("s");
+        else
+            puts("-");
+
         if(stats[i].perms.owner & PermRead)
             puts("r");
         else
