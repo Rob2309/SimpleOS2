@@ -213,6 +213,15 @@ static int64 BuiltinLS(int argc, char** argv) {
     }
 
     for(int i = 0; i < numEntries; i++) {
+        switch(stats[i].type) {
+        case NODE_FILE: puts("-"); break;
+        case NODE_DIRECTORY: puts("d"); break;
+        case NODE_DEVICE_CHAR: puts("c"); break;
+        case NODE_DEVICE_BLOCK: puts("b"); break;
+        case NODE_PIPE: puts("p"); break;
+        case NODE_SYMLINK: puts("l"); break;
+        }
+
         if(stats[i].perms.specialFlags & PermSetUID)
             puts("s");
         else
@@ -264,15 +273,6 @@ static int64 BuiltinLS(int argc, char** argv) {
 
         for(int i = p; i < 20; i++)
             puts(" ");
-
-        switch(stats[i].type) {
-        case NODE_FILE: puts("f "); break;
-        case NODE_DIRECTORY: puts("d "); break;
-        case NODE_DEVICE_CHAR: puts("c "); break;
-        case NODE_DEVICE_BLOCK: puts("b "); break;
-        case NODE_PIPE: puts("p "); break;
-        case NODE_SYMLINK: puts("l "); break;
-        }
 
         if(stats[i].type == NODE_SYMLINK) {
             puts("-> ");
