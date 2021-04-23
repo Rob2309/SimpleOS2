@@ -19,3 +19,11 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+=========================================================================================
+
+EXCEPTIONS
+
+The files in the src/acpica folder are licensed under the terms listed in src/acpica/LICENSE
+
+The files in the dep folder are licensed under the terms listed in the respective license files in each subfolder
